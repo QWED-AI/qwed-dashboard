@@ -23,6 +23,12 @@ export default defineConfig(({ mode }) => {
     test: {
       environment: 'node',
       include: ['src/**/*.test.ts'],
+      coverage: {
+        provider: 'v8',
+        include: ['src/**/*.{ts,tsx}'],
+        exclude: ['src/**/*.test.ts'],
+        reporter: ['text-summary', 'lcov'],
+      },
     },
   };
 });
