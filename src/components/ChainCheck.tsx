@@ -1,5 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
+import { ApiError } from '../api/http';
 import type { EntryCheck } from '../api/types';
 import { useSession } from '../auth/session';
 import { describeError } from '../lib/useAuthedQuery';
@@ -10,6 +11,10 @@ const CHECKS: { key: keyof EntryCheck['checks']; label: string }[] = [
   { key: 'signature_valid', label: 'HMAC signature matches' },
   { key: 'chain_valid', label: 'Link to the previous entry holds' },
 ];
+
+/** The check route authenticates by API key, so a 401 or 403 is about the key, not the session. */
+const isKeyRejection = (err: unknown): err is ApiError =>
+  err instanceof ApiError && (err.status === 401 || err.status === 403);
 
 function Mark({ ok }: { ok: boolean | undefined }) {
   if (ok === true)
@@ -39,7 +44,13 @@ function Mark({ ok }: { ok: boolean | undefined }) {
 export function ChainCheck({ logId }: { logId: string }) {
   const { api, mode, adminKey, setAdminKey } = useSession();
   const [draft, setDraft] = useState('');
-  const check = useMutation({ mutationFn: (key: string) => api.checkEntry(key, logId) });
+  const check = useMutation({
+    mutationFn: (key: string) => api.checkEntry(key, logId),
+    onError: (err) => {
+      // A rejected key is forgotten so the form asks for another one.
+      if (mode === 'live' && isKeyRejection(err)) setAdminKey(null);
+    },
+  });
 
   const needsKey = mode === 'live' && !adminKey;
   const keyToUse = mode === 'demo' ? 'demo' : adminKey;
@@ -95,7 +106,13 @@ export function ChainCheck({ logId }: { logId: string }) {
         </button>
       )}
 
-      {check.isError && <p className="alert">{describeError(check.error)}</p>}
+      {check.isError && (
+        <p className="alert" role="alert">
+          {isKeyRejection(check.error)
+            ? `The server did not accept this API key: ${check.error.message}. Enter an owner or admin key.`
+            : describeError(check.error)}
+        </p>
+      )}
 
       {result && (
         <div aria-live="polite">

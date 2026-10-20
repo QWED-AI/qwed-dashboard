@@ -40,7 +40,13 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (!res.ok) {
     throw new ApiError(res.status, await readDetail(res), res.headers.get('Retry-After'));
   }
-  return (await res.json()) as T;
+  try {
+    return (await res.json()) as T;
+  } catch {
+    // A static host or an SPA fallback answers 200 with HTML when /api is not
+    // routed to the QWED server.
+    throw new ApiError(res.status, 'The server did not return JSON. Check that /api points at the QWED server.');
+  }
 }
 
 const bearer = (token: string) => ({ Authorization: `Bearer ${token}` });

@@ -351,6 +351,11 @@ a.btn {
   color: var(--ink);
   font-size: 13px;
 }
+/* The input hides its own outline, so the wrapper shows keyboard focus. */
+.search:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 .pill {
   display: inline-flex;
   align-items: center;

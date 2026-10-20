@@ -87,8 +87,8 @@ const logs: AuditLog[] = [
   },
   {
     id: '1036',
-    request_input: 'import os\nos.system("rm -rf /tmp/build")',
-    verification_result: diagnostic('VERIFIED', 'The code runs a shell command.', { is_valid: false }, 'sha256:sample-2b77-a6c4'),
+    request_input: 'Agent tool call stays inside the workspace directory',
+    verification_result: diagnostic('VERIFIED', 'The code writes outside the workspace.', { is_valid: false }, 'sha256:sample-2b77-a6c4'),
     engine_used: 'CODE',
     status: 'blocked',
     created_at: '2026-10-20T07:48:30',

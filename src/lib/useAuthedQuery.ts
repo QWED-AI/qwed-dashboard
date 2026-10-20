@@ -5,9 +5,10 @@ import { useSession } from '../auth/session';
 
 /** A query that needs the session token. A 401 signs the user out. */
 export function useAuthedQuery<T>(key: readonly unknown[], fn: (api: QwedApi, token: string) => Promise<T>) {
-  const { api, token, mode, signOut } = useSession();
+  const { api, token, mode, user, signOut } = useSession();
   const query = useQuery({
-    queryKey: [mode, ...key],
+    // The user and organisation are part of the key, so two sessions never share a cache entry.
+    queryKey: [mode, user?.org_id ?? null, user?.id ?? null, ...key],
     queryFn: () => fn(api, token as string),
     enabled: token !== null,
     retry: (count, err) => !(err instanceof ApiError && err.status >= 400 && err.status < 500) && count < 2,

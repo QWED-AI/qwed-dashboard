@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 import { demoApi } from '../api/demo';
 import { httpApi, type QwedApi } from '../api/http';
@@ -41,16 +42,23 @@ function load(): Stored | null {
 }
 
 export function SessionProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
   const [stored, setStored] = useState<Stored | null>(load);
   const [adminKey, setAdminKey] = useState<string | null>(null);
 
-  const save = useCallback((s: Stored | null) => {
-    // The session token lives in sessionStorage so a reload keeps you signed
-    // in, and closing the tab signs you out.
-    writeStorage('session', KEY, s ? JSON.stringify(s) : null);
-    setStored(s);
-    if (!s) setAdminKey(null);
-  }, []);
+  const save = useCallback(
+    (s: Stored | null) => {
+      // The session token lives in sessionStorage so a reload keeps you signed
+      // in, and closing the tab signs you out.
+      writeStorage('session', KEY, s ? JSON.stringify(s) : null);
+      // Drop every cached record (and any cached 401) so the next person to
+      // sign in on this tab never sees the previous session's data.
+      queryClient.clear();
+      setStored(s);
+      if (!s) setAdminKey(null);
+    },
+    [queryClient],
+  );
 
   const value = useMemo<SessionValue>(() => {
     const api = stored?.mode === 'demo' ? demoApi : httpApi;
