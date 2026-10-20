@@ -1,4 +1,4 @@
-import type { AuditLog, AuditLogList, EntryCheck, SignInResponse, User } from './types';
+import type { ApiKeyCreated, ApiKeyItem, AuditLog, AuditLogList, EntryCheck, SignInResponse, User } from './types';
 
 const API_BASE = ((import.meta.env.VITE_QWED_API_BASE as string | undefined) ?? '/api').replace(/\/+$/, '');
 
@@ -72,6 +72,22 @@ export const httpApi = {
 
   getLog(token: string, id: string): Promise<AuditLog> {
     return request(`/audit/logs/${encodeURIComponent(id)}`, { headers: bearer(token) });
+  },
+
+  listKeys(token: string): Promise<ApiKeyItem[]> {
+    return request('/auth/api-keys', { headers: bearer(token) });
+  },
+
+  createKey(token: string, name: string): Promise<ApiKeyCreated> {
+    return request('/auth/api-keys', {
+      method: 'POST',
+      headers: { ...bearer(token), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    });
+  },
+
+  async revokeKey(token: string, id: string): Promise<void> {
+    await request<unknown>(`/auth/api-keys/${encodeURIComponent(id)}`, { method: 'DELETE', headers: bearer(token) });
   },
 
   /** Takes an API key, not the session token: the admin routes authenticate by x-api-key. */
