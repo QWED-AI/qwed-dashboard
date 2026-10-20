@@ -1,0 +1,51 @@
+# Review rules for qwed-dashboard
+language: en-GB
+reviews:
+  profile: chill
+  auto_review:
+    enabled: true
+  instructions: |
+    qwed-dashboard shows what a QWED server stored. The QWED verifier is the
+    only authority for a verdict (VERIFIED, UNVERIFIABLE, BLOCKED) and an
+    admission (ADMIT, DENY). Review against these rules.
+
+    Reject changes that:
+    - work out, infer or default a verdict or an admission in the dashboard,
+      for example deriving admission from the verdict or treating a missing
+      value as DENY. A value the server did not store is shown as not recorded.
+    - accept verdict or admission values outside the specification.
+    - render record content as HTML (dangerouslySetInnerHTML, innerHTML, or
+      markdown rendered to HTML) instead of as text.
+    - store an API key anywhere but memory, or put a key or token in a URL,
+      a log line or an error message.
+    - add calls to third-party hosts (analytics, CDNs, remote fonts). Fonts are
+      self-hosted.
+    - run, replay or execute the actions that were verified.
+    - loosen a version pin, or reference a GitHub Action by tag instead of by
+      commit SHA.
+
+    For user-facing copy, flag:
+    - claims the product does not make, such as "certified", "compliant" or
+      "guaranteed".
+    - verdict words without their pair; write "VERIFIED · ADMIT", not
+      "VERIFIED" alone, where a decision is shown.
+    - American spelling and em dashes.
+
+    For the interface, flag:
+    - clickable elements that are not real buttons or links, and missing
+      keyboard focus indicators.
+    - green, amber or red used for anything other than verdicts and severity.
+  path_instructions:
+    - path: 'src/lib/result.ts'
+      instructions: |
+        This file reads verdicts and admissions from stored results. Any change
+        must keep reading only, never deciding. Ask for a test in
+        src/lib/result.test.ts for every new shape or value it handles.
+    - path: 'src/api/**'
+      instructions: |
+        Check that every server error becomes an ApiError, that non-JSON
+        responses are handled, and that credentials go only in headers.
+    - path: '.github/**'
+      instructions: |
+        Workflows must pin actions to a commit SHA, set least-privilege
+        permissions, and use persist-credentials: false on checkout.
