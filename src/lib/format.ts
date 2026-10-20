@@ -1,6 +1,6 @@
 // The server sends naive UTC timestamps (no offset), so they are read as UTC.
 function parseUtc(iso: string): Date | null {
-  const withZone = /[zZ]|[+-]\d\d:?\d\d$/.test(iso) ? iso : `${iso}Z`;
+  const withZone = /(?:[zZ]|[+-]\d\d:?\d\d)$/.test(iso) ? iso : `${iso}Z`;
   const d = new Date(withZone);
   return Number.isNaN(d.getTime()) ? null : d;
 }

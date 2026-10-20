@@ -30,7 +30,8 @@ jobs:
           node-version: 22
           cache: npm
 
-      - run: npm ci
+      # No dependency needs its install script (see ci.yml).
+      - run: npm ci --ignore-scripts
       - run: npm run test:coverage
 
       - name: SonarCloud scan

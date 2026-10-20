@@ -36,7 +36,10 @@ export function LedgerPage() {
 
   const logs = useAuthedQuery(['logs', LIMIT], (api, token) => api.listLogs(token, LIMIT));
   const records = useMemo(() => (logs.data ?? []).map(toRecord), [logs.data]);
-  const domains = useMemo(() => [...new Set(records.map((r) => r.domain))].sort(), [records]);
+  const domains = useMemo(
+    () => [...new Set(records.map((r) => r.domain))].sort((a, b) => a.localeCompare(b)),
+    [records],
+  );
 
   const shown = records.filter(
     (r) =>
