@@ -85,7 +85,7 @@ export function KeysPage() {
 
       <form onSubmit={submit} className="filters" style={{ alignItems: 'flex-end' }}>
         <label className="field" style={{ flex: '1 1 280px' }}>
-          New key name
+          <span>New key name</span>
           <input
             className="input"
             value={name}
@@ -106,7 +106,7 @@ export function KeysPage() {
       )}
 
       {created && (
-        <div className="note" role="status" style={{ margin: '0 24px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <output className="note" style={{ margin: '0 24px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
           <span>
             <strong>{created.name} is ready.</strong> Copy the key now. It will not be shown again, and the server
             cannot show it to you later.
@@ -128,7 +128,7 @@ export function KeysPage() {
               I have saved it
             </button>
           </div>
-        </div>
+        </output>
       )}
 
       {keys.isPending && (
