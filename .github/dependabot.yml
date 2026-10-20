@@ -1,0 +1,30 @@
+version: 2
+updates:
+  # Security updates are on in the repository settings and are not delayed.
+  # These are routine version updates: monthly, grouped, and only for
+  # releases at least 14 days old.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+      time: '06:00'
+      timezone: UTC
+    cooldown:
+      default-days: 14
+    open-pull-requests-limit: 5
+    groups:
+      npm-deps:
+        patterns: ['*']
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+      time: '06:00'
+      timezone: UTC
+    cooldown:
+      default-days: 14
+    open-pull-requests-limit: 5
+    groups:
+      actions:
+        patterns: ['*']
