@@ -5,6 +5,9 @@
   "description": "Open-source dashboard for QWED verification records.",
   "license": "Apache-2.0",
   "type": "module",
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "npm run typecheck && vite build",
