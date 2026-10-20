@@ -40,6 +40,8 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (!res.ok) {
     throw new ApiError(res.status, await readDetail(res), res.headers.get('Retry-After'));
   }
+  // A success with no body (204, 205) has nothing to parse.
+  if (res.status === 204 || res.status === 205) return undefined as T;
   try {
     return (await res.json()) as T;
   } catch {

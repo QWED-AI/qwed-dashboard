@@ -22,6 +22,7 @@ export function KeysPage() {
   // The full key exists only here, until it is dismissed or the page is left.
   const [created, setCreated] = useState<ApiKeyCreated | null>(null);
   const [copied, setCopied] = useState(false);
+  const [copyFailed, setCopyFailed] = useState(false);
   const [confirmId, setConfirmId] = useState<string | null>(null);
 
   const onAuthError = (err: unknown) => {
@@ -33,6 +34,7 @@ export function KeysPage() {
     onSuccess: (res) => {
       setCreated(res);
       setCopied(false);
+      setCopyFailed(false);
       setName('');
       void keys.refetch();
     },
@@ -61,8 +63,11 @@ export function KeysPage() {
     try {
       await navigator.clipboard.writeText(created.key);
       setCopied(true);
+      setCopyFailed(false);
     } catch {
+      // Clipboard access can be refused (permissions, insecure origin).
       setCopied(false);
+      setCopyFailed(true);
     }
   }
 
@@ -114,6 +119,11 @@ export function KeysPage() {
               <Icon name="copy" size={14} />
               {copied ? 'Copied' : 'Copy'}
             </button>
+            {copyFailed && (
+              <span role="alert" style={{ fontSize: 12.5, color: 'var(--ink)' }}>
+                The browser did not allow copying. Select the key and copy it by hand.
+              </span>
+            )}
             <button type="button" className="btn btn-sm btn-ghost" onClick={() => setCreated(null)}>
               I have saved it
             </button>
