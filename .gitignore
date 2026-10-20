@@ -1,5 +1,7 @@
 node_modules/
 dist/
+coverage/
+.scannerwork/
 *.local
 .env
 .env.*
