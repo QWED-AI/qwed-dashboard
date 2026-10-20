@@ -30,12 +30,21 @@ export function Shell({ crumbs, children }: { crumbs: Crumb[]; children: ReactNo
           </span>
         </Link>
 
-        <nav aria-label="Main" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <div className="grp">Verification</div>
-          <NavLink to="/ledger" className={({ isActive }) => (isActive ? 'nav active' : 'nav')}>
-            <Icon name="ledger" />
-            Decision ledger
-          </NavLink>
+        <nav aria-label="Main" style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <div className="grp">Verification</div>
+            <NavLink to="/ledger" className={({ isActive }) => (isActive ? 'nav active' : 'nav')}>
+              <Icon name="ledger" />
+              Decision ledger
+            </NavLink>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <div className="grp">Settings</div>
+            <NavLink to="/keys" className={({ isActive }) => (isActive ? 'nav active' : 'nav')}>
+              <Icon name="key" />
+              API keys
+            </NavLink>
+          </div>
         </nav>
 
         <div className="side-foot">
