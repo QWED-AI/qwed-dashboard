@@ -1,5 +1,5 @@
 import { ApiError, type QwedApi } from './http';
-import type { AuditLog, EntryCheck, User } from './types';
+import type { ApiKeyCreated, ApiKeyItem, AuditLog, EntryCheck, User } from './types';
 
 // Sample data for exploring the dashboard without a QWED server. Shaped like
 // the real /audit/logs rows; none of it comes from a real verification.
@@ -119,6 +119,34 @@ const logs: AuditLog[] = [
   },
 ];
 
+// Sample keys live in memory and reset on reload. Created keys are random
+// sample strings, not keys any server accepts.
+let keys: ApiKeyItem[] = [
+  {
+    id: '7',
+    name: 'payments-agent prod',
+    key_preview: 'qwed_live_****x7Qa',
+    created_at: '2026-10-15T09:30:00',
+    last_used_at: null,
+    is_revoked: false,
+  },
+  {
+    id: '6',
+    name: 'invoice pipeline',
+    key_preview: 'qwed_live_****9mBe',
+    created_at: '2026-07-22T11:04:00',
+    last_used_at: null,
+    is_revoked: false,
+  },
+];
+let nextKeyId = 8;
+
+function sampleKey(): string {
+  const alphabet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  const bytes = crypto.getRandomValues(new Uint8Array(36));
+  return `qwed_test_${Array.from(bytes, (b) => alphabet[b % alphabet.length]).join('')}`;
+}
+
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function find(id: string): AuditLog {
@@ -141,6 +169,32 @@ export const demoApi: QwedApi = {
   async getLog(_token, id) {
     await wait(150);
     return find(id);
+  },
+  async listKeys() {
+    await wait(200);
+    return keys;
+  },
+  async createKey(_token, name): Promise<ApiKeyCreated> {
+    await wait(200);
+    const key = sampleKey();
+    const created = { id: String(nextKeyId++), name, key, created_at: new Date().toISOString() };
+    keys = [
+      {
+        id: created.id,
+        name,
+        key_preview: `${key.slice(0, 10)}****${key.slice(-4)}`,
+        created_at: created.created_at,
+        last_used_at: null,
+        is_revoked: false,
+      },
+      ...keys,
+    ];
+    return created;
+  },
+  async revokeKey(_token, id) {
+    await wait(200);
+    if (!keys.some((k) => k.id === id)) throw new ApiError(404, 'API key not found');
+    keys = keys.filter((k) => k.id !== id);
   },
   async checkEntry(_adminKey, id): Promise<EntryCheck> {
     await wait(300);

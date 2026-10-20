@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link, Navigate, Route, Routes, useLocation } from 'react-router';
 import { useSession } from './auth/session';
+import { KeysPage } from './pages/KeysPage';
 import { LedgerPage } from './pages/LedgerPage';
 import { LoginPage } from './pages/LoginPage';
 import { RecordPage } from './pages/RecordPage';
@@ -43,6 +44,14 @@ export function App() {
         element={
           <RequireSession>
             <RecordPage />
+          </RequireSession>
+        }
+      />
+      <Route
+        path="/keys"
+        element={
+          <RequireSession>
+            <KeysPage />
           </RequireSession>
         }
       />
