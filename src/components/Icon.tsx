@@ -1,0 +1,58 @@
+const paths = {
+  ledger: <path d="M4 6h16M4 12h16M4 18h10" />,
+  search: (
+    <>
+      <circle cx="11" cy="11" r="7" />
+      <path d="M20 20l-3.5-3.5" />
+    </>
+  ),
+  chain: (
+    <path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1" />
+  ),
+  check: <path d="M5 12l5 5 9-10" />,
+  cross: <path d="M6 6l12 12M18 6L6 18" />,
+  dash: <path d="M6 12h12" />,
+  back: <path d="M15 6l-6 6 6 6" />,
+  alert: (
+    <>
+      <path d="M12 3l9 16H3z" />
+      <path d="M12 10v4M12 17v.5" />
+    </>
+  ),
+  key: (
+    <>
+      <circle cx="8" cy="15" r="4" />
+      <path d="M11 12l8-8M16 7l3 3" />
+    </>
+  ),
+  theme: (
+    <>
+      <circle cx="12" cy="12" r="8" />
+      <path d="M12 4a8 8 0 000 16z" fill="currentColor" />
+    </>
+  ),
+  out: <path d="M15 4h3a2 2 0 012 2v12a2 2 0 01-2 2h-3M10 17l5-5-5-5M15 12H4" />,
+} as const;
+
+export type IconName = keyof typeof paths;
+
+export function Icon({ name, size = 16, label }: { name: IconName; size?: number; label?: string }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={name === 'check' || name === 'cross' || name === 'dash' ? 2.6 : 1.7}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      role={label ? 'img' : undefined}
+      aria-label={label}
+      aria-hidden={label ? undefined : true}
+      style={{ flex: 'none' }}
+    >
+      {paths[name]}
+    </svg>
+  );
+}
