@@ -184,7 +184,7 @@ export function HomePage() {
 
 // With no records the note comes first, but the list still shows: a new
 // organisation with no key needs the "No active API keys" line most.
-function AttentionList({ items, total }: { items: Attention[]; total: number }) {
+function AttentionList({ items, total }: Readonly<{ items: Attention[]; total: number }>) {
   return (
     <>
       {total === 0 && (
@@ -204,7 +204,7 @@ function AttentionList({ items, total }: { items: Attention[]; total: number }) 
   );
 }
 
-function Items({ items }: { items: Attention[] }) {
+function Items({ items }: Readonly<{ items: Attention[] }>) {
   return (
     <ul className="attn">
       {items.map((it) => (
