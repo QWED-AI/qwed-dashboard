@@ -21,9 +21,16 @@ updates:
       - dependency-name: '@types/node'
         update-types: ['version-update:semver-major']
     groups:
-      # vitest and its coverage plugin must stay on the same version.
+      # Packages that only install together, at any update type. Exact
+      # names: with the '@vitest/*' wildcard, Dependabot still opened
+      # @vitest/coverage-v8 5 on its own (#9) next to vitest 5 (#7), and
+      # neither PR could install alone.
       vitest:
-        patterns: ['vitest', '@vitest/*']
+        patterns: ['vitest', '@vitest/coverage-v8']
+      # vite 8 needs @vitejs/plugin-react 6, and plugin-react 6 needs vite 8
+      # (#11, #12).
+      vite:
+        patterns: ['vite', '@vitejs/plugin-react']
       npm-minor-patch:
         update-types: [minor, patch]
 

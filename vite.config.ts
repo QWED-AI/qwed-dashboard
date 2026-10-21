@@ -10,6 +10,10 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    // An inline PostCSS config stops Vite searching parent folders for a
+    // postcss.config.js, so a config in a home or workspace folder (for
+    // example one that loads Tailwind) never reaches this build.
+    css: { postcss: {} },
     server: {
       port: 5173,
       proxy: {
