@@ -79,6 +79,15 @@ describe('HomePage', () => {
     expect(screen.queryByText('No active API keys')).toBeNull();
   });
 
+  it('asks a new organisation, with no records and no keys, for a key', async () => {
+    vi.spyOn(demoApi, 'listLogs').mockResolvedValue([]);
+    vi.spyOn(demoApi, 'listKeys').mockResolvedValue([]);
+    renderApp(<HomePage />);
+    expect(await screen.findByText(/^No records yet\. Records show up/)).toBeTruthy();
+    expect(await screen.findByText('No active API keys')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Create a key: No active API keys' }).getAttribute('href')).toBe('/keys');
+  });
+
   it('says so when there are no records yet', async () => {
     vi.spyOn(demoApi, 'listLogs').mockResolvedValue([]);
     renderApp(<HomePage />);

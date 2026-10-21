@@ -182,23 +182,29 @@ export function HomePage() {
   );
 }
 
+// With no records the note comes first, but the list still shows: a new
+// organisation with no key needs the "No active API keys" line most.
 function AttentionList({ items, total }: { items: Attention[]; total: number }) {
-  if (total === 0) {
-    return (
-      <div className="note">
-        No records yet. Records show up once a key from your organisation calls a verify route.{' '}
-        <Link to="/ledger">The ledger</Link> shows a first request to try.
-      </div>
-    );
-  }
-  if (items.length === 0) {
-    return (
-      <div className="note">
-        Nothing needs attention in the newest {plural(total, 'record', 'records')}: none is BLOCKED or UNVERIFIABLE, and
-        every stored result has a verdict.
-      </div>
-    );
-  }
+  return (
+    <>
+      {total === 0 && (
+        <div className="note">
+          No records yet. Records show up once a key from your organisation calls a verify route.{' '}
+          <Link to="/ledger">The ledger</Link> shows a first request to try.
+        </div>
+      )}
+      {total > 0 && items.length === 0 && (
+        <div className="note">
+          Nothing needs attention in the newest {plural(total, 'record', 'records')}: none is BLOCKED or UNVERIFIABLE,
+          and every stored result has a verdict.
+        </div>
+      )}
+      {items.length > 0 && <Items items={items} />}
+    </>
+  );
+}
+
+function Items({ items }: { items: Attention[] }) {
   return (
     <ul className="attn">
       {items.map((it) => (
