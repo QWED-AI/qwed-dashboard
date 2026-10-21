@@ -172,7 +172,7 @@ export function LedgerPage() {
                       {/* VERIFIED means the check ran to a proof, not that the claim
                           holds: "Identity is false" is VERIFIED too. The message says
                           which, so it sits next to the verdict. */}
-                      <span className={r.result.agentMessage ? 'row-note' : 'row-note none'}>
+                      <span className={r.result.agentMessage === null ? 'row-note none' : 'row-note'}>
                         {r.result.agentMessage ?? 'No message recorded'}
                       </span>
                     </td>

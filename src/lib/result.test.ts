@@ -27,6 +27,15 @@ describe('parseResult', () => {
     expect(r.proofRef).toBeNull();
   });
 
+  it('treats an empty verifier message as not recorded', () => {
+    expect(parseResult(JSON.stringify({ status: 'VERIFIED', agent_message: '' })).agentMessage).toBeNull();
+    expect(parseResult(JSON.stringify({ status: 'VERIFIED', agent_message: '  ' })).agentMessage).toBeNull();
+    expect(
+      parseResult(JSON.stringify({ spec_version: '1.0', verdict: 'VERIFIED', context: { evidence: { evidence: { agent_message: '' } } } }))
+        .agentMessage,
+    ).toBeNull();
+  });
+
   it('never works out an admission from the verdict', () => {
     const r = parseResult(JSON.stringify({ status: 'BLOCKED', proof_ref: null }));
     expect(r.verdict).toBe('BLOCKED');

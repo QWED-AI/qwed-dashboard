@@ -26,6 +26,8 @@ type Obj = Record<string, unknown>;
 
 const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
 const asString = (v: unknown): string | null => (typeof v === 'string' ? v : null);
+/** A message with no text says nothing, so it counts as not recorded. */
+const asMessage = (v: unknown): string | null => (typeof v === 'string' && v.trim() !== '' ? v : null);
 const asVerdict = (v: unknown): Verdict | null => (VERDICTS as readonly unknown[]).includes(v) ? (v as Verdict) : null;
 const asAdmission = (v: unknown): Admission | null =>
   (ADMISSIONS as readonly unknown[]).includes(v) ? (v as Admission) : null;
@@ -69,7 +71,7 @@ export function parseResult(raw: string): ParsedResult {
       shape: 'verification-context',
       verdict: asVerdict(value.verdict),
       admission: asAdmission(at(value, 'context', 'decision', 'admission')),
-      agentMessage: asString(at(value, 'context', 'evidence', 'evidence', 'agent_message')),
+      agentMessage: asMessage(at(value, 'context', 'evidence', 'evidence', 'agent_message')),
       proofRef: asString(at(value, 'context', 'evidence', 'proof_ref')),
       isAuthoritative: null,
       value,
@@ -83,7 +85,7 @@ export function parseResult(raw: string): ParsedResult {
       shape: 'diagnostic',
       verdict: asVerdict(value.status),
       admission: asAdmission(value.admission),
-      agentMessage: asString(value.agent_message),
+      agentMessage: asMessage(value.agent_message),
       proofRef: asString(value.proof_ref),
       isAuthoritative: typeof value.is_authoritative === 'boolean' ? value.is_authoritative : null,
       value,
