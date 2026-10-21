@@ -29,6 +29,8 @@ export default defineConfig(({ mode }) => {
       // `@vitest-environment jsdom` comment at the top of the file.
       environment: 'node',
       include: ['src/**/*.test.{ts,tsx}'],
+      // Typing with user-event under coverage can pass the 5-second default.
+      testTimeout: 15000,
       coverage: {
         provider: 'v8',
         include: ['src/**/*.{ts,tsx}'],

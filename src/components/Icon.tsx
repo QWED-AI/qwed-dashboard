@@ -1,4 +1,5 @@
 const paths = {
+  home: <path d="M4 11l8-7 8 7M6 9.5V20h12V9.5M10 20v-5h4v5" />,
   ledger: <path d="M4 6h16M4 12h16M4 18h10" />,
   search: (
     <>

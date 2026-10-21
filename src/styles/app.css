@@ -562,6 +562,58 @@ a.btn {
 .row-note.none {
   font-style: italic;
 }
+
+/* Home ---------------------------------------------------------------- */
+.attn {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+.attn li {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+.attn li:first-child {
+  padding-top: 0;
+}
+.attn-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.attn-text strong {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.attn-text span {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.pairs {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pairs li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+}
 .table-foot {
   display: flex;
   flex-wrap: wrap;
@@ -851,5 +903,12 @@ a.btn {
   }
   .meta {
     padding: 0 12px;
+  }
+  .attn li {
+    grid-template-columns: 10px minmax(0, 1fr);
+  }
+  .attn li .btn {
+    grid-column: 2;
+    justify-self: start;
   }
 }

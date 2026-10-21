@@ -1,8 +1,12 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render } from '@testing-library/react';
+import { configure, render } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import { MemoryRouter } from 'react-router';
 import { SessionProvider } from '../auth/session';
+
+// With coverage on and several jsdom files in parallel, a first render can
+// take longer than the one-second default, so findBy and waitFor get five.
+configure({ asyncUtilTimeout: 5000 });
 
 /** Same key as src/auth/session.tsx. */
 export const SESSION_KEY = 'qwed-dashboard.session';

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link, Navigate, Route, Routes, useLocation } from 'react-router';
 import { useSession } from './auth/session';
+import { HomePage } from './pages/HomePage';
 import { KeysPage } from './pages/KeysPage';
 import { LedgerPage } from './pages/LedgerPage';
 import { LoginPage } from './pages/LoginPage';
@@ -30,7 +31,14 @@ export function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/" element={<Navigate to="/ledger" replace />} />
+      <Route
+        path="/"
+        element={
+          <RequireSession>
+            <HomePage />
+          </RequireSession>
+        }
+      />
       <Route
         path="/ledger"
         element={

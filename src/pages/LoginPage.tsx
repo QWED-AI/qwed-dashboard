@@ -20,7 +20,7 @@ export function LoginPage() {
   const { token, signIn, signInDemo } = useSession();
   const navigate = useNavigate();
   const location = useLocation();
-  const from = (location.state as { from?: string } | null)?.from ?? '/ledger';
+  const from = (location.state as { from?: string } | null)?.from ?? '/';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -44,7 +44,7 @@ export function LoginPage() {
 
   async function demo() {
     await signInDemo();
-    navigate('/ledger', { replace: true });
+    navigate('/', { replace: true });
   }
 
   return (
