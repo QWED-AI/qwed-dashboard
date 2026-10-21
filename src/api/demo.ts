@@ -147,7 +147,11 @@ function sampleKey(): string {
   return `qwed_test_${Array.from(bytes, (b) => alphabet[b % alphabet.length]).join('')}`;
 }
 
-const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+// The delays make the sample feel like a network in the browser. Tests skip
+// them: under coverage, a create, a revoke and a refetch in a row could pass
+// Testing Library's one-second wait and fail at random.
+const wait = (ms: number) =>
+  import.meta.env.MODE === 'test' ? Promise.resolve() : new Promise((resolve) => setTimeout(resolve, ms));
 
 function find(id: string): AuditLog {
   const log = logs.find((l) => l.id === id);
