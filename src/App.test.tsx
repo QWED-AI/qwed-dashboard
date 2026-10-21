@@ -7,6 +7,13 @@ import { renderApp } from './test/render';
 afterEach(cleanup);
 
 describe('App routes', () => {
+  it('opens Home at the root, and only Home is the current page', async () => {
+    renderApp(<App />, { route: '/' });
+    expect(await screen.findByRole('heading', { name: 'Needs attention', level: 1 })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Home' }).getAttribute('aria-current')).toBe('page');
+    expect(screen.getByRole('link', { name: 'Decision ledger' }).getAttribute('aria-current')).toBeNull();
+  });
+
   it('opens the API keys screen from the sidebar route', async () => {
     renderApp(<App />, { route: '/keys' });
     expect(await screen.findByRole('heading', { name: 'API keys' })).toBeTruthy();

@@ -20,7 +20,7 @@ export function Shell({ crumbs, children }: { crumbs: Crumb[]; children: ReactNo
   return (
     <div className="app">
       <aside className="side">
-        <Link to="/ledger" className="brand" aria-label="QWED Dashboard home">
+        <Link to="/" className="brand" aria-label="QWED Dashboard home">
           <span className="brand-tile">
             <Mark />
           </span>
@@ -33,6 +33,10 @@ export function Shell({ crumbs, children }: { crumbs: Crumb[]; children: ReactNo
         <nav aria-label="Main" style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <div className="grp">Verification</div>
+            <NavLink to="/" end className={({ isActive }) => (isActive ? 'nav active' : 'nav')}>
+              <Icon name="home" />
+              Home
+            </NavLink>
             <NavLink to="/ledger" className={({ isActive }) => (isActive ? 'nav active' : 'nav')}>
               <Icon name="ledger" />
               Decision ledger
