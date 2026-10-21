@@ -45,7 +45,10 @@ export function LedgerPage() {
     (r) =>
       matches(r, facet) &&
       (domain === 'all' || r.domain === domain) &&
-      (!q || `${r.query} ${r.id} ${r.result.proofRef ?? ''}`.toLowerCase().includes(q.toLowerCase())),
+      (!q ||
+        `${r.query} ${r.result.agentMessage ?? ''} ${r.id} ${r.result.proofRef ?? ''}`
+          .toLowerCase()
+          .includes(q.toLowerCase())),
   );
 
   function set(key: string, value: string, empty: string) {
@@ -126,7 +129,7 @@ export function LedgerPage() {
                 type="search"
                 value={q}
                 onChange={(e) => set('q', e.target.value, '')}
-                placeholder="Search statement, record id or proof_ref"
+                placeholder="Search statement, verifier message, record id or proof_ref"
               />
             </label>
             <label className="pill">
@@ -148,7 +151,7 @@ export function LedgerPage() {
                 <tr>
                   <th scope="col">Received (UTC)</th>
                   <th scope="col">Verdict · admission</th>
-                  <th scope="col">Request</th>
+                  <th scope="col">Request · what the verifier said</th>
                   <th scope="col">Verifier</th>
                   <th scope="col">Record</th>
                 </tr>
@@ -166,6 +169,12 @@ export function LedgerPage() {
                       <Link className="row-link" to={`/records/${encodeURIComponent(r.id)}`}>
                         {r.query.split('\n')[0]}
                       </Link>
+                      {/* VERIFIED means the check ran to a proof, not that the claim
+                          holds: "Identity is false" is VERIFIED too. The message says
+                          which, so it sits next to the verdict. */}
+                      <span className={r.result.agentMessage === null ? 'row-note none' : 'row-note'}>
+                        {r.result.agentMessage ?? 'No message recorded'}
+                      </span>
                     </td>
                     <td>{r.domain.toLowerCase()}</td>
                     <td className="mono muted" style={{ fontSize: 12 }}>
