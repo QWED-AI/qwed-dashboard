@@ -41,7 +41,7 @@ function load(): Stored | null {
   return null;
 }
 
-export function SessionProvider({ children }: { children: ReactNode }) {
+export function SessionProvider({ children }: Readonly<{ children: ReactNode }>) {
   const queryClient = useQueryClient();
   const [stored, setStored] = useState<Stored | null>(load);
   const [adminKey, setAdminKey] = useState<string | null>(null);

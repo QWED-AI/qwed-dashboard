@@ -46,8 +46,9 @@ const paths = {
 
 export type IconName = keyof typeof paths;
 
-export function Icon({ name, size = 16, label }: { name: IconName; size?: number; label?: string }) {
-  return (
+/** An icon is decoration; with a label, the label is read in its place. */
+export function Icon({ name, size = 16, label }: Readonly<{ name: IconName; size?: number; label?: string }>) {
+  const svg = (
     <svg
       width={size}
       height={size}
@@ -57,12 +58,17 @@ export function Icon({ name, size = 16, label }: { name: IconName; size?: number
       strokeWidth={name === 'check' || name === 'cross' || name === 'dash' ? 2.6 : 1.7}
       strokeLinecap="round"
       strokeLinejoin="round"
-      role={label ? 'img' : undefined}
-      aria-label={label}
-      aria-hidden={label ? undefined : true}
+      aria-hidden="true"
       style={{ flex: 'none' }}
     >
       {paths[name]}
     </svg>
+  );
+  if (!label) return svg;
+  return (
+    <>
+      {svg}
+      <span className="sr-only">{label}</span>
+    </>
   );
 }

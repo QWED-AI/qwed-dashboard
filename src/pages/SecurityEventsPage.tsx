@@ -31,11 +31,11 @@ function loadError(err: unknown): string {
 
 function EventRow({ event }: Readonly<{ event: SecurityEvent }>) {
   return (
-    <tr role="row">
-      <td role="cell" className="mono num muted cell-small" style={{ fontSize: 12 }} data-label="Time (UTC)">
+    <tr>
+      <td className="mono num muted cell-small" style={{ fontSize: 12 }} data-label="Time (UTC)">
         {formatUtc(event.timestamp)}
       </td>
-      <td role="cell">
+      <td>
         <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <span>{typeLabel(event.event_type)}</span>
           <span className="mono muted" style={{ fontSize: 11 }}>
@@ -43,10 +43,10 @@ function EventRow({ event }: Readonly<{ event: SecurityEvent }>) {
           </span>
         </span>
       </td>
-      <td role="cell" className="cell-small" data-label="Severity">
+      <td className="cell-small" data-label="Severity">
         <span className={`tag sev-${event.severity}`}>{event.severity}</span>
       </td>
-      <td role="cell">
+      <td>
         <span className="row-link" style={{ whiteSpace: 'normal' }}>
           {event.query}
         </span>
@@ -54,7 +54,7 @@ function EventRow({ event }: Readonly<{ event: SecurityEvent }>) {
           {event.reason}
         </span>
       </td>
-      <td role="cell" className="muted cell-small" data-label="Layer">
+      <td className="muted cell-small" data-label="Layer">
         {event.security_layer ?? 'not recorded'}
       </td>
     </tr>
@@ -160,18 +160,17 @@ export function SecurityEventsPage() {
             </div>
           ) : (
             <div className="table-wrap" style={{ borderTop: '1px solid var(--line)' }}>
-              {/* Roles spelled out: on a phone the CSS changes these elements' display, which can drop their table roles. */}
-              <table role="table" className="tbl tbl-stack">
-                <thead role="rowgroup">
-                  <tr role="row">
-                    <th role="columnheader" scope="col">Time (UTC)</th>
-                    <th role="columnheader" scope="col">Event</th>
-                    <th role="columnheader" scope="col">Severity</th>
-                    <th role="columnheader" scope="col">Subject · reason</th>
-                    <th role="columnheader" scope="col">Layer</th>
+              <table className="tbl tbl-stack">
+                <thead>
+                  <tr>
+                    <th scope="col">Time (UTC)</th>
+                    <th scope="col">Event</th>
+                    <th scope="col">Severity</th>
+                    <th scope="col">Subject · reason</th>
+                    <th scope="col">Layer</th>
                   </tr>
                 </thead>
-                <tbody role="rowgroup">
+                <tbody>
                   {rows.map((e) => (
                     <EventRow key={e.id} event={e} />
                   ))}

@@ -50,7 +50,7 @@ describe('SecurityEventsPage', () => {
     expect(screen.getByRole('link', { name: 'Security events' }).getAttribute('aria-current')).toBe('page');
   });
 
-  it('names the column of each small cell and spells out table roles, for the stacked rows on a phone', async () => {
+  it('names the column of each small cell, for the stacked rows on a phone', async () => {
     renderApp(<App />, { route: '/security' });
     await waitFor(() => expect(rows()).toHaveLength(2));
     expectStackedTable(screen.getByRole('table'));

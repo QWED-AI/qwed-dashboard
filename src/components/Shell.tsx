@@ -68,12 +68,12 @@ export function Shell({ crumbs, children }: Readonly<{ crumbs: Crumb[]; children
               <NavItem to="/security" icon="shield" label="Security events" onPick={closeMenu} />
             </div>
           </nav>
-  
+
           <div className="side-foot">
             {mode === 'demo' && (
               <span className="tag" style={{ alignSelf: 'flex-start' }}>
                 <span className="dot d-mute" aria-hidden="true" />
-                Sample data, not a server
+                <span>Sample data, not a server</span>
               </span>
             )}
             <div className="who">
