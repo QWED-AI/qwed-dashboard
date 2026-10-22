@@ -4,7 +4,6 @@ import { ApiError, sessionNotAccepted } from '../api/http';
 import type { ComplianceAuth, TrailCheck } from '../api/types';
 import { useSession } from '../auth/session';
 import { describeError } from '../lib/useAuthedQuery';
-import { complianceAuth } from './ChainCheck';
 
 // Shown at most; the server says how many there were.
 const SHOWN_ERRORS = 5;
@@ -84,11 +83,14 @@ function Result({ trail }: Readonly<{ trail: TrailCheck }>) {
  * Checks every audit entry of the organisation, on request
  * (GET /admin/compliance/verify-trail, #485). It runs only when asked: the
  * server reads every entry to answer.
+ *
+ * It always sends the session. An API key in memory was entered for a
+ * server that takes only keys, and such a server has no whole-chain route.
  */
 export function ChainTrail() {
-  const { api, token, adminKey } = useSession();
+  const { api, token } = useSession();
   const trail = useMutation({ mutationFn: (auth: ComplianceAuth) => api.verifyTrail(auth) });
-  const auth = complianceAuth(adminKey, token);
+  const auth: ComplianceAuth | null = token ? { session: token } : null;
 
   return (
     <section className="card" aria-labelledby="trail-title">

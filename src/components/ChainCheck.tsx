@@ -52,7 +52,7 @@ function refusal(err: unknown, auth: ComplianceAuth | undefined): string {
 }
 
 /** The key, once one was entered for a server that takes only keys; else the session. */
-export function complianceAuth(adminKey: string | null, token: string | null): ComplianceAuth | null {
+function complianceAuth(adminKey: string | null, token: string | null): ComplianceAuth | null {
   if (adminKey) return { apiKey: adminKey };
   if (token) return { session: token };
   return null;

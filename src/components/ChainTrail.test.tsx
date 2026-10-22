@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
 import { cleanup, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useEffect, type ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { TrailCheck } from '../api/types';
+import { useSession } from '../auth/session';
 import { LIVE_TOKEN, renderApp } from '../test/render';
 import { ChainTrail } from './ChainTrail';
 
@@ -47,7 +49,32 @@ async function run(options: { live?: boolean } = {}) {
   return c;
 }
 
+/** Puts an API key in memory, as the record page does for a key-only server. */
+function WithStoredKey({ children }: Readonly<{ children: ReactNode }>) {
+  const { setAdminKey } = useSession();
+  useEffect(() => setAdminKey('qwed_live_stored'), [setAdminKey]);
+  return <>{children}</>;
+}
+
 describe('ChainTrail', () => {
+  it('sends the session even when an API key is in memory', async () => {
+    const user = userEvent.setup();
+    const fetchMock = serve(json(trail({ status: 'NO_ENTRIES' })));
+    renderApp(
+      <WithStoredKey>
+        <ChainTrail />
+      </WithStoredKey>,
+      { live: true },
+    );
+    const c = within(await screen.findByRole('region', { name: 'Audit chain' }));
+    await user.click(c.getByRole('button', { name: 'Check the whole chain' }));
+
+    expect(await c.findByText('There are no audit entries to check yet.')).toBeTruthy();
+    const headers = new Headers(fetchMock.mock.calls[0]?.[1]?.headers);
+    expect(headers.get('Authorization')).toBe(`Bearer ${LIVE_TOKEN}`);
+    expect(headers.get('x-api-key')).toBeNull();
+  });
+
   it('reports an intact chain with its range and proof_ref, using the session', async () => {
     const fetchMock = serve(
       json(
