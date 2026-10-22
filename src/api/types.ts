@@ -102,3 +102,36 @@ export interface EntryCheck {
   log_id?: number;
   timestamp?: string;
 }
+
+/**
+ * How a compliance route is called: with the signed-in session (a server
+ * after #485) or with an owner or admin API key (any server).
+ */
+export type ComplianceAuth = { session: string } | { apiKey: string };
+
+/**
+ * GET /admin/compliance/verify-trail (#485): the signature and hash-chain
+ * check of every audit entry in a period. VERIFIED only when there are
+ * entries and all check out, with a proof_ref over the range checked.
+ */
+export interface TrailCheck {
+  status: 'VERIFIED' | 'NOT_VERIFIED' | 'NO_ENTRIES';
+  proof_ref: string | null;
+  evidence: {
+    first_entry_id: number | null;
+    last_entry_id: number | null;
+    entries: number;
+    head_hash: string | null;
+  } | null;
+  /** What the check covers, in the server's words. */
+  scope: string;
+  /** Null when the check could not run. */
+  total_entries: number | null;
+  verified_entries: number | null;
+  failed_entries: number | null;
+  first_failed_entry_id: number | null;
+  legacy_entries: number | null;
+  errors: string[];
+  total_errors: number;
+  errors_truncated: boolean;
+}

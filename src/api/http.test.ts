@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ApiError, httpApi } from './http';
+import { ApiError, httpApi, sessionNotAccepted } from './http';
 
 const json = (body: unknown, status = 200, headers: Record<string, string> = {}) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', ...headers } });
@@ -95,5 +95,40 @@ describe('httpApi audit log', () => {
   it('reads a server that sends no cursor as one that does not page', async () => {
     stubFetch(json({ total: 1, logs: [row] }));
     expect((await httpApi.listLogs('tok')).nextBefore).toBeUndefined();
+  });
+});
+
+describe('httpApi compliance checks', () => {
+  const intact = { valid: true, checks: {}, errors: [] };
+
+  it('checks an entry with the session as a bearer token', async () => {
+    const fetchMock = stubFetch(json(intact));
+    await httpApi.checkEntry({ session: 'tok' }, '7');
+    const { url, headers } = call(fetchMock);
+    expect(url).toBe('/api/admin/compliance/verify/7');
+    expect(headers.get('Authorization')).toBe('Bearer tok');
+    expect(headers.get('x-api-key')).toBeNull();
+  });
+
+  it('checks an entry with an API key', async () => {
+    const fetchMock = stubFetch(json(intact));
+    await httpApi.checkEntry({ apiKey: 'qwed_live_k' }, '7');
+    const { headers } = call(fetchMock);
+    expect(headers.get('x-api-key')).toBe('qwed_live_k');
+    expect(headers.get('Authorization')).toBeNull();
+  });
+
+  it('asks for the whole-chain check', async () => {
+    const fetchMock = stubFetch(json({ status: 'NO_ENTRIES' }));
+    expect((await httpApi.verifyTrail({ session: 'tok' })).status).toBe('NO_ENTRIES');
+    expect(call(fetchMock).url).toBe('/api/admin/compliance/verify-trail');
+  });
+
+  it('tells a server that takes only API keys from other refusals', () => {
+    expect(sessionNotAccepted(new ApiError(401, 'Missing x-api-key header'))).toBe(true);
+    // After #485 the same route names the bearer token too.
+    expect(sessionNotAccepted(new ApiError(401, 'Missing x-api-key header or bearer token'))).toBe(false);
+    expect(sessionNotAccepted(new ApiError(403, 'Missing x-api-key header'))).toBe(false);
+    expect(sessionNotAccepted(new Error('Missing x-api-key header'))).toBe(false);
   });
 });

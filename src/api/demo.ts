@@ -1,6 +1,6 @@
 import { parseResult } from '../lib/result';
 import { ApiError, type QwedApi } from './http';
-import type { ApiKeyCreated, ApiKeyItem, AuditLog, EntryCheck, User } from './types';
+import type { ApiKeyCreated, ApiKeyItem, AuditLog, EntryCheck, TrailCheck, User } from './types';
 
 // Sample data for exploring the dashboard without a QWED server. Shaped like
 // the real /audit/logs rows; none of it comes from a real verification.
@@ -249,7 +249,7 @@ export const demoApi: QwedApi = {
     if (!keys.some((k) => k.id === id)) throw new ApiError(404, 'API key not found');
     keys = keys.filter((k) => k.id !== id);
   },
-  async checkEntry(_adminKey, id): Promise<EntryCheck> {
+  async checkEntry(_auth, id): Promise<EntryCheck> {
     await wait(300);
     find(id);
     if (id === '1037') {
@@ -261,5 +261,26 @@ export const demoApi: QwedApi = {
       };
     }
     return { valid: true, checks: { hash_valid: true, signature_valid: true, chain_valid: true }, errors: [], log_id: Number(id) };
+  },
+  // Agrees with checkEntry: the sample entry 1037 fails its signature, so
+  // the whole chain does not check out and 1037 is the first failure.
+  async verifyTrail(): Promise<TrailCheck> {
+    await wait(400);
+    const ids = logs.map((l) => Number(l.id));
+    return {
+      status: 'NOT_VERIFIED',
+      proof_ref: null,
+      evidence: null,
+      scope:
+        'Signature and hash-chain check of the audit entries recorded in the period. It does not show that every request was recorded.',
+      total_entries: ids.length,
+      verified_entries: ids.length - 1,
+      failed_entries: 1,
+      first_failed_entry_id: 1037,
+      legacy_entries: 0,
+      errors: ['Entry 1037: HMAC signature mismatch (sample data)'],
+      total_errors: 1,
+      errors_truncated: false,
+    };
   },
 };

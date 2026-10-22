@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router';
 import type { Admission, Verdict } from '../api/types';
+import { ChainTrail } from '../components/ChainTrail';
 import { Icon } from '../components/Icon';
 import { RefreshError } from '../components/RefreshError';
 import { Shell } from '../components/Shell';
@@ -187,13 +188,7 @@ export function HomePage() {
               )}
             </section>
 
-            <section className="card" aria-labelledby="chain-title">
-              <h2 id="chain-title">Audit chain</h2>
-              <p className="sub">
-                Not checked from here. The server checks one entry at a time, with an owner or admin API key: open a
-                record to check its entry. A check of the whole chain will show here once the server offers one.
-              </p>
-            </section>
+            <ChainTrail />
           </aside>
         </div>
       )}
