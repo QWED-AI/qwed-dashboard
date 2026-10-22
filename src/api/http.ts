@@ -13,7 +13,14 @@ import type {
   User,
 } from './types';
 
-const API_BASE = ((import.meta.env.VITE_QWED_API_BASE as string | undefined) ?? '/api').replace(/\/+$/, '');
+/** The base without trailing slashes; a loop, not a regex, so the time stays linear. */
+function trimTrailingSlashes(s: string): string {
+  let end = s.length;
+  while (end > 0 && s[end - 1] === '/') end--;
+  return s.slice(0, end);
+}
+
+const API_BASE = trimTrailingSlashes((import.meta.env.VITE_QWED_API_BASE as string | undefined) ?? '/api');
 
 export class ApiError extends Error {
   readonly status: number;

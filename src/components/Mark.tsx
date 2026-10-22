@@ -1,5 +1,5 @@
 /** The QWED mark in white, for the cobalt tile. */
-export function Mark({ width = 20 }: { width?: number }) {
+export function Mark({ width = 20 }: Readonly<{ width?: number }>) {
   return (
     <svg viewBox="0 0 80 64" width={width} height={(width * 64) / 80} aria-hidden="true">
       <g fill="none" stroke="#FFFFFF" strokeLinecap="round" strokeLinejoin="round">

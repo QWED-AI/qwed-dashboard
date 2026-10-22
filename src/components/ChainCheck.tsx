@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
-import { useState, type FormEvent } from 'react';
+import { useState, type SubmitEvent } from 'react';
 import { ApiError, sessionNotAccepted } from '../api/http';
 import type { ComplianceAuth, EntryCheck } from '../api/types';
 import { useSession } from '../auth/session';
@@ -83,7 +83,7 @@ export function ChainCheck({ logId }: Readonly<{ logId: string }>) {
   const needsKey = mode === 'live' && keyOnly && !adminKey;
   const auth = complianceAuth(adminKey, token);
 
-  function submitKey(e: FormEvent) {
+  function submitKey(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
     const key = draft.trim();
     if (!key) return;
@@ -95,6 +95,9 @@ export function ChainCheck({ logId }: Readonly<{ logId: string }>) {
   const result = check.data;
   // The session refusal is what switched to the key form; it is not an error to show.
   const showError = check.isError && !(needsKey && sessionNotAccepted(check.error));
+  let checkLabel = 'Check this entry';
+  if (check.isPending) checkLabel = 'Checking…';
+  else if (result) checkLabel = 'Check again';
 
   return (
     <section className="card" aria-labelledby="chain-title">
@@ -106,7 +109,7 @@ export function ChainCheck({ logId }: Readonly<{ logId: string }>) {
       {needsKey ? (
         <form onSubmit={submitKey} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <label className="field">
-            Owner or admin API key
+            <span>Owner or admin API key</span>
             <input
               className="input mono"
               type="password"
@@ -133,7 +136,7 @@ export function ChainCheck({ logId }: Readonly<{ logId: string }>) {
             onClick={() => auth && check.mutate(auth)}
             disabled={check.isPending || !auth}
           >
-            {check.isPending ? 'Checking…' : result ? 'Check again' : 'Check this entry'}
+            {checkLabel}
           </button>
           {!adminKey && <span className="hint">Runs with your session. Owners and admins can check entries.</span>}
         </>

@@ -76,7 +76,7 @@ describe('LedgerPage', () => {
     for (const r of rows) expect(within(r).getByText('logic')).toBeTruthy();
   });
 
-  it('names the column of each small cell and spells out table roles, for the stacked rows on a phone', async () => {
+  it('names the column of each small cell, for the stacked rows on a phone', async () => {
     renderApp(<LedgerPage />);
     await rowFor('(x + 1)**2 = x**2 + 2*x + 1');
     expectStackedTable(screen.getByRole('table'));

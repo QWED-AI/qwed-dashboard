@@ -8,7 +8,7 @@ import { LoginPage } from './pages/LoginPage';
 import { RecordPage } from './pages/RecordPage';
 import { SecurityEventsPage } from './pages/SecurityEventsPage';
 
-function RequireSession({ children }: { children: ReactNode }) {
+function RequireSession({ children }: Readonly<{ children: ReactNode }>) {
   const { token } = useSession();
   const location = useLocation();
   if (!token) return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />;

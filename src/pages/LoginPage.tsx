@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type SubmitEvent } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router';
 import { ApiError } from '../api/http';
 import { useSession } from '../auth/session';
@@ -28,13 +28,13 @@ export function LoginPage() {
 
   if (token) return <Navigate to={from} replace />;
 
-  async function submit(e: FormEvent) {
+  async function submit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
     setBusy(true);
     setError(null);
     try {
       await signIn(email.trim(), password);
-      navigate(from, { replace: true });
+      void navigate(from, { replace: true });
     } catch (err) {
       setError(signInError(err));
     } finally {
@@ -44,7 +44,7 @@ export function LoginPage() {
 
   async function demo() {
     await signInDemo();
-    navigate('/', { replace: true });
+    void navigate('/', { replace: true });
   }
 
   return (
@@ -62,7 +62,7 @@ export function LoginPage() {
 
         <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <label className="field">
-            Email
+            <span>Email</span>
             <input
               className="input"
               type="email"
@@ -73,7 +73,7 @@ export function LoginPage() {
             />
           </label>
           <label className="field">
-            Password
+            <span>Password</span>
             <input
               className="input"
               type="password"

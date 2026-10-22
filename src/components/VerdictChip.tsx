@@ -8,15 +8,17 @@ export function VerdictChip({
   verdict,
   admission,
   large = false,
-}: {
+}: Readonly<{
   verdict: Verdict | null;
   admission: Admission | null;
   large?: boolean;
-}) {
-  const label = `${verdict ?? 'No verdict recorded'}, ${admission ? `admission ${admission}` : 'admission not recorded'}`;
+}>) {
+  const admissionText = admission ? `admission ${admission}` : 'admission not recorded';
+  const label = `${verdict ?? 'No verdict recorded'}, ${admissionText}`;
+  const dot = verdict ? `d-${verdict}` : 'd-none';
   return (
     <span className={large ? 'chip lg' : 'chip'} aria-label={label} title={label}>
-      <span className={`dot ${verdict ? `d-${verdict}` : 'd-none'}`} aria-hidden="true" />
+      <span className={`dot ${dot}`} aria-hidden="true" />
       {verdict ?? <span className="none">no verdict</span>}
       <span className="sep" aria-hidden="true">
         ·

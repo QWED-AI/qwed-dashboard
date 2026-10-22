@@ -5,14 +5,15 @@ export function JsonView({
   label = 'Stored result',
 }: Readonly<{ value: unknown; fallback: string; label?: string }>) {
   const text = value === null || value === undefined ? fallback : JSON.stringify(value, null, 2);
-  const lines = text.split('\n');
+  // The line number is each line's identity in a numbered view.
+  const lines = text.split('\n').map((line, i) => ({ no: i + 1, line }));
   return (
     <section className="code-box" aria-label={label}>
-      {lines.map((line, i) => {
+      {lines.map(({ no, line }) => {
         const m = /^(\s*)("(?:[^"\\]|\\.)*")(:.*)$/.exec(line);
         return (
-          <div className="ln" key={i}>
-            <span className="no">{i + 1}</span>
+          <div className="ln" key={no}>
+            <span className="no">{no}</span>
             <span className="tx">
               {m ? (
                 <>

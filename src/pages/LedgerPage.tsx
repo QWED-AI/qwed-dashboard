@@ -21,12 +21,15 @@ const FACETS: { id: Facet; label: string; dot: string }[] = [
 
 const LIMIT = 200;
 
-const matches = (r: LedgerRecord, facet: Facet) =>
-  facet === 'all' ? true : facet === 'none' ? r.result.verdict === null : r.result.verdict === facet;
+function matches(r: LedgerRecord, facet: Facet): boolean {
+  if (facet === 'all') return true;
+  if (facet === 'none') return r.result.verdict === null;
+  return r.result.verdict === facet;
+}
 
-const FIRST_REQUEST = `curl -X POST https://[YOUR QWED SERVER]/verify/math \\
-  -H "x-api-key: qwed_live_[YOUR KEY]" \\
-  -H "Content-Type: application/json" \\
+const FIRST_REQUEST = String.raw`curl -X POST https://[YOUR QWED SERVER]/verify/math \
+  -H "x-api-key: qwed_live_[YOUR KEY]" \
+  -H "Content-Type: application/json" \
   -d '{"expression": "(x + 1)**2 = x**2 + 2*x + 1"}'`;
 
 export function LedgerPage() {
@@ -109,7 +112,8 @@ export function LedgerPage() {
 
       {logs.data && records.length > 0 && (
         <>
-          <div role="group" aria-label="Filter by verdict" className="facets">
+          <fieldset className="facets">
+            <legend className="sr-only">Filter by verdict</legend>
             {FACETS.map((f) => (
               <button
                 key={f.id}
@@ -125,7 +129,7 @@ export function LedgerPage() {
                 <span className="n">{records.filter((r) => matches(r, f.id)).length}</span>
               </button>
             ))}
-          </div>
+          </fieldset>
 
           <div className="filters">
             <label className="search" style={{ flex: '1 1 280px' }}>
@@ -152,27 +156,26 @@ export function LedgerPage() {
           </div>
 
           <div className="table-wrap" style={{ borderTop: '1px solid var(--line)' }}>
-            {/* Roles spelled out: on a phone the CSS changes these elements' display, which can drop their table roles. */}
-            <table role="table" className="tbl tbl-stack">
-              <thead role="rowgroup">
-                <tr role="row">
-                  <th role="columnheader" scope="col">Received (UTC)</th>
-                  <th role="columnheader" scope="col">Verdict · admission</th>
-                  <th role="columnheader" scope="col">Request · what the verifier said</th>
-                  <th role="columnheader" scope="col">Verifier</th>
-                  <th role="columnheader" scope="col">Record</th>
+            <table className="tbl tbl-stack">
+              <thead>
+                <tr>
+                  <th scope="col">Received (UTC)</th>
+                  <th scope="col">Verdict · admission</th>
+                  <th scope="col">Request · what the verifier said</th>
+                  <th scope="col">Verifier</th>
+                  <th scope="col">Record</th>
                 </tr>
               </thead>
-              <tbody role="rowgroup">
+              <tbody>
                 {shown.map((r) => (
-                  <tr role="row" key={r.id}>
-                    <td role="cell" className="mono num muted cell-small" style={{ fontSize: 12 }} data-label="Received (UTC)">
+                  <tr key={r.id}>
+                    <td className="mono num muted cell-small" style={{ fontSize: 12 }} data-label="Received (UTC)">
                       {formatUtc(r.createdAt)}
                     </td>
-                    <td role="cell">
+                    <td>
                       <VerdictChip verdict={r.result.verdict} admission={r.result.admission} />
                     </td>
-                    <td role="cell">
+                    <td>
                       <Link className="row-link" to={`/records/${encodeURIComponent(r.id)}`}>
                         {r.query.split('\n')[0]}
                       </Link>
@@ -183,10 +186,10 @@ export function LedgerPage() {
                         {r.result.agentMessage ?? 'No message recorded'}
                       </span>
                     </td>
-                    <td role="cell" className="cell-small" data-label="Verifier">
+                    <td className="cell-small" data-label="Verifier">
                       {r.domain.toLowerCase()}
                     </td>
-                    <td role="cell" className="mono muted cell-small" style={{ fontSize: 12 }} data-label="Record">
+                    <td className="mono muted cell-small" style={{ fontSize: 12 }} data-label="Record">
                       {r.id}
                     </td>
                   </tr>

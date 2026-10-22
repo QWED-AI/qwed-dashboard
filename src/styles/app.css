@@ -496,6 +496,10 @@ a.btn {
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: 10px;
   padding: 0 24px 18px;
+  /* The ledger's facets are a fieldset; drop its default frame. */
+  margin: 0;
+  border: 0;
+  min-width: 0;
 }
 .facet {
   display: flex;

@@ -231,11 +231,11 @@ function find(id: string): AuditLog {
 }
 
 export const demoApi: QwedApi = {
-  async signIn() {
-    return { access_token: 'demo', token_type: 'bearer', user: demoUser };
+  signIn() {
+    return Promise.resolve({ access_token: 'demo', token_type: 'bearer', user: demoUser });
   },
-  async me() {
-    return demoUser;
+  me() {
+    return Promise.resolve(demoUser);
   },
   async listLogs(_token, limit, before) {
     await wait(250);
