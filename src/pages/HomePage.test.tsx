@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
-import { cleanup, screen, within } from '@testing-library/react';
+import { focusManager } from '@tanstack/react-query';
+import { act, cleanup, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { demoApi } from '../api/demo';
 import { ApiError } from '../api/http';
@@ -10,7 +12,16 @@ import { HomePage } from './HomePage';
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  focusManager.setFocused(undefined);
 });
+
+/** Coming back to the tab refetches every query on the page. */
+function refocus() {
+  act(() => {
+    focusManager.setFocused(false);
+    focusManager.setFocused(true);
+  });
+}
 
 const verified = (id: string, message: string): AuditLog => ({
   id,
@@ -42,7 +53,10 @@ describe('HomePage', () => {
   });
 
   it('never lists a VERIFIED record, even when its message says the claim does not hold', async () => {
-    vi.spyOn(demoApi, 'listLogs').mockResolvedValue([verified('1', 'The identity is false.'), verified('2', 'The identity holds.')]);
+    vi.spyOn(demoApi, 'listLogs').mockResolvedValue({
+      logs: [verified('1', 'The identity is false.'), verified('2', 'The identity holds.')],
+      nextBefore: null,
+    });
     renderApp(<HomePage />);
     expect(await screen.findByText(/Nothing needs attention in the newest 2 records/)).toBeTruthy();
     expect(screen.queryByText(/The identity is false/)).toBeNull();
@@ -60,6 +74,12 @@ describe('HomePage', () => {
       ['VERIFIED, admission ADMIT', '1'],
       ['No verdict recorded, admission not recorded', '1'],
     ]);
+  });
+
+  it('says the counts cover the newest page when the ledger has older records', async () => {
+    vi.spyOn(demoApi, 'listLogs').mockResolvedValue({ logs: [verified('1', 'ok')], nextBefore: '1' });
+    renderApp(<HomePage />);
+    expect(await screen.findByText(/These cover the newest 200; the ledger loads older ones/)).toBeTruthy();
   });
 
   it('asks for a key when the organisation has none', async () => {
@@ -80,7 +100,7 @@ describe('HomePage', () => {
   });
 
   it('asks a new organisation, with no records and no keys, for a key', async () => {
-    vi.spyOn(demoApi, 'listLogs').mockResolvedValue([]);
+    vi.spyOn(demoApi, 'listLogs').mockResolvedValue({ logs: [], nextBefore: null });
     vi.spyOn(demoApi, 'listKeys').mockResolvedValue([]);
     renderApp(<HomePage />);
     expect(await screen.findByText(/^No records yet\. Records show up/)).toBeTruthy();
@@ -89,7 +109,7 @@ describe('HomePage', () => {
   });
 
   it('says so when there are no records yet', async () => {
-    vi.spyOn(demoApi, 'listLogs').mockResolvedValue([]);
+    vi.spyOn(demoApi, 'listLogs').mockResolvedValue({ logs: [], nextBefore: null });
     renderApp(<HomePage />);
     expect(await screen.findByText(/^No records yet\. Records show up/)).toBeTruthy();
   });
@@ -101,5 +121,36 @@ describe('HomePage', () => {
     const alert = await screen.findByRole('alert');
     expect(alert.textContent).toMatch(/The records could not be loaded/);
     expect(alert.textContent).toMatch(/Insufficient permissions/);
+  });
+
+  it('keeps what loaded and warns when a refresh fails, then recovers on Try again', async () => {
+    const user = userEvent.setup();
+    const listLogs = demoApi.listLogs.bind(demoApi);
+    vi.spyOn(demoApi, 'listLogs')
+      .mockImplementationOnce(listLogs)
+      .mockRejectedValueOnce(new ApiError(403, 'Insufficient permissions'))
+      .mockImplementation(listLogs);
+    vi.spyOn(demoApi, 'listKeys').mockResolvedValueOnce([]).mockRejectedValueOnce(new ApiError(403, 'Denied'));
+    renderApp(<HomePage />);
+    expect(await screen.findByText('2 BLOCKED records')).toBeTruthy();
+    expect(await screen.findByRole('link', { name: '0 active keys' })).toBeTruthy();
+
+    refocus();
+
+    expect(await screen.findByText(/The records could not be refreshed/)).toBeTruthy();
+    expect(await screen.findByText(/The key list could not be refreshed/)).toBeTruthy();
+    // Both cards still show what loaded.
+    expect(screen.getByText('2 BLOCKED records')).toBeTruthy();
+    expect(screen.getByRole('link', { name: '0 active keys' })).toBeTruthy();
+    expect(screen.queryByText('The records could not be loaded')).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
+    await vi.waitFor(() => expect(screen.queryByText(/The records could not be refreshed/)).toBeNull());
+    // The records' Try again does not touch the key list; it has its own.
+    expect(screen.getByText(/The key list could not be refreshed/)).toBeTruthy();
+
+    await user.click(screen.getByRole('button', { name: 'Try the key list again' }));
+    expect(await screen.findByRole('link', { name: '2 active keys' })).toBeTruthy();
+    expect(screen.queryByText(/The key list could not be refreshed/)).toBeNull();
   });
 });

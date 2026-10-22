@@ -1,7 +1,17 @@
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { ApiError, type QwedApi } from '../api/http';
 import { useSession } from '../auth/session';
+
+// A 4xx will not change on a retry; anything else gets two more tries.
+const retry = (count: number, err: unknown) =>
+  !(err instanceof ApiError && err.status >= 400 && err.status < 500) && count < 2;
+
+function useSignOutOn401(error: unknown, signOut: () => void) {
+  useEffect(() => {
+    if (error instanceof ApiError && error.status === 401) signOut();
+  }, [error, signOut]);
+}
 
 /** A query that needs the session token. A 401 signs the user out. */
 export function useAuthedQuery<T>(key: readonly unknown[], fn: (api: QwedApi, token: string) => Promise<T>) {
@@ -11,13 +21,28 @@ export function useAuthedQuery<T>(key: readonly unknown[], fn: (api: QwedApi, to
     queryKey: [mode, user?.org_id ?? null, user?.id ?? null, ...key],
     queryFn: () => fn(api, token as string),
     enabled: token !== null,
-    retry: (count, err) => !(err instanceof ApiError && err.status >= 400 && err.status < 500) && count < 2,
+    retry,
   });
+  useSignOutOn401(query.error, signOut);
+  return query;
+}
 
-  useEffect(() => {
-    if (query.error instanceof ApiError && query.error.status === 401) signOut();
-  }, [query.error, signOut]);
-
+/**
+ * The ledger, a page at a time, newest first. Each next page asks for the
+ * rows after the last page's `nextBefore` cursor (#484); there is no next
+ * page once the server returns null, or on a server that does not page.
+ */
+export function useLedgerPages(limit: number) {
+  const { api, token, mode, user, signOut } = useSession();
+  const query = useInfiniteQuery({
+    queryKey: [mode, user?.org_id ?? null, user?.id ?? null, 'log-pages', limit],
+    queryFn: ({ pageParam }) => api.listLogs(token as string, limit, pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => last.nextBefore ?? undefined,
+    enabled: token !== null,
+    retry,
+  });
+  useSignOutOn401(query.error, signOut);
   return query;
 }
 

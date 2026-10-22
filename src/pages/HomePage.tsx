@@ -2,13 +2,15 @@ import { useMemo } from 'react';
 import { Link } from 'react-router';
 import type { Admission, Verdict } from '../api/types';
 import { Icon } from '../components/Icon';
+import { RefreshError } from '../components/RefreshError';
 import { Shell } from '../components/Shell';
 import { VerdictChip } from '../components/VerdictChip';
 import { formatUtc } from '../lib/format';
 import { toRecord, type LedgerRecord } from '../lib/result';
 import { describeError, useAuthedQuery } from '../lib/useAuthedQuery';
 
-// The same keys as the ledger and the keys screen, so the three share a cache.
+// Home reads the newest page only. The keys query shares its cache with the
+// keys screen; the ledger pages through its own.
 const LIMIT = 200;
 
 interface Attention {
@@ -84,7 +86,8 @@ function countPairs(records: LedgerRecord[]): Pair[] {
 export function HomePage() {
   const logs = useAuthedQuery(['logs', LIMIT], (api, token) => api.listLogs(token, LIMIT));
   const keys = useAuthedQuery(['keys'], (api, token) => api.listKeys(token));
-  const records = useMemo(() => (logs.data ?? []).map(toRecord), [logs.data]);
+  const records = useMemo(() => (logs.data?.logs ?? []).map(toRecord), [logs.data]);
+  const nextBefore = logs.data?.nextBefore;
   const activeKeys = keys.data ? keys.data.length : null;
   const items = useMemo(() => needsAttention(records, activeKeys), [records, activeKeys]);
   const pairs = useMemo(() => countPairs(records), [records]);
@@ -103,7 +106,7 @@ export function HomePage() {
 
       {logs.isPending && <HomeSkeleton />}
 
-      {logs.isError && (
+      {logs.isError && !logs.data && (
         <div className="state" role="alert">
           <span className="state-icon">
             <Icon name="alert" size={20} />
@@ -118,7 +121,10 @@ export function HomePage() {
         </div>
       )}
 
-      {logs.isSuccess && (
+      {logs.isRefetchError && <RefreshError what="The records" error={logs.error} onRetry={() => logs.refetch()} />}
+
+      {/* On data, not on success: a failed refresh keeps what loaded. */}
+      {logs.data && (
         <div className="split">
           <section className="main" aria-labelledby="attention-title">
             <h2 id="attention-title" className="sr-only">
@@ -150,7 +156,10 @@ export function HomePage() {
                   </ul>
                   <p className="hint">
                     Counts, not a chart. Open one to see the records with that verdict.
-                    {records.length >= LIMIT && ` The server returns at most ${LIMIT} records and has no paging yet.`}
+                    {typeof nextBefore === 'string' && ` These cover the newest ${LIMIT}; the ledger loads older ones.`}
+                    {nextBefore === undefined &&
+                      records.length >= LIMIT &&
+                      ` This server returns at most ${LIMIT} records and does not page.`}
                   </p>
                 </>
               )}
@@ -159,12 +168,22 @@ export function HomePage() {
             <section className="card" aria-labelledby="keys-title">
               <h2 id="keys-title">API keys</h2>
               {keys.isPending && <span className="sk" style={{ width: '50%' }} aria-hidden="true" />}
-              {keys.isError && <p className="sub">{describeError(keys.error)}</p>}
-              {keys.isSuccess && (
+              {keys.isError && !keys.data && <p className="sub">{describeError(keys.error)}</p>}
+              {keys.data && (
                 <p className="sub">
                   <Link to="/keys">{plural(keys.data.length, 'active key', 'active keys')}</Link>. The server does not
                   record when a key was last used yet.
                 </p>
+              )}
+              {keys.isRefetchError && (
+                <div role="alert" style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-start' }}>
+                  <p className="hint" style={{ margin: 0 }}>
+                    The key list could not be refreshed, so this count may be out of date. {describeError(keys.error)}
+                  </p>
+                  <button type="button" className="btn btn-sm" onClick={() => keys.refetch()}>
+                    Try the key list again
+                  </button>
+                </div>
               )}
             </section>
 

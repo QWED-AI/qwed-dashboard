@@ -1,4 +1,13 @@
-import type { ApiKeyCreated, ApiKeyItem, AuditLog, AuditLogList, EntryCheck, SignInResponse, User } from './types';
+import type {
+  ApiKeyCreated,
+  ApiKeyItem,
+  AuditLog,
+  AuditLogList,
+  AuditLogPage,
+  EntryCheck,
+  SignInResponse,
+  User,
+} from './types';
 
 const API_BASE = ((import.meta.env.VITE_QWED_API_BASE as string | undefined) ?? '/api').replace(/\/+$/, '');
 
@@ -66,10 +75,15 @@ export const httpApi = {
     return request('/auth/me', { headers: bearer(token) });
   },
 
-  /** The server returns at most 200 rows and has no paging yet. */
-  async listLogs(token: string, limit = 200): Promise<AuditLog[]> {
-    const data = await request<AuditLogList>(`/audit/logs?limit=${limit}`, { headers: bearer(token) });
-    return data.logs;
+  /**
+   * One page of at most 200 rows, newest first. Pass a page's `nextBefore`
+   * as `before` for the rows after it.
+   */
+  async listLogs(token: string, limit = 200, before?: string): Promise<AuditLogPage> {
+    const query = new URLSearchParams({ limit: String(limit) });
+    if (before !== undefined) query.set('before', before);
+    const data = await request<AuditLogList>(`/audit/logs?${query}`, { headers: bearer(token) });
+    return { logs: data.logs, nextBefore: data.next_before };
   },
 
   getLog(token: string, id: string): Promise<AuditLog> {
