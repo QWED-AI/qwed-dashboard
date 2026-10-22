@@ -98,6 +98,26 @@ describe('RecordPage', () => {
       renderApp(<App />, { route: '/records/1038' });
       expect((await region('Checks')).getByText('No proof_ref')).toBeTruthy();
     });
+
+    it('does not call a proof_ref absent when the stored result cannot be read', async () => {
+      // The server says VERIFIED; the stored copy was shortened, so the
+      // dashboard cannot see its proof_ref and must not say it has none.
+      vi.spyOn(demoApi, 'getLog').mockResolvedValue({
+        ...olderServerRow,
+        verification_result: JSON.stringify({ truncated: true, preview: "{'status': 'VERIFIED'" }),
+        verdict: 'VERIFIED',
+      });
+      renderApp(<App />, { route: '/records/1' });
+      const checks = await region('Checks');
+      expect(checks.getByText('proof_ref not readable')).toBeTruthy();
+      expect(checks.queryByText('No proof_ref')).toBeNull();
+    });
+
+    it('says a VERIFIED result with no proof_ref did not record one', async () => {
+      vi.spyOn(demoApi, 'getLog').mockResolvedValue(olderServerRow); // VERIFIED, no proof_ref
+      renderApp(<App />, { route: '/records/1' });
+      expect((await region('Checks')).getByText('No proof_ref recorded')).toBeTruthy();
+    });
   });
 
   describe('tabs', () => {
@@ -130,6 +150,16 @@ describe('RecordPage', () => {
       expect(document.activeElement).toBe(entry);
       await user.keyboard('{ArrowRight}');
       expect(screen.getByRole('tab', { name: 'Stored result' }).getAttribute('aria-selected')).toBe('true');
+    });
+
+    it('leaves arrow keys with a modifier to the browser', async () => {
+      const user = userEvent.setup();
+      renderApp(<App />, { route: '/records/1037' });
+      await user.click(await screen.findByRole('tab', { name: 'Stored result' }));
+      for (const combo of ['{Alt>}{ArrowRight}{/Alt}', '{Control>}{ArrowRight}{/Control}', '{Shift>}{ArrowLeft}{/Shift}']) {
+        await user.keyboard(combo);
+        expect(screen.getByRole('tab', { name: 'Stored result' }).getAttribute('aria-selected')).toBe('true');
+      }
     });
 
     it('says so for the first entry in the chain', async () => {

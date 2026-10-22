@@ -121,6 +121,8 @@ function Tabs({ tab, onChange }: Readonly<{ tab: TabId; onChange: (t: TabId) => 
   const refs = useRef<Record<TabId, HTMLButtonElement | null>>({ result: null, entry: null });
   function onKey(e: KeyboardEvent) {
     if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+    // Alt+Arrow is back and forward in some browsers; leave modified keys alone.
+    if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
     const i = TABS.findIndex((t) => t.id === tab);
     const next = TABS[(i + (e.key === 'ArrowRight' ? 1 : TABS.length - 1)) % TABS.length];
     if (!next) return;
@@ -178,7 +180,36 @@ function AuditEntry({ log }: Readonly<{ log: AuditLog }>) {
   );
 }
 
+/**
+ * What the dashboard can say about the result's proof_ref. The verdict may
+ * come from the server while the stored result cannot be read here (it was
+ * shortened, or is in no known shape), so an absent proof_ref is only called
+ * absent when the result could be read.
+ */
+function proofRefState(result: ParsedResult): { title: string; text: string } {
+  if (result.proofRef) {
+    return {
+      title: 'proof_ref present',
+      text: 'A hash of the evidence the engine produced. A VERIFIED result always carries one.',
+    };
+  }
+  if (result.shape === 'truncated' || result.shape === 'unknown') {
+    return {
+      title: 'proof_ref not readable',
+      text: 'The stored result is shortened or not in a shape the dashboard reads, so its proof_ref cannot be shown.',
+    };
+  }
+  if (result.verdict === 'VERIFIED') {
+    return {
+      title: 'No proof_ref recorded',
+      text: 'A VERIFIED result should carry one, but this stored result has none.',
+    };
+  }
+  return { title: 'No proof_ref', text: 'Only a VERIFIED result carries one.' };
+}
+
 function Checks({ result }: Readonly<{ result: ParsedResult }>) {
+  const proof = proofRefState(result);
   return (
     <section className="card" aria-labelledby="checks-title">
       <h2 id="checks-title">Checks</h2>
@@ -187,11 +218,9 @@ function Checks({ result }: Readonly<{ result: ParsedResult }>) {
           <Icon name={result.proofRef ? 'check' : 'dash'} size={12} />
         </span>
         <div>
-          <strong style={{ fontSize: 13 }}>{result.proofRef ? 'proof_ref present' : 'No proof_ref'}</strong>
+          <strong style={{ fontSize: 13 }}>{proof.title}</strong>
           <p className="hint" style={{ margin: '2px 0 0' }}>
-            {result.proofRef
-              ? 'A hash of the evidence the engine produced. A VERIFIED result always carries one.'
-              : 'Only a VERIFIED result carries one.'}
+            {proof.text}
           </p>
           {result.proofRef && (
             <p className="mono" style={{ margin: '4px 0 0', fontSize: 11.5, overflowWrap: 'anywhere' }}>
