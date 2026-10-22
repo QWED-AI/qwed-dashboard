@@ -8,6 +8,7 @@ import { demoApi } from '../api/demo';
 import { ApiError } from '../api/http';
 import type { SecurityEvent } from '../api/types';
 import { renderApp } from '../test/render';
+import { expectStackedTable } from '../test/table';
 
 afterEach(() => {
   cleanup();
@@ -47,6 +48,12 @@ describe('SecurityEventsPage', () => {
     expect(screen.getByText('2 events.')).toBeTruthy();
     // The sidebar marks this page.
     expect(screen.getByRole('link', { name: 'Security events' }).getAttribute('aria-current')).toBe('page');
+  });
+
+  it('names the column of each small cell and spells out table roles, for the stacked rows on a phone', async () => {
+    renderApp(<App />, { route: '/security' });
+    await waitFor(() => expect(rows()).toHaveLength(2));
+    expectStackedTable(screen.getByRole('table'));
   });
 
   it('filters by type on the server', async () => {
