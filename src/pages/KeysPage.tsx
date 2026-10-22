@@ -157,7 +157,7 @@ export function KeysPage() {
 
       {keys.isSuccess && keys.data.length > 0 && (
         <div className="table-wrap" style={{ borderTop: '1px solid var(--line)' }}>
-          <table className="tbl" style={{ minWidth: 760 }}>
+          <table className="tbl compact tbl-stack">
             <thead>
               <tr>
                 <th scope="col">Name</th>
@@ -176,15 +176,15 @@ export function KeysPage() {
                   <td className="mono" style={{ fontSize: 12 }}>
                     {k.key_preview}
                   </td>
-                  <td className="mono num muted" style={{ fontSize: 12 }}>
+                  <td className="mono num muted cell-small" style={{ fontSize: 12 }} data-label="Created">
                     {formatUtcLong(k.created_at)}
                   </td>
-                  <td className="muted" style={{ fontSize: 12.5 }}>
+                  <td className="muted cell-small" style={{ fontSize: 12.5 }} data-label="Last used">
                     {k.last_used_at ? formatUtcLong(k.last_used_at) : 'No use recorded'}
                   </td>
-                  <td style={{ textAlign: 'right' }}>
+                  <td className="cell-end">
                     {confirmId === k.id ? (
-                      <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
+                      <span style={{ display: 'inline-flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
                         <span style={{ fontSize: 12.5, color: 'var(--ink)' }}>Calls with this key will fail.</span>
                         <button
                           type="button"

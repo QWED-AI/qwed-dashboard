@@ -7,6 +7,7 @@ import { demoApi } from '../api/demo';
 import { ApiError } from '../api/http';
 import type { AuditLog, AuditLogPage } from '../api/types';
 import { renderApp } from '../test/render';
+import { expectCellLabelsMatchHeaders } from '../test/table';
 import { LedgerPage } from './LedgerPage';
 
 const row = (id: string, extra: Partial<AuditLog> = {}): AuditLog => ({
@@ -62,6 +63,23 @@ describe('LedgerPage', () => {
 
     const rows = within(screen.getByRole('table')).getAllByRole('row').slice(1);
     expect(rows.map((r) => r.textContent)).toEqual([expect.stringContaining('The code writes outside the workspace.')]);
+  });
+
+  it('filters by verifier', async () => {
+    const user = userEvent.setup();
+    renderApp(<LedgerPage />);
+    await rowFor('(x + 1)**2 = x**2 + 2*x + 1');
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Verifier' }), 'LOGIC');
+
+    const rows = within(screen.getByRole('table')).getAllByRole('row').slice(1);
+    expect(rows.length).toBeGreaterThan(0);
+    for (const r of rows) expect(within(r).getByText('logic')).toBeTruthy();
+  });
+
+  it('names the column of each small cell, for the stacked rows on a phone', async () => {
+    renderApp(<LedgerPage />);
+    await rowFor('(x + 1)**2 = x**2 + 2*x + 1');
+    expectCellLabelsMatchHeaders(screen.getByRole('table'));
   });
 
   it('shows the empty state when there are no records', async () => {

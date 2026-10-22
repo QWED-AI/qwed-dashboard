@@ -32,7 +32,7 @@ function loadError(err: unknown): string {
 function EventRow({ event }: Readonly<{ event: SecurityEvent }>) {
   return (
     <tr>
-      <td className="mono num muted" style={{ fontSize: 12 }}>
+      <td className="mono num muted cell-small" style={{ fontSize: 12 }} data-label="Time (UTC)">
         {formatUtc(event.timestamp)}
       </td>
       <td>
@@ -43,7 +43,7 @@ function EventRow({ event }: Readonly<{ event: SecurityEvent }>) {
           </span>
         </span>
       </td>
-      <td>
+      <td className="cell-small" data-label="Severity">
         <span className={`tag sev-${event.severity}`}>{event.severity}</span>
       </td>
       <td>
@@ -54,7 +54,9 @@ function EventRow({ event }: Readonly<{ event: SecurityEvent }>) {
           {event.reason}
         </span>
       </td>
-      <td className="muted">{event.security_layer ?? 'not recorded'}</td>
+      <td className="muted cell-small" data-label="Layer">
+        {event.security_layer ?? 'not recorded'}
+      </td>
     </tr>
   );
 }
@@ -158,7 +160,7 @@ export function SecurityEventsPage() {
             </div>
           ) : (
             <div className="table-wrap" style={{ borderTop: '1px solid var(--line)' }}>
-              <table className="tbl">
+              <table className="tbl tbl-stack">
                 <thead>
                   <tr>
                     <th scope="col">Time (UTC)</th>

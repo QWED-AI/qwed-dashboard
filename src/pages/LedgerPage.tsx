@@ -139,7 +139,7 @@ export function LedgerPage() {
               />
             </label>
             <label className="pill">
-              Verifier
+              <span>Verifier</span>
               <select value={domain} onChange={(e) => set('verifier', e.target.value, 'all')}>
                 <option value="all">All</option>
                 {domains.map((d) => (
@@ -152,7 +152,7 @@ export function LedgerPage() {
           </div>
 
           <div className="table-wrap" style={{ borderTop: '1px solid var(--line)' }}>
-            <table className="tbl">
+            <table className="tbl tbl-stack">
               <thead>
                 <tr>
                   <th scope="col">Received (UTC)</th>
@@ -165,7 +165,7 @@ export function LedgerPage() {
               <tbody>
                 {shown.map((r) => (
                   <tr key={r.id}>
-                    <td className="mono num muted" style={{ fontSize: 12 }}>
+                    <td className="mono num muted cell-small" style={{ fontSize: 12 }} data-label="Received (UTC)">
                       {formatUtc(r.createdAt)}
                     </td>
                     <td>
@@ -182,15 +182,17 @@ export function LedgerPage() {
                         {r.result.agentMessage ?? 'No message recorded'}
                       </span>
                     </td>
-                    <td>{r.domain.toLowerCase()}</td>
-                    <td className="mono muted" style={{ fontSize: 12 }}>
+                    <td className="cell-small" data-label="Verifier">
+                      {r.domain.toLowerCase()}
+                    </td>
+                    <td className="mono muted cell-small" style={{ fontSize: 12 }} data-label="Record">
                       {r.id}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            {shown.length === 0 && <p className="sub" style={{ padding: '18px 24px' }}>No records match these filters.</p>}
+            {shown.length === 0 && <p className="sub table-empty">No records match these filters.</p>}
           </div>
 
           <div className="table-foot">

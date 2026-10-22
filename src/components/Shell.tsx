@@ -1,8 +1,8 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link, NavLink } from 'react-router';
 import { useSession } from '../auth/session';
 import { useTheme } from '../lib/theme';
-import { Icon } from './Icon';
+import { Icon, type IconName } from './Icon';
 import { Mark } from './Mark';
 
 export interface Crumb {
@@ -12,73 +12,88 @@ export interface Crumb {
 
 const THEME_LABEL = { system: 'Theme: system', light: 'Theme: light', dark: 'Theme: dark' } as const;
 
-export function Shell({ crumbs, children }: { crumbs: Crumb[]; children: ReactNode }) {
+function NavItem({ to, icon, label, onPick }: Readonly<{ to: string; icon: IconName; label: string; onPick: () => void }>) {
+  return (
+    <NavLink to={to} end={to === '/'} className={({ isActive }) => (isActive ? 'nav active' : 'nav')} onClick={onPick}>
+      <Icon name={icon} />
+      {label}
+    </NavLink>
+  );
+}
+
+export function Shell({ crumbs, children }: Readonly<{ crumbs: Crumb[]; children: ReactNode }>) {
   const { user, mode, signOut } = useSession();
   const [theme, cycleTheme] = useTheme();
+  // Below 900px the menu folds away behind a button, so the page starts at
+  // the top of a phone screen. Wider screens always show it and hide the button.
+  const [menuOpen, setMenuOpen] = useState(false);
+  const closeMenu = () => setMenuOpen(false);
   const initial = (user?.email ?? '?').slice(0, 1).toUpperCase();
 
   return (
     <div className="app">
-      <aside className="side">
-        <Link to="/" className="brand" aria-label="QWED Dashboard home">
-          <span className="brand-tile">
-            <Mark />
-          </span>
-          <span className="brand-name">
-            <strong>QWED Dashboard</strong>
-            <span>Organisation {user?.org_id ?? ''}</span>
-          </span>
-        </Link>
-
-        <nav aria-label="Main" style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <div className="grp">Verification</div>
-            <NavLink to="/" end className={({ isActive }) => (isActive ? 'nav active' : 'nav')}>
-              <Icon name="home" />
-              Home
-            </NavLink>
-            <NavLink to="/ledger" className={({ isActive }) => (isActive ? 'nav active' : 'nav')}>
-              <Icon name="ledger" />
-              Decision ledger
-            </NavLink>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <div className="grp">Settings</div>
-            <NavLink to="/keys" className={({ isActive }) => (isActive ? 'nav active' : 'nav')}>
-              <Icon name="key" />
-              API keys
-            </NavLink>
-            <NavLink to="/security" className={({ isActive }) => (isActive ? 'nav active' : 'nav')}>
-              <Icon name="shield" />
-              Security events
-            </NavLink>
-          </div>
-        </nav>
-
-        <div className="side-foot">
-          {mode === 'demo' && (
-            <span className="tag" style={{ alignSelf: 'flex-start' }}>
-              <span className="dot d-mute" aria-hidden="true" />
-              Sample data, not a server
-            </span>
-          )}
-          <div className="who">
-            <span className="avatar" aria-hidden="true">
-              {initial}
+      <aside className={menuOpen ? 'side open' : 'side'}>
+        <div className="side-top">
+          <Link to="/" className="brand" aria-label="QWED Dashboard home">
+            <span className="brand-tile">
+              <Mark />
             </span>
             <span className="brand-name">
-              <strong style={{ fontWeight: 500, fontSize: 12.5 }}>{user?.email}</strong>
-              <span style={{ textTransform: 'capitalize' }}>{user?.role}</span>
+              <strong>QWED Dashboard</strong>
+              <span>Organisation {user?.org_id ?? ''}</span>
             </span>
+          </Link>
+          <button
+            type="button"
+            className="btn btn-sm menu-btn"
+            aria-expanded={menuOpen}
+            aria-controls="side-menu"
+            onClick={() => setMenuOpen((open) => !open)}
+          >
+            <Icon name={menuOpen ? 'cross' : 'menu'} size={14} />
+            Menu
+          </button>
+        </div>
+
+        <div id="side-menu" className="side-menu">
+          <nav aria-label="Main" style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <div className="grp">Verification</div>
+              <NavItem to="/" icon="home" label="Home" onPick={closeMenu} />
+              <NavItem to="/ledger" icon="ledger" label="Decision ledger" onPick={closeMenu} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <div className="grp">Settings</div>
+              <NavItem to="/keys" icon="key" label="API keys" onPick={closeMenu} />
+              <NavItem to="/security" icon="shield" label="Security events" onPick={closeMenu} />
+            </div>
+          </nav>
+  
+          <div className="side-foot">
+            {mode === 'demo' && (
+              <span className="tag" style={{ alignSelf: 'flex-start' }}>
+                <span className="dot d-mute" aria-hidden="true" />
+                Sample data, not a server
+              </span>
+            )}
+            <div className="who">
+              <span className="avatar" aria-hidden="true">
+                {initial}
+              </span>
+              <span className="brand-name">
+                <strong style={{ fontWeight: 500, fontSize: 12.5 }}>{user?.email}</strong>
+                <span style={{ textTransform: 'capitalize' }}>{user?.role}</span>
+              </span>
+            </div>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={cycleTheme}>
+              <Icon name="theme" size={14} />
+              {THEME_LABEL[theme]}
+            </button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={signOut}>
+              <Icon name="out" size={14} />
+              Sign out
+            </button>
           </div>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={cycleTheme}>
-            <Icon name="theme" size={14} />
-            {THEME_LABEL[theme]}
-          </button>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={signOut}>
-            <Icon name="out" size={14} />
-            Sign out
-          </button>
         </div>
       </aside>
 

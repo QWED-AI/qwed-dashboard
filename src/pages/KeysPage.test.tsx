@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { demoApi } from '../api/demo';
 import { ApiError } from '../api/http';
 import { renderApp, SESSION_KEY } from '../test/render';
+import { expectCellLabelsMatchHeaders } from '../test/table';
 import { KeysPage } from './KeysPage';
 
 afterEach(() => {
@@ -23,6 +24,12 @@ describe('KeysPage', () => {
     renderApp(<KeysPage />);
     const row = (await screen.findByRole('cell', { name: 'payments-agent prod' })).closest('tr');
     expect(row?.textContent).toMatch(/2026-10-20 09:41:12 UTC/);
+  });
+
+  it('names the column of each small cell, for the stacked rows on a phone', async () => {
+    renderApp(<KeysPage />);
+    await screen.findByRole('cell', { name: 'payments-agent prod' });
+    expectCellLabelsMatchHeaders(screen.getByRole('table'));
   });
 
   it('says no use is recorded for a key with no last use', async () => {
