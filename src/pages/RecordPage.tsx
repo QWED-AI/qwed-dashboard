@@ -130,7 +130,8 @@ function Tabs({ tab, onChange }: Readonly<{ tab: TabId; onChange: (t: TabId) => 
     refs.current[next.id]?.focus();
   }
   return (
-    <div role="tablist" aria-label="Record views" className="tabs" onKeyDown={onKey}>
+    // The keys are handled on each tab, the element that has focus.
+    <div role="tablist" aria-label="Record views" className="tabs">
       {TABS.map((t) => (
         <button
           key={t.id}
@@ -145,6 +146,7 @@ function Tabs({ tab, onChange }: Readonly<{ tab: TabId; onChange: (t: TabId) => 
           tabIndex={tab === t.id ? 0 : -1}
           className="tab"
           onClick={() => onChange(t.id)}
+          onKeyDown={onKey}
         >
           {t.label}
         </button>

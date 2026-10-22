@@ -7,7 +7,7 @@ export function JsonView({
   const text = value === null || value === undefined ? fallback : JSON.stringify(value, null, 2);
   const lines = text.split('\n');
   return (
-    <div className="code-box" role="region" aria-label={label} tabIndex={0}>
+    <section className="code-box" aria-label={label}>
       {lines.map((line, i) => {
         const m = /^(\s*)("(?:[^"\\]|\\.)*")(:.*)$/.exec(line);
         return (
@@ -27,6 +27,6 @@ export function JsonView({
           </div>
         );
       })}
-    </div>
+    </section>
   );
 }
