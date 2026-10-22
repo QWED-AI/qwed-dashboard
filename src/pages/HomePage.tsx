@@ -176,9 +176,14 @@ export function HomePage() {
                 </p>
               )}
               {keys.isRefetchError && (
-                <p className="hint" role="alert">
-                  The key list could not be refreshed, so this count may be out of date. {describeError(keys.error)}
-                </p>
+                <div role="alert" style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-start' }}>
+                  <p className="hint" style={{ margin: 0 }}>
+                    The key list could not be refreshed, so this count may be out of date. {describeError(keys.error)}
+                  </p>
+                  <button type="button" className="btn btn-sm" onClick={() => keys.refetch()}>
+                    Try the key list again
+                  </button>
+                </div>
               )}
             </section>
 

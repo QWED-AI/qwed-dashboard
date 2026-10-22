@@ -202,7 +202,9 @@ export function LedgerPage() {
               <button
                 type="button"
                 className="btn btn-sm"
-                disabled={logs.isFetchingNextPage}
+                // Any fetch, not only the next page: a refresh of the same
+                // pages would race this one.
+                disabled={logs.isFetching}
                 onClick={() => logs.fetchNextPage()}
               >
                 {logs.isFetchingNextPage ? 'Loading…' : `Load ${LIMIT} older records`}

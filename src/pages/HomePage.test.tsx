@@ -146,5 +146,11 @@ describe('HomePage', () => {
 
     await user.click(screen.getByRole('button', { name: 'Try again' }));
     await vi.waitFor(() => expect(screen.queryByText(/The records could not be refreshed/)).toBeNull());
+    // The records' Try again does not touch the key list; it has its own.
+    expect(screen.getByText(/The key list could not be refreshed/)).toBeTruthy();
+
+    await user.click(screen.getByRole('button', { name: 'Try the key list again' }));
+    expect(await screen.findByRole('link', { name: '2 active keys' })).toBeTruthy();
+    expect(screen.queryByText(/The key list could not be refreshed/)).toBeNull();
   });
 });

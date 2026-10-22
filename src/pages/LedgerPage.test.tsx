@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { demoApi } from '../api/demo';
 import { ApiError } from '../api/http';
-import type { AuditLog } from '../api/types';
+import type { AuditLog, AuditLogPage } from '../api/types';
 import { renderApp } from '../test/render';
 import { LedgerPage } from './LedgerPage';
 
@@ -68,6 +68,27 @@ describe('LedgerPage', () => {
     vi.spyOn(demoApi, 'listLogs').mockResolvedValue({ logs: [], nextBefore: null });
     renderApp(<LedgerPage />);
     expect(await screen.findByText('No records yet')).toBeTruthy();
+  });
+
+  it('does not load older records while the ledger is refreshing', async () => {
+    let finishRefresh: (page: AuditLogPage) => void = () => undefined;
+    vi.spyOn(demoApi, 'listLogs')
+      .mockResolvedValueOnce({ logs: [row('2')], nextBefore: '2' })
+      .mockReturnValueOnce(new Promise<AuditLogPage>((resolve) => (finishRefresh = resolve)));
+    renderApp(<LedgerPage />);
+    await rowFor('claim 2');
+    const button = screen.getByRole('button', { name: 'Load 200 older records' }) as HTMLButtonElement;
+    expect(button.disabled).toBe(false);
+
+    act(() => {
+      focusManager.setFocused(false);
+      focusManager.setFocused(true);
+    });
+
+    await vi.waitFor(() => expect(button.disabled).toBe(true));
+    await act(async () => finishRefresh({ logs: [row('2')], nextBefore: '2' }));
+    await vi.waitFor(() => expect(button.disabled).toBe(false));
+    focusManager.setFocused(undefined);
   });
 
   it('loads older records with the cursor the server gave', async () => {
