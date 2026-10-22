@@ -50,6 +50,10 @@ npm run typecheck
 npm test
 ```
 
+## Browser testing
+
+This project is tested with BrowserStack.
+
 ## Licence
 
 Apache-2.0. See [LICENSE](LICENSE).
