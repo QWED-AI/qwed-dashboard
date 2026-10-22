@@ -12,8 +12,8 @@ const LIMIT = 50;
 
 // Plain names for the event types the server writes. Any other type shows
 // as the server sent it. A Map, not an object: the type can come from the
-// URL, and an object would answer "constructor" or "__proto__" with an
-// inherited value React cannot render.
+// URL, and an object would answer an inherited name such as "constructor"
+// with a function React cannot render.
 const TYPE_LABEL: ReadonlyMap<string, string> = new Map([['SECRET_LEAK_AUTO_REVOKED', 'Leaked API key revoked']]);
 
 const typeLabel = (type: string) => TYPE_LABEL.get(type) ?? type;

@@ -118,7 +118,7 @@ describe('SecurityEventsPage', () => {
     expect(screen.queryByRole('button', { name: /older events/ })).toBeNull();
   });
 
-  it.each(['constructor', '__proto__', 'toString'])('shows a type of %s from the URL as plain text', async (name) => {
+  it.each(['constructor', 'toString', 'hasOwnProperty'])('shows a type of %s from the URL as plain text', async (name) => {
     // An object lookup would return an inherited value for these, which
     // React cannot render as the option's label.
     vi.spyOn(demoApi, 'listSecurityEvents').mockResolvedValue({ events: [], nextBefore: null });
