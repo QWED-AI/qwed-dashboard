@@ -987,12 +987,19 @@ a.btn {
   }
   /* Each row of a stacked table is a block: the main cells one under the
      other, then the small ones (time, ids) on a line at the end. The header
-     row is hidden; a small cell names its column with data-label. */
+     row is hidden from sight but kept for screen readers, which still read
+     each cell with its column header; a small cell names its column on
+     screen with data-label. */
   .tbl.tbl-stack {
     min-width: 0;
   }
   .tbl-stack thead {
-    display: none;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
   .tbl-stack,
   .tbl-stack tbody {

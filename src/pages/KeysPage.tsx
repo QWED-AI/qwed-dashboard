@@ -157,32 +157,33 @@ export function KeysPage() {
 
       {keys.isSuccess && keys.data.length > 0 && (
         <div className="table-wrap" style={{ borderTop: '1px solid var(--line)' }}>
-          <table className="tbl compact tbl-stack">
-            <thead>
-              <tr>
-                <th scope="col">Name</th>
-                <th scope="col">Key</th>
-                <th scope="col">Created (UTC)</th>
-                <th scope="col">Last used</th>
-                <th scope="col">
+          {/* Roles spelled out: on a phone the CSS changes these elements' display, which can drop their table roles. */}
+          <table role="table" className="tbl compact tbl-stack">
+            <thead role="rowgroup">
+              <tr role="row">
+                <th role="columnheader" scope="col">Name</th>
+                <th role="columnheader" scope="col">Key</th>
+                <th role="columnheader" scope="col">Created (UTC)</th>
+                <th role="columnheader" scope="col">Last used</th>
+                <th role="columnheader" scope="col">
                   <span className="sr-only">Actions</span>
                 </th>
               </tr>
             </thead>
-            <tbody>
+            <tbody role="rowgroup">
               {keys.data.map((k) => (
-                <tr key={k.id}>
-                  <td style={{ color: 'var(--ink)', fontWeight: 500 }}>{k.name}</td>
-                  <td className="mono" style={{ fontSize: 12 }}>
+                <tr role="row" key={k.id}>
+                  <td role="cell" style={{ color: 'var(--ink)', fontWeight: 500 }}>{k.name}</td>
+                  <td role="cell" className="mono" style={{ fontSize: 12 }}>
                     {k.key_preview}
                   </td>
-                  <td className="mono num muted cell-small" style={{ fontSize: 12 }} data-label="Created">
+                  <td role="cell" className="mono num muted cell-small" style={{ fontSize: 12 }} data-label="Created">
                     {formatUtcLong(k.created_at)}
                   </td>
-                  <td className="muted cell-small" style={{ fontSize: 12.5 }} data-label="Last used">
+                  <td role="cell" className="muted cell-small" style={{ fontSize: 12.5 }} data-label="Last used">
                     {k.last_used_at ? formatUtcLong(k.last_used_at) : 'No use recorded'}
                   </td>
-                  <td className="cell-end">
+                  <td role="cell" className="cell-end">
                     {confirmId === k.id ? (
                       <span style={{ display: 'inline-flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
                         <span style={{ fontSize: 12.5, color: 'var(--ink)' }}>Calls with this key will fail.</span>

@@ -41,6 +41,17 @@ describe('App routes', () => {
     expect(menu?.closest('aside')?.classList.contains('open')).toBe(false);
   });
 
+  it('closes the menu when the brand link is picked', async () => {
+    const user = userEvent.setup();
+    renderApp(<App />, { route: '/' });
+    const button = await screen.findByRole('button', { name: 'Menu' });
+    await user.click(button);
+    expect(button.getAttribute('aria-expanded')).toBe('true');
+
+    await user.click(screen.getByRole('link', { name: 'QWED Dashboard home' }));
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+  });
+
   it('sends a signed-out visitor to the sign-in page', async () => {
     renderApp(<App />, { route: '/keys', signedIn: false });
     expect(await screen.findByRole('button', { name: 'Sign in' })).toBeTruthy();

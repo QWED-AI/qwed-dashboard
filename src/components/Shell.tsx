@@ -34,7 +34,7 @@ export function Shell({ crumbs, children }: Readonly<{ crumbs: Crumb[]; children
     <div className="app">
       <aside className={menuOpen ? 'side open' : 'side'}>
         <div className="side-top">
-          <Link to="/" className="brand" aria-label="QWED Dashboard home">
+          <Link to="/" className="brand" aria-label="QWED Dashboard home" onClick={closeMenu}>
             <span className="brand-tile">
               <Mark />
             </span>

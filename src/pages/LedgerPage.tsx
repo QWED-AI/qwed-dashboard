@@ -152,26 +152,27 @@ export function LedgerPage() {
           </div>
 
           <div className="table-wrap" style={{ borderTop: '1px solid var(--line)' }}>
-            <table className="tbl tbl-stack">
-              <thead>
-                <tr>
-                  <th scope="col">Received (UTC)</th>
-                  <th scope="col">Verdict · admission</th>
-                  <th scope="col">Request · what the verifier said</th>
-                  <th scope="col">Verifier</th>
-                  <th scope="col">Record</th>
+            {/* Roles spelled out: on a phone the CSS changes these elements' display, which can drop their table roles. */}
+            <table role="table" className="tbl tbl-stack">
+              <thead role="rowgroup">
+                <tr role="row">
+                  <th role="columnheader" scope="col">Received (UTC)</th>
+                  <th role="columnheader" scope="col">Verdict · admission</th>
+                  <th role="columnheader" scope="col">Request · what the verifier said</th>
+                  <th role="columnheader" scope="col">Verifier</th>
+                  <th role="columnheader" scope="col">Record</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody role="rowgroup">
                 {shown.map((r) => (
-                  <tr key={r.id}>
-                    <td className="mono num muted cell-small" style={{ fontSize: 12 }} data-label="Received (UTC)">
+                  <tr role="row" key={r.id}>
+                    <td role="cell" className="mono num muted cell-small" style={{ fontSize: 12 }} data-label="Received (UTC)">
                       {formatUtc(r.createdAt)}
                     </td>
-                    <td>
+                    <td role="cell">
                       <VerdictChip verdict={r.result.verdict} admission={r.result.admission} />
                     </td>
-                    <td>
+                    <td role="cell">
                       <Link className="row-link" to={`/records/${encodeURIComponent(r.id)}`}>
                         {r.query.split('\n')[0]}
                       </Link>
@@ -182,10 +183,10 @@ export function LedgerPage() {
                         {r.result.agentMessage ?? 'No message recorded'}
                       </span>
                     </td>
-                    <td className="cell-small" data-label="Verifier">
+                    <td role="cell" className="cell-small" data-label="Verifier">
                       {r.domain.toLowerCase()}
                     </td>
-                    <td className="mono muted cell-small" style={{ fontSize: 12 }} data-label="Record">
+                    <td role="cell" className="mono muted cell-small" style={{ fontSize: 12 }} data-label="Record">
                       {r.id}
                     </td>
                   </tr>
