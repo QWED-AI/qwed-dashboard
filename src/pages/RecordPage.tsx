@@ -1,5 +1,6 @@
+import { useRef, useState, type KeyboardEvent } from 'react';
 import { Link, useParams } from 'react-router';
-import type { ApiKeyItem, AuditLog } from '../api/types';
+import type { ApiKeyItem, AuditLog, Verdict } from '../api/types';
 import { ChainCheck } from '../components/ChainCheck';
 import { Icon } from '../components/Icon';
 import { JsonView } from '../components/JsonView';
@@ -7,8 +8,13 @@ import { RefreshError } from '../components/RefreshError';
 import { Shell } from '../components/Shell';
 import { VerdictChip } from '../components/VerdictChip';
 import { formatUtcLong } from '../lib/format';
-import { toRecord } from '../lib/result';
+import { toRecord, type ParsedResult } from '../lib/result';
 import { describeError, useAuthedQuery } from '../lib/useAuthedQuery';
+
+// Laid out as the RecordCore wireframe: what was checked and how it came
+// out first, then the stored result and audit entry, with the reason, the
+// checks and what to do next beside them. The exception, policy and route
+// parts of that wireframe belong to the enterprise console and are left out.
 
 const SHAPE_LABEL = {
   diagnostic: 'Engine result (DiagnosticResult)',
@@ -38,42 +44,124 @@ function keyLabel(keyId: string | null | undefined, keys: KeyList): string {
   return `Key ${keyId}, not in your key list`;
 }
 
-function RecordedBy({ log, keys }: Readonly<{ log: AuditLog; keys: KeyList }>) {
-  return (
-    <section aria-labelledby="recorded-by" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <h2 id="recorded-by" className="sub" style={{ fontSize: 12, fontWeight: 400 }}>
-        Recorded by
-      </h2>
-      <dl className="kv">
-        <dt>API key</dt>
-        <dd>{keyLabel(log.api_key_id, keys)}</dd>
-        <dt>Server version</dt>
-        <dd className="mono" style={{ fontSize: 12 }}>
-          {log.verifier_version ?? 'not recorded'}
-        </dd>
-      </dl>
-      {(log.api_key_id === null || log.api_key_id === undefined) && (
-        <p className="hint">
-          The server records the key on rows it writes for an API key request. A row written before it did, or
-          without a key (a signed-in session, an agent token), has none.
-        </p>
-      )}
-    </section>
-  );
-}
-
 /** One stored chain field: absent on an older server, null when the row has none. */
 function chainValue(value: string | null | undefined, none: string): string {
   if (value === undefined) return 'not recorded';
   return value ?? none;
 }
 
-function ChainEntry({ log }: Readonly<{ log: AuditLog }>) {
+/**
+ * What a reader can do next, by the stored verdict. Guidance only: it never
+ * says whether the claim holds or was admitted, which only the verifier's
+ * message and a stored admission can say.
+ */
+const NEXT: Record<Verdict | 'none', { title: string; text: string }> = {
+  VERIFIED: {
+    title: 'Read what the verifier said',
+    text: 'VERIFIED means the check ran to a proof, not that the claim holds: a disproven claim is VERIFIED too. The reason above says which. Download the record with its audit entry when someone asks for evidence.',
+  },
+  UNVERIFIABLE: {
+    title: 'A person can look',
+    text: 'The verifier could not decide with what it was given. Check the claim by hand, or send the request again with what was missing. A new request gets a new record; this one stays as it is.',
+  },
+  BLOCKED: {
+    title: 'Send a new request',
+    text: 'The verifier refused the request or could not check it. Fix the input and send it again. A new request gets a new record; this one stays as it is.',
+  },
+  none: {
+    title: 'No readable verdict',
+    text: 'The stored result has no verdict the dashboard can read. The stored result tab shows it exactly as the server keeps it.',
+  },
+};
+
+const TABS = [
+  { id: 'result', label: 'Stored result' },
+  { id: 'entry', label: 'Audit entry' },
+] as const;
+type TabId = (typeof TABS)[number]['id'];
+
+/** Saves the record, as the server returned it, as a JSON file. */
+function downloadRecord(log: AuditLog) {
+  const blob = new Blob([JSON.stringify(log, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `qwed-record-${log.id}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function CopyId({ id }: Readonly<{ id: string }>) {
+  const [state, setState] = useState<'idle' | 'copied' | 'failed'>('idle');
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(id);
+      setState('copied');
+    } catch {
+      // Clipboard access can be refused (permissions, insecure origin).
+      setState('failed');
+    }
+  }
   return (
-    <section aria-labelledby="chain-entry" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <h2 id="chain-entry" className="sub" style={{ fontSize: 12, fontWeight: 400 }}>
-        Chain entry, as stored
-      </h2>
+    <>
+      <button type="button" className="btn btn-sm" onClick={copy}>
+        <Icon name={state === 'copied' ? 'check' : 'copy'} size={14} />
+        {state === 'copied' ? 'Copied' : 'Copy record id'}
+      </button>
+      {state === 'failed' && (
+        <span className="hint" role="alert">
+          The browser did not allow copying. The record id is {id}.
+        </span>
+      )}
+    </>
+  );
+}
+
+function Tabs({ tab, onChange }: Readonly<{ tab: TabId; onChange: (t: TabId) => void }>) {
+  const refs = useRef<Record<TabId, HTMLButtonElement | null>>({ result: null, entry: null });
+  function onKey(e: KeyboardEvent) {
+    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+    // Alt+Arrow is back and forward in some browsers; leave modified keys alone.
+    if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    const i = TABS.findIndex((t) => t.id === tab);
+    const next = TABS[(i + (e.key === 'ArrowRight' ? 1 : TABS.length - 1)) % TABS.length];
+    if (!next) return;
+    onChange(next.id);
+    refs.current[next.id]?.focus();
+  }
+  return (
+    // The keys are handled on each tab, the element that has focus.
+    <div role="tablist" aria-label="Record views" className="tabs">
+      {TABS.map((t) => (
+        <button
+          key={t.id}
+          ref={(el) => {
+            refs.current[t.id] = el;
+          }}
+          type="button"
+          role="tab"
+          id={`tab-${t.id}`}
+          aria-selected={tab === t.id}
+          aria-controls={`panel-${t.id}`}
+          tabIndex={tab === t.id ? 0 : -1}
+          className="tab"
+          onClick={() => onChange(t.id)}
+          onKeyDown={onKey}
+        >
+          {t.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function AuditEntry({ log }: Readonly<{ log: AuditLog }>) {
+  return (
+    <>
+      <p className="sub" style={{ fontSize: 12.5 }}>
+        The chained row as the server stored it. The entry hash covers the row's fields, its stored result and the
+        link to the previous entry; the HMAC signs the entry hash.
+      </p>
       <dl className="kv">
         <dt>entry_hash</dt>
         <dd className="mono" style={{ fontSize: 11.5 }}>
@@ -89,7 +177,77 @@ function ChainEntry({ log }: Readonly<{ log: AuditLog }>) {
           {chainValue(log.hmac_signature, 'none')}
         </dd>
       </dl>
-      <p className="hint">These are the values the server stored. The check below recomputes them on the server.</p>
+      <p className="hint">The check beside this recomputes these values on the server.</p>
+    </>
+  );
+}
+
+/**
+ * What the dashboard can say about the result's proof_ref. The verdict may
+ * come from the server while the stored result cannot be read here (it was
+ * shortened, or is in no known shape), so an absent proof_ref is only called
+ * absent when the result could be read.
+ */
+function proofRefState(result: ParsedResult): { title: string; text: string } {
+  if (result.proofRef) {
+    return {
+      title: 'proof_ref present',
+      text: 'A hash of the evidence the engine produced. A VERIFIED result always carries one.',
+    };
+  }
+  if (result.shape === 'truncated' || result.shape === 'unknown') {
+    return {
+      title: 'proof_ref not readable',
+      text: 'The stored result is shortened or not in a shape the dashboard reads, so its proof_ref cannot be shown.',
+    };
+  }
+  if (result.verdict === 'VERIFIED') {
+    return {
+      title: 'No proof_ref recorded',
+      text: 'A VERIFIED result should carry one, but this stored result has none.',
+    };
+  }
+  return { title: 'No proof_ref', text: 'Only a VERIFIED result carries one.' };
+}
+
+function Checks({ result }: Readonly<{ result: ParsedResult }>) {
+  const proof = proofRefState(result);
+  return (
+    <section className="card" aria-labelledby="checks-title">
+      <h2 id="checks-title">Checks</h2>
+      <div className="check">
+        <span className={result.proofRef ? 'mark pass' : 'mark unknown'}>
+          <Icon name={result.proofRef ? 'check' : 'dash'} size={12} />
+        </span>
+        <div>
+          <strong style={{ fontSize: 13 }}>{proof.title}</strong>
+          <p className="hint" style={{ margin: '2px 0 0' }}>
+            {proof.text}
+          </p>
+          {result.proofRef && (
+            <p className="mono" style={{ margin: '4px 0 0', fontSize: 11.5, overflowWrap: 'anywhere' }}>
+              {result.proofRef}
+            </p>
+          )}
+        </div>
+      </div>
+      <dl className="kv">
+        <dt>Admission</dt>
+        <dd className="mono" style={{ fontSize: 12 }}>
+          {result.admission ?? 'not recorded'}
+        </dd>
+        <dt>Authoritative</dt>
+        <dd className="mono" style={{ fontSize: 12 }}>
+          {result.isAuthoritative === null ? 'not recorded' : String(result.isAuthoritative)}
+        </dd>
+      </dl>
+      {(result.shape === 'diagnostic' || result.shape === 'batch-item') && result.admission === null && (
+        <p className="note">
+          <strong>Why admission is not recorded.</strong> The verify routes store the engine result, which has no
+          admission field. Some routes return an admission to the caller, but the server does not keep it with the
+          record yet.
+        </p>
+      )}
     </section>
   );
 }
@@ -99,6 +257,7 @@ export function RecordPage() {
   const log = useAuthedQuery(['log', id], (api, token) => api.getLog(token, id));
   // Only to name the key; a role that cannot list keys still sees the id.
   const keys = useAuthedQuery(['keys'], (api, token) => api.listKeys(token));
+  const [tab, setTab] = useState<TabId>('result');
   const crumbs = [{ label: 'Decision ledger', to: '/ledger' }, { label: `Record ${id}` }];
 
   if (log.isPending) {
@@ -134,9 +293,12 @@ export function RecordPage() {
     );
   }
 
-  const r = toRecord(log.data);
+  const data = log.data;
+  const r = toRecord(data);
   const { result } = r;
   const multiline = r.query.includes('\n');
+  const next = NEXT[result.verdict ?? 'none'];
+  const noKey = data.api_key_id === null || data.api_key_id === undefined;
 
   return (
     <Shell crumbs={crumbs}>
@@ -149,85 +311,92 @@ export function RecordPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <VerdictChip verdict={result.verdict} admission={result.admission} large />
           <span className="spacer" />
+          <CopyId id={r.id} />
+          <button type="button" className="btn btn-sm" onClick={() => downloadRecord(data)}>
+            Download .json
+          </button>
           <Link className="btn btn-sm" to="/ledger">
             <Icon name="back" size={14} />
             Ledger
           </Link>
         </div>
         <h1 className={multiline ? 'statement code' : 'statement'}>{r.query}</h1>
-        <div className="meta-row">
-          <div className="meta">
-            <span className="k">Record</span>
-            <span className="v mono" style={{ fontSize: 12 }}>
-              {r.id}
-            </span>
-          </div>
-          <div className="meta">
-            <span className="k">Verifier</span>
-            <span className="v">{r.domain.toLowerCase()}</span>
-          </div>
-          <div className="meta">
-            <span className="k">Received</span>
-            <span className="v mono num" style={{ fontSize: 12 }}>
-              {formatUtcLong(r.createdAt)}
-            </span>
-          </div>
-          <div className="meta">
-            <span className="k">Stored as</span>
-            <span className="v">{SHAPE_LABEL[result.shape]}</span>
-          </div>
-        </div>
+        <section aria-label="Record details">
+          <dl className="meta-row">
+            <div className="meta">
+              <dt className="k">Record</dt>
+              <dd className="v mono" style={{ fontSize: 12 }}>
+                {r.id}
+              </dd>
+            </div>
+            <div className="meta">
+              <dt className="k">Verifier</dt>
+              <dd className="v">{r.domain.toLowerCase()}</dd>
+            </div>
+            <div className="meta">
+              <dt className="k">Version</dt>
+              <dd className="v mono" style={{ fontSize: 12 }}>
+                {data.verifier_version ?? 'not recorded'}
+              </dd>
+            </div>
+            <div className="meta">
+              <dt className="k">API key</dt>
+              <dd className="v">{keyLabel(data.api_key_id, { status: keys.status, data: keys.data })}</dd>
+            </div>
+            <div className="meta">
+              <dt className="k">Received</dt>
+              <dd className="v mono num" style={{ fontSize: 12 }}>
+                {formatUtcLong(r.createdAt)}
+              </dd>
+            </div>
+            <div className="meta">
+              <dt className="k">Stored as</dt>
+              <dd className="v">{SHAPE_LABEL[result.shape]}</dd>
+            </div>
+          </dl>
+          {noKey && (
+            <p className="hint" style={{ margin: '10px 0 0' }}>
+              No API key is recorded for this row. The server records the key on rows it writes for an API key request;
+              a row written before it did, or without a key (a signed-in session, an agent token), has none.
+            </p>
+          )}
+        </section>
       </div>
 
       <div className="split">
-        <section className="main" aria-label="Stored result">
-          <p className="sub" style={{ fontSize: 12.5 }}>
-            The result exactly as the server stored it in the audit row.
-          </p>
-          <JsonView value={result.value} fallback={r.raw} />
+        <section className="main" aria-label="Record">
+          <Tabs tab={tab} onChange={setTab} />
+          <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
+            {tab === 'result' ? (
+              <>
+                <p className="sub" style={{ fontSize: 12.5, marginBottom: 10 }}>
+                  The result the verifier returned, exactly as the server stored it in the audit row.
+                </p>
+                <JsonView value={result.value} fallback={r.raw} label="Stored result JSON" />
+              </>
+            ) : (
+              <AuditEntry log={data} />
+            )}
+          </div>
         </section>
 
         <aside className="aside" aria-label="Details and checks">
-          {result.agentMessage && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <span className="sub" style={{ fontSize: 12 }}>
-                What the verifier said
-              </span>
-              <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: 'var(--ink)' }}>{result.agentMessage}</p>
-            </div>
-          )}
-
-          {result.error && <p className="note">{result.error}</p>}
-
-          <dl className="kv">
-            <dt>Verdict</dt>
-            <dd className="mono" style={{ fontSize: 12 }}>
-              {result.verdict ?? 'not recorded'}
-            </dd>
-            <dt>Admission</dt>
-            <dd className="mono" style={{ fontSize: 12 }}>
-              {result.admission ?? 'not recorded'}
-            </dd>
-            <dt>proof_ref</dt>
-            <dd className="mono" style={{ fontSize: 12 }}>
-              {result.proofRef ?? 'none'}
-            </dd>
-            <dt>Authoritative</dt>
-            <dd className="mono" style={{ fontSize: 12 }}>
-              {result.isAuthoritative === null ? 'not recorded' : String(result.isAuthoritative)}
-            </dd>
-          </dl>
-
-          {(result.shape === 'diagnostic' || result.shape === 'batch-item') && result.admission === null && (
-            <p className="note">
-              <strong>Why admission is not recorded.</strong> The verify routes store the engine result, which has no
-              admission field. Some routes return an admission to the caller, but the server does not keep it with the
-              record yet.
+          <section aria-labelledby="why-title" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <h2 id="why-title" className="sub" style={{ fontSize: 12, fontWeight: 400 }}>
+              Why
+            </h2>
+            <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: 'var(--ink)' }}>
+              {result.agentMessage ?? 'No message recorded.'}
             </p>
-          )}
+            {result.error && <p className="note">{result.error}</p>}
+          </section>
 
-          <RecordedBy log={log.data} keys={{ status: keys.status, data: keys.data }} />
-          <ChainEntry log={log.data} />
+          <section className="card" aria-labelledby="next-title">
+            <h2 id="next-title">{next.title}</h2>
+            <p className="sub">{next.text}</p>
+          </section>
+
+          <Checks result={result} />
           <ChainCheck logId={r.id} />
         </aside>
       </div>
