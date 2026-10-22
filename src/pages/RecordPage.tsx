@@ -1,4 +1,5 @@
 import { Link, useParams } from 'react-router';
+import type { ApiKeyItem, AuditLog } from '../api/types';
 import { ChainCheck } from '../components/ChainCheck';
 import { Icon } from '../components/Icon';
 import { JsonView } from '../components/JsonView';
@@ -11,13 +12,81 @@ import { describeError, useAuthedQuery } from '../lib/useAuthedQuery';
 const SHAPE_LABEL = {
   diagnostic: 'Engine result (DiagnosticResult)',
   'verification-context': 'Verification Context document',
+  'batch-item': 'Batch item (engine result inside)',
   truncated: 'Shortened by the server',
   unknown: 'Unrecognised',
 } as const;
 
+/** The key that made a row, by name when the key list has it (#484). */
+function keyLabel(keyId: string | null | undefined, keys: ApiKeyItem[] | undefined): string {
+  if (keyId === undefined || keyId === null) return 'not recorded';
+  const key = keys?.find((k) => k.id === keyId);
+  if (key) return `${key.name} (${key.key_preview})`;
+  // The list holds active keys only, and only your own unless you are an
+  // admin or owner, so a revoked or another member's key is not in it.
+  return `Key ${keyId}, not in your key list`;
+}
+
+function RecordedBy({ log, keys }: Readonly<{ log: AuditLog; keys: ApiKeyItem[] | undefined }>) {
+  return (
+    <section aria-labelledby="recorded-by" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <h2 id="recorded-by" className="sub" style={{ fontSize: 12, fontWeight: 400 }}>
+        Recorded by
+      </h2>
+      <dl className="kv">
+        <dt>API key</dt>
+        <dd>{keyLabel(log.api_key_id, keys)}</dd>
+        <dt>Server version</dt>
+        <dd className="mono" style={{ fontSize: 12 }}>
+          {log.verifier_version ?? 'not recorded'}
+        </dd>
+      </dl>
+      {(log.api_key_id === null || log.api_key_id === undefined) && (
+        <p className="hint">
+          The server records the key on rows it writes for an API key request. A row written before it did, or
+          without a key (a signed-in session, an agent token), has none.
+        </p>
+      )}
+    </section>
+  );
+}
+
+/** One stored chain field: absent on an older server, null when the row has none. */
+function chainValue(value: string | null | undefined, none: string): string {
+  if (value === undefined) return 'not recorded';
+  return value ?? none;
+}
+
+function ChainEntry({ log }: Readonly<{ log: AuditLog }>) {
+  return (
+    <section aria-labelledby="chain-entry" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <h2 id="chain-entry" className="sub" style={{ fontSize: 12, fontWeight: 400 }}>
+        Chain entry, as stored
+      </h2>
+      <dl className="kv">
+        <dt>entry_hash</dt>
+        <dd className="mono" style={{ fontSize: 11.5 }}>
+          {chainValue(log.entry_hash, 'none: written outside the chain')}
+        </dd>
+        <dt>previous_hash</dt>
+        <dd className="mono" style={{ fontSize: 11.5 }}>
+          {chainValue(log.previous_hash, 'none: the first entry')}
+        </dd>
+        <dt>HMAC</dt>
+        <dd className="mono" style={{ fontSize: 11.5 }}>
+          {chainValue(log.hmac_signature, 'none')}
+        </dd>
+      </dl>
+      <p className="hint">These are the values the server stored. The check below recomputes them on the server.</p>
+    </section>
+  );
+}
+
 export function RecordPage() {
   const { id = '' } = useParams();
   const log = useAuthedQuery(['log', id], (api, token) => api.getLog(token, id));
+  // Only to name the key; a role that cannot list keys still sees the id.
+  const keys = useAuthedQuery(['keys'], (api, token) => api.listKeys(token));
   const crumbs = [{ label: 'Decision ledger', to: '/ledger' }, { label: `Record ${id}` }];
 
   if (log.isPending) {
@@ -130,7 +199,7 @@ export function RecordPage() {
             </dd>
           </dl>
 
-          {result.shape === 'diagnostic' && result.admission === null && (
+          {(result.shape === 'diagnostic' || result.shape === 'batch-item') && result.admission === null && (
             <p className="note">
               <strong>Why admission is not recorded.</strong> The verify routes store the engine result, which has no
               admission field. Some routes return an admission to the caller, but the server does not keep it with the
@@ -138,6 +207,8 @@ export function RecordPage() {
             </p>
           )}
 
+          <RecordedBy log={log.data} keys={keys.data} />
+          <ChainEntry log={log.data} />
           <ChainCheck logId={r.id} />
         </aside>
       </div>

@@ -8,7 +8,8 @@ import { formatUtc } from '../lib/format';
 import { toRecord, type LedgerRecord } from '../lib/result';
 import { describeError, useAuthedQuery } from '../lib/useAuthedQuery';
 
-// The same keys as the ledger and the keys screen, so the three share a cache.
+// Home reads the newest page only. The keys query shares its cache with the
+// keys screen; the ledger pages through its own.
 const LIMIT = 200;
 
 interface Attention {
@@ -84,7 +85,8 @@ function countPairs(records: LedgerRecord[]): Pair[] {
 export function HomePage() {
   const logs = useAuthedQuery(['logs', LIMIT], (api, token) => api.listLogs(token, LIMIT));
   const keys = useAuthedQuery(['keys'], (api, token) => api.listKeys(token));
-  const records = useMemo(() => (logs.data ?? []).map(toRecord), [logs.data]);
+  const records = useMemo(() => (logs.data?.logs ?? []).map(toRecord), [logs.data]);
+  const nextBefore = logs.data?.nextBefore;
   const activeKeys = keys.data ? keys.data.length : null;
   const items = useMemo(() => needsAttention(records, activeKeys), [records, activeKeys]);
   const pairs = useMemo(() => countPairs(records), [records]);
@@ -150,7 +152,10 @@ export function HomePage() {
                   </ul>
                   <p className="hint">
                     Counts, not a chart. Open one to see the records with that verdict.
-                    {records.length >= LIMIT && ` The server returns at most ${LIMIT} records and has no paging yet.`}
+                    {typeof nextBefore === 'string' && ` These cover the newest ${LIMIT}; the ledger loads older ones.`}
+                    {nextBefore === undefined &&
+                      records.length >= LIMIT &&
+                      ` This server returns at most ${LIMIT} records and does not page.`}
                   </p>
                 </>
               )}

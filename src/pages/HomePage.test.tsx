@@ -42,7 +42,10 @@ describe('HomePage', () => {
   });
 
   it('never lists a VERIFIED record, even when its message says the claim does not hold', async () => {
-    vi.spyOn(demoApi, 'listLogs').mockResolvedValue([verified('1', 'The identity is false.'), verified('2', 'The identity holds.')]);
+    vi.spyOn(demoApi, 'listLogs').mockResolvedValue({
+      logs: [verified('1', 'The identity is false.'), verified('2', 'The identity holds.')],
+      nextBefore: null,
+    });
     renderApp(<HomePage />);
     expect(await screen.findByText(/Nothing needs attention in the newest 2 records/)).toBeTruthy();
     expect(screen.queryByText(/The identity is false/)).toBeNull();
@@ -60,6 +63,12 @@ describe('HomePage', () => {
       ['VERIFIED, admission ADMIT', '1'],
       ['No verdict recorded, admission not recorded', '1'],
     ]);
+  });
+
+  it('says the counts cover the newest page when the ledger has older records', async () => {
+    vi.spyOn(demoApi, 'listLogs').mockResolvedValue({ logs: [verified('1', 'ok')], nextBefore: '1' });
+    renderApp(<HomePage />);
+    expect(await screen.findByText(/These cover the newest 200; the ledger loads older ones/)).toBeTruthy();
   });
 
   it('asks for a key when the organisation has none', async () => {
@@ -80,7 +89,7 @@ describe('HomePage', () => {
   });
 
   it('asks a new organisation, with no records and no keys, for a key', async () => {
-    vi.spyOn(demoApi, 'listLogs').mockResolvedValue([]);
+    vi.spyOn(demoApi, 'listLogs').mockResolvedValue({ logs: [], nextBefore: null });
     vi.spyOn(demoApi, 'listKeys').mockResolvedValue([]);
     renderApp(<HomePage />);
     expect(await screen.findByText(/^No records yet\. Records show up/)).toBeTruthy();
@@ -89,7 +98,7 @@ describe('HomePage', () => {
   });
 
   it('says so when there are no records yet', async () => {
-    vi.spyOn(demoApi, 'listLogs').mockResolvedValue([]);
+    vi.spyOn(demoApi, 'listLogs').mockResolvedValue({ logs: [], nextBefore: null });
     renderApp(<HomePage />);
     expect(await screen.findByText(/^No records yet\. Records show up/)).toBeTruthy();
   });

@@ -76,3 +76,24 @@ describe('request errors', () => {
     await expect(httpApi.listKeys('tok')).rejects.toMatchObject({ status: 0 });
   });
 });
+
+describe('httpApi audit log', () => {
+  const row = { id: '9', request_input: 'q', verification_result: '{}', engine_used: 'MATH', status: 'verified', created_at: 'x' };
+
+  it('asks for the first page and returns its cursor', async () => {
+    const fetchMock = stubFetch(json({ total: 1, logs: [row], next_before: '9' }));
+    expect(await httpApi.listLogs('tok', 1)).toEqual({ logs: [row], nextBefore: '9' });
+    expect(call(fetchMock).url).toBe('/api/audit/logs?limit=1');
+  });
+
+  it('passes a cursor as before', async () => {
+    const fetchMock = stubFetch(json({ total: 0, logs: [], next_before: null }));
+    expect(await httpApi.listLogs('tok', 200, '9')).toEqual({ logs: [], nextBefore: null });
+    expect(call(fetchMock).url).toBe('/api/audit/logs?limit=200&before=9');
+  });
+
+  it('reads a server that sends no cursor as one that does not page', async () => {
+    stubFetch(json({ total: 1, logs: [row] }));
+    expect((await httpApi.listLogs('tok')).nextBefore).toBeUndefined();
+  });
+});

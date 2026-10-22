@@ -1,3 +1,4 @@
+import { parseResult } from '../lib/result';
 import { ApiError, type QwedApi } from './http';
 import type { ApiKeyCreated, ApiKeyItem, AuditLog, EntryCheck, User } from './types';
 
@@ -36,7 +37,7 @@ const contextDocument = JSON.stringify({
   verdict: 'VERIFIED',
 });
 
-const logs: AuditLog[] = [
+const baseLogs: AuditLog[] = [
   {
     id: '1042',
     request_input: 'Refund of 3,400.00 for order [ORDER ID] is within the 30-day return window',
@@ -119,6 +120,46 @@ const logs: AuditLog[] = [
   },
 ];
 
+/** A sample 64-character hex string, the length of a SHA-256. Not a real hash. */
+function sampleHex(seed: string): string {
+  let h = 0x811c9dc5;
+  let out = '';
+  for (let i = 0; out.length < 64; i++) {
+    h = Math.imul(h ^ (seed.codePointAt(i % seed.length) ?? 0) ^ i, 0x01000193) >>> 0;
+    out += h.toString(16).padStart(8, '0');
+  }
+  return out.slice(0, 64);
+}
+
+// Which sample key wrote each row. Key 5 is no longer in the key list (as a
+// revoked key would not be). The two oldest rows were written before the
+// server recorded a caller (#484), so they have none.
+const CALLER: Record<string, string | null> = {
+  '1042': '7', '1041': '7', '1040': '6', '1039': '6', '1038': '6',
+  '1037': '7', '1036': '5', '1035': '5', '1034': null, '1033': null,
+};
+
+// The fields a server after #484 adds: the stored verdict (read the same way
+// the dashboard reads it), the chain entry, and the caller.
+const logs: AuditLog[] = baseLogs.map((log, i) => {
+  const older = baseLogs[i + 1];
+  const keyId = CALLER[log.id] ?? null;
+  return {
+    ...log,
+    verdict: parseResult(log.verification_result).verdict,
+    entry_hash: sampleHex(`entry-${log.id}`),
+    previous_hash: older ? sampleHex(`entry-${older.id}`) : null,
+    hmac_signature: sampleHex(`hmac-${log.id}`),
+    api_key_id: keyId,
+    verifier_version: keyId === null ? null : '7.3.0',
+  };
+});
+
+/** The list route leaves out the link and the signature, as the server does. */
+function listed(log: AuditLog): AuditLog {
+  return { ...log, previous_hash: undefined, hmac_signature: undefined };
+}
+
 // Sample keys live in memory and reset on reload. Created keys are random
 // sample strings, not keys any server accepts.
 let keys: ApiKeyItem[] = [
@@ -166,9 +207,13 @@ export const demoApi: QwedApi = {
   async me() {
     return demoUser;
   },
-  async listLogs() {
+  async listLogs(_token, limit = 200, before) {
     await wait(250);
-    return logs;
+    const start = before === undefined ? 0 : logs.findIndex((l) => l.id === before) + 1;
+    if (start === 0 && before !== undefined) throw new ApiError(404, 'Log not found');
+    const page = logs.slice(start, start + limit).map(listed);
+    const full = page.length > 0 && page.length === limit;
+    return { logs: page, nextBefore: full ? (page.at(-1)?.id ?? null) : null };
   },
   async getLog(_token, id) {
     await wait(150);

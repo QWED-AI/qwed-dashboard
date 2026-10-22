@@ -6,7 +6,7 @@ import { Shell } from '../components/Shell';
 import { VerdictChip } from '../components/VerdictChip';
 import { formatUtc } from '../lib/format';
 import { toRecord, type LedgerRecord } from '../lib/result';
-import { describeError, useAuthedQuery } from '../lib/useAuthedQuery';
+import { describeError, useLedgerPages } from '../lib/useAuthedQuery';
 
 type Facet = 'all' | Verdict | 'none';
 
@@ -34,8 +34,11 @@ export function LedgerPage() {
   const q = params.get('q') ?? '';
   const domain = params.get('verifier') ?? 'all';
 
-  const logs = useAuthedQuery(['logs', LIMIT], (api, token) => api.listLogs(token, LIMIT));
-  const records = useMemo(() => (logs.data ?? []).map(toRecord), [logs.data]);
+  const logs = useLedgerPages(LIMIT);
+  const records = useMemo(() => (logs.data?.pages ?? []).flatMap((p) => p.logs).map(toRecord), [logs.data]);
+  // A server before #484 sends no cursor: a full page may hide older rows.
+  const lastPage = logs.data?.pages.at(-1);
+  const noPaging = lastPage !== undefined && lastPage.nextBefore === undefined && lastPage.logs.length >= LIMIT;
   const domains = useMemo(
     () => [...new Set(records.map((r) => r.domain))].sort((a, b) => a.localeCompare(b)),
     [records],
@@ -72,7 +75,7 @@ export function LedgerPage() {
 
       {logs.isPending && <LedgerSkeleton />}
 
-      {logs.isError && (
+      {logs.isError && !logs.data && (
         <div className="state" role="alert">
           <span className="state-icon">
             <Icon name="alert" size={20} />
@@ -87,7 +90,7 @@ export function LedgerPage() {
         </div>
       )}
 
-      {logs.isSuccess && records.length === 0 && (
+      {logs.data && records.length === 0 && (
         <div className="state">
           <span className="state-icon">
             <Icon name="ledger" size={20} />
@@ -101,7 +104,7 @@ export function LedgerPage() {
         </div>
       )}
 
-      {logs.isSuccess && records.length > 0 && (
+      {logs.data && records.length > 0 && (
         <>
           <div role="group" aria-label="Filter by verdict" className="facets">
             {FACETS.map((f) => (
@@ -189,10 +192,28 @@ export function LedgerPage() {
 
           <div className="table-foot">
             <span className="num">
-              Showing {shown.length} of the newest {records.length} records.
+              Showing {shown.length} of the newest {records.length} records
+              {logs.hasNextPage ? ' loaded so far' : ''}. Filters and counts cover the loaded records.
             </span>
-            {records.length >= LIMIT && <span>The server returns at most {LIMIT} records and has no paging yet.</span>}
+            {logs.hasNextPage && (
+              <button
+                type="button"
+                className="btn btn-sm"
+                disabled={logs.isFetchingNextPage}
+                onClick={() => logs.fetchNextPage()}
+              >
+                {logs.isFetchingNextPage ? 'Loading…' : `Load ${LIMIT} older records`}
+              </button>
+            )}
+            {!logs.hasNextPage && noPaging && (
+              <span>This server returns at most {LIMIT} records and does not page, so older records are not shown.</span>
+            )}
           </div>
+          {logs.isFetchNextPageError && (
+            <p className="note" role="alert" style={{ margin: '0 24px 16px' }}>
+              Older records could not be loaded. {describeError(logs.error)}
+            </p>
+          )}
         </>
       )}
     </Shell>
