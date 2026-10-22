@@ -91,6 +91,9 @@ export function ChainTrail() {
   const { api, token } = useSession();
   const trail = useMutation({ mutationFn: (auth: ComplianceAuth) => api.verifyTrail(auth) });
   const auth: ComplianceAuth | null = token ? { session: token } : null;
+  let label = 'Check the whole chain';
+  if (trail.isPending) label = 'Checking…';
+  else if (trail.data) label = 'Check again';
 
   return (
     <section className="card" aria-labelledby="trail-title">
@@ -103,7 +106,7 @@ export function ChainTrail() {
           disabled={trail.isPending || !auth}
           onClick={() => auth && trail.mutate(auth)}
         >
-          {trail.isPending ? 'Checking…' : trail.data ? 'Check again' : 'Check the whole chain'}
+          {label}
         </button>
       </div>
       {trail.isError && (
