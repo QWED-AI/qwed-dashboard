@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Link } from 'react-router';
 import type { Admission, Verdict } from '../api/types';
 import { Icon } from '../components/Icon';
+import { RefreshError } from '../components/RefreshError';
 import { Shell } from '../components/Shell';
 import { VerdictChip } from '../components/VerdictChip';
 import { formatUtc } from '../lib/format';
@@ -105,7 +106,7 @@ export function HomePage() {
 
       {logs.isPending && <HomeSkeleton />}
 
-      {logs.isError && (
+      {logs.isError && !logs.data && (
         <div className="state" role="alert">
           <span className="state-icon">
             <Icon name="alert" size={20} />
@@ -120,7 +121,10 @@ export function HomePage() {
         </div>
       )}
 
-      {logs.isSuccess && (
+      {logs.isRefetchError && <RefreshError what="The records" error={logs.error} onRetry={() => logs.refetch()} />}
+
+      {/* On data, not on success: a failed refresh keeps what loaded. */}
+      {logs.data && (
         <div className="split">
           <section className="main" aria-labelledby="attention-title">
             <h2 id="attention-title" className="sr-only">
@@ -164,11 +168,16 @@ export function HomePage() {
             <section className="card" aria-labelledby="keys-title">
               <h2 id="keys-title">API keys</h2>
               {keys.isPending && <span className="sk" style={{ width: '50%' }} aria-hidden="true" />}
-              {keys.isError && <p className="sub">{describeError(keys.error)}</p>}
-              {keys.isSuccess && (
+              {keys.isError && !keys.data && <p className="sub">{describeError(keys.error)}</p>}
+              {keys.data && (
                 <p className="sub">
                   <Link to="/keys">{plural(keys.data.length, 'active key', 'active keys')}</Link>. The server does not
                   record when a key was last used yet.
+                </p>
+              )}
+              {keys.isRefetchError && (
+                <p className="hint" role="alert">
+                  The key list could not be refreshed, so this count may be out of date. {describeError(keys.error)}
                 </p>
               )}
             </section>

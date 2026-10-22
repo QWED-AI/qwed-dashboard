@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
-import { cleanup, screen, within } from '@testing-library/react';
+import { focusManager } from '@tanstack/react-query';
+import { act, cleanup, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../App';
 import { demoApi } from '../api/demo';
@@ -9,6 +11,7 @@ import { renderApp } from '../test/render';
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  focusManager.setFocused(undefined);
 });
 
 async function section(name: string) {
@@ -16,6 +19,36 @@ async function section(name: string) {
 }
 
 describe('RecordPage', () => {
+  it('keeps the record and the key name when a refresh fails, then recovers on Try again', async () => {
+    const user = userEvent.setup();
+    const getLog = demoApi.getLog.bind(demoApi);
+    const listKeys = demoApi.listKeys.bind(demoApi);
+    vi.spyOn(demoApi, 'getLog')
+      .mockImplementationOnce(getLog)
+      .mockRejectedValueOnce(new ApiError(403, 'Insufficient permissions'))
+      .mockImplementation(getLog);
+    vi.spyOn(demoApi, 'listKeys')
+      .mockImplementationOnce(listKeys)
+      .mockRejectedValueOnce(new ApiError(403, 'Denied'));
+    renderApp(<App />, { route: '/records/1037' });
+    const by = await section('Recorded by');
+    expect(by.getByText('payments-agent prod (qwed_live_****x7Qa)')).toBeTruthy();
+
+    act(() => {
+      focusManager.setFocused(false);
+      focusManager.setFocused(true);
+    });
+
+    expect((await screen.findByRole('alert')).textContent).toMatch(/This record could not be refreshed/);
+    expect(screen.queryByText('This record could not be loaded')).toBeNull();
+    expect(screen.getByRole('heading', { name: '(a + b)**2 = a**2 + b**2' })).toBeTruthy();
+    // A key list that loaded once still names the key after its refresh fails.
+    expect(by.getByText('payments-agent prod (qwed_live_****x7Qa)')).toBeTruthy();
+
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
+    await vi.waitFor(() => expect(screen.queryByText(/This record could not be refreshed/)).toBeNull());
+  });
+
   it('names the key that made the record and the server version', async () => {
     renderApp(<App />, { route: '/records/1037' });
     const by = await section('Recorded by');

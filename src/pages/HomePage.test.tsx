@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
-import { cleanup, screen, within } from '@testing-library/react';
+import { focusManager } from '@tanstack/react-query';
+import { act, cleanup, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { demoApi } from '../api/demo';
 import { ApiError } from '../api/http';
@@ -10,7 +12,16 @@ import { HomePage } from './HomePage';
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  focusManager.setFocused(undefined);
 });
+
+/** Coming back to the tab refetches every query on the page. */
+function refocus() {
+  act(() => {
+    focusManager.setFocused(false);
+    focusManager.setFocused(true);
+  });
+}
 
 const verified = (id: string, message: string): AuditLog => ({
   id,
@@ -110,5 +121,30 @@ describe('HomePage', () => {
     const alert = await screen.findByRole('alert');
     expect(alert.textContent).toMatch(/The records could not be loaded/);
     expect(alert.textContent).toMatch(/Insufficient permissions/);
+  });
+
+  it('keeps what loaded and warns when a refresh fails, then recovers on Try again', async () => {
+    const user = userEvent.setup();
+    const listLogs = demoApi.listLogs.bind(demoApi);
+    vi.spyOn(demoApi, 'listLogs')
+      .mockImplementationOnce(listLogs)
+      .mockRejectedValueOnce(new ApiError(403, 'Insufficient permissions'))
+      .mockImplementation(listLogs);
+    vi.spyOn(demoApi, 'listKeys').mockResolvedValueOnce([]).mockRejectedValueOnce(new ApiError(403, 'Denied'));
+    renderApp(<HomePage />);
+    expect(await screen.findByText('2 BLOCKED records')).toBeTruthy();
+    expect(await screen.findByRole('link', { name: '0 active keys' })).toBeTruthy();
+
+    refocus();
+
+    expect(await screen.findByText(/The records could not be refreshed/)).toBeTruthy();
+    expect(await screen.findByText(/The key list could not be refreshed/)).toBeTruthy();
+    // Both cards still show what loaded.
+    expect(screen.getByText('2 BLOCKED records')).toBeTruthy();
+    expect(screen.getByRole('link', { name: '0 active keys' })).toBeTruthy();
+    expect(screen.queryByText('The records could not be loaded')).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
+    await vi.waitFor(() => expect(screen.queryByText(/The records could not be refreshed/)).toBeNull());
   });
 });

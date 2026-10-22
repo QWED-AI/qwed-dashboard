@@ -3,6 +3,7 @@ import type { ApiKeyItem, AuditLog } from '../api/types';
 import { ChainCheck } from '../components/ChainCheck';
 import { Icon } from '../components/Icon';
 import { JsonView } from '../components/JsonView';
+import { RefreshError } from '../components/RefreshError';
 import { Shell } from '../components/Shell';
 import { VerdictChip } from '../components/VerdictChip';
 import { formatUtcLong } from '../lib/format';
@@ -26,9 +27,11 @@ interface KeyList {
 /** The key that made a row, by name when the key list has it (#484). */
 function keyLabel(keyId: string | null | undefined, keys: KeyList): string {
   if (keyId === undefined || keyId === null) return 'not recorded';
-  if (keys.status === 'error') return `Key ${keyId} (the key list could not be loaded)`;
-  if (keys.status === 'pending') return `Key ${keyId}`;
-  const key = keys.data?.find((k) => k.id === keyId);
+  // A list that loaded once is still a list when a later refresh fails.
+  if (!keys.data) {
+    return keys.status === 'error' ? `Key ${keyId} (the key list could not be loaded)` : `Key ${keyId}`;
+  }
+  const key = keys.data.find((k) => k.id === keyId);
   if (key) return `${key.name} (${key.key_preview})`;
   // The list holds active keys only, and only your own unless you are an
   // admin or owner, so a revoked or another member's key is not in it.
@@ -110,7 +113,9 @@ export function RecordPage() {
     );
   }
 
-  if (log.isError) {
+  // No data after loading means the first load failed. A failed refresh keeps
+  // the record and shows a warning above it instead.
+  if (!log.data) {
     return (
       <Shell crumbs={crumbs}>
         <div className="state" role="alert">
@@ -135,6 +140,11 @@ export function RecordPage() {
 
   return (
     <Shell crumbs={crumbs}>
+      {log.isRefetchError && (
+        <div style={{ paddingTop: 16 }}>
+          <RefreshError what="This record" error={log.error} onRetry={() => log.refetch()} />
+        </div>
+      )}
       <div style={{ padding: '24px 24px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <VerdictChip verdict={result.verdict} admission={result.admission} large />
