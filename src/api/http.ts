@@ -4,8 +4,10 @@ import type {
   AuditLog,
   AuditLogList,
   AuditLogPage,
+  ComplianceAuth,
   EntryCheck,
   SignInResponse,
+  TrailCheck,
   User,
 } from './types';
 
@@ -106,12 +108,28 @@ export const httpApi = {
     await request<unknown>(`/auth/api-keys/${encodeURIComponent(id)}`, { method: 'DELETE', headers: bearer(token) });
   },
 
-  /** Takes an API key, not the session token: the admin routes authenticate by x-api-key. */
-  checkEntry(adminKey: string, id: string): Promise<EntryCheck> {
-    return request(`/admin/compliance/verify/${encodeURIComponent(id)}`, {
-      headers: { 'x-api-key': adminKey },
-    });
+  /** Checks one audit entry, with the session (after #485) or an API key. */
+  checkEntry(auth: ComplianceAuth, id: string): Promise<EntryCheck> {
+    return request(`/admin/compliance/verify/${encodeURIComponent(id)}`, { headers: complianceHeaders(auth) });
+  },
+
+  /** Checks every audit entry of the organisation (#485); open-ended without a period. */
+  verifyTrail(auth: ComplianceAuth): Promise<TrailCheck> {
+    return request('/admin/compliance/verify-trail', { headers: complianceHeaders(auth) });
   },
 };
+
+function complianceHeaders(auth: ComplianceAuth): Record<string, string> {
+  return 'apiKey' in auth ? { 'x-api-key': auth.apiKey } : bearer(auth.session);
+}
+
+/**
+ * Whether a compliance route refused the session because the server takes
+ * only API keys there (a server before #485). That server answers 401
+ * "Missing x-api-key header"; one after #485 says "... or bearer token".
+ */
+export function sessionNotAccepted(err: unknown): boolean {
+  return err instanceof ApiError && err.status === 401 && err.message === 'Missing x-api-key header';
+}
 
 export type QwedApi = typeof httpApi;

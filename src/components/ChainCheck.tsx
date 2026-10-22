@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
-import { ApiError } from '../api/http';
-import type { EntryCheck } from '../api/types';
+import { ApiError, sessionNotAccepted } from '../api/http';
+import type { ComplianceAuth, EntryCheck } from '../api/types';
 import { useSession } from '../auth/session';
 import { describeError } from '../lib/useAuthedQuery';
 import { Icon } from './Icon';
@@ -12,11 +12,10 @@ const CHECKS: { key: keyof EntryCheck['checks']; label: string }[] = [
   { key: 'chain_valid', label: 'Link to the previous entry holds' },
 ];
 
-/** The check route authenticates by API key, so a 401 or 403 is about the key, not the session. */
-const isKeyRejection = (err: unknown): err is ApiError =>
+const isAuthRefusal = (err: unknown): err is ApiError =>
   err instanceof ApiError && (err.status === 401 || err.status === 403);
 
-function Mark({ ok }: { ok: boolean | undefined }) {
+function Mark({ ok }: Readonly<{ ok: boolean | undefined }>) {
   if (ok === true)
     return (
       <span className="mark pass">
@@ -36,24 +35,53 @@ function Mark({ ok }: { ok: boolean | undefined }) {
   );
 }
 
+function headline(result: EntryCheck): string {
+  if (result.valid) return 'This entry is intact.';
+  if (result.legacy) return 'This entry was written before the chain existed, so it cannot be checked.';
+  return 'This entry failed its check.';
+}
+
+/** One sentence for a failed check, by what was refused and how it was called. */
+function refusal(err: unknown, auth: ComplianceAuth | undefined): string {
+  if (!isAuthRefusal(err)) return describeError(err);
+  if (auth && 'apiKey' in auth) {
+    return `The server did not accept this API key: ${err.message}. Enter an owner or admin key.`;
+  }
+  if (err.status === 403) return `Only an owner or admin can check audit entries. The server said: ${err.message}.`;
+  return describeError(err);
+}
+
+/** The key, once one was entered for a server that takes only keys; else the session. */
+function complianceAuth(adminKey: string | null, token: string | null): ComplianceAuth | null {
+  if (adminKey) return { apiKey: adminKey };
+  if (token) return { session: token };
+  return null;
+}
+
 /**
  * Asks the server to check this audit entry (GET /admin/compliance/verify/{id}).
- * That route takes an owner or admin API key, not the session token, so the
- * key is asked for here and kept in memory for this tab only.
+ *
+ * A server after #485 takes the signed-in session for owners and admins, so
+ * the check runs with it. A server before #485 takes only an owner or admin
+ * API key there; it answers the session with 401 "Missing x-api-key header",
+ * and the key is then asked for here and kept in memory for this tab only.
  */
-export function ChainCheck({ logId }: { logId: string }) {
-  const { api, mode, adminKey, setAdminKey } = useSession();
+export function ChainCheck({ logId }: Readonly<{ logId: string }>) {
+  const { api, mode, token, adminKey, setAdminKey } = useSession();
   const [draft, setDraft] = useState('');
+  // Set once this server turns the session away: it checks by API key only.
+  const [keyOnly, setKeyOnly] = useState(false);
   const check = useMutation({
-    mutationFn: (key: string) => api.checkEntry(key, logId),
-    onError: (err) => {
+    mutationFn: (auth: ComplianceAuth) => api.checkEntry(auth, logId),
+    onError: (err, auth) => {
+      if ('session' in auth && sessionNotAccepted(err)) setKeyOnly(true);
       // A rejected key is forgotten so the form asks for another one.
-      if (mode === 'live' && isKeyRejection(err)) setAdminKey(null);
+      if ('apiKey' in auth && isAuthRefusal(err)) setAdminKey(null);
     },
   });
 
-  const needsKey = mode === 'live' && !adminKey;
-  const keyToUse = mode === 'demo' ? 'demo' : adminKey;
+  const needsKey = mode === 'live' && keyOnly && !adminKey;
+  const auth = complianceAuth(adminKey, token);
 
   function submitKey(e: FormEvent) {
     e.preventDefault();
@@ -61,10 +89,12 @@ export function ChainCheck({ logId }: { logId: string }) {
     if (!key) return;
     setAdminKey(key);
     setDraft('');
-    check.mutate(key);
+    check.mutate({ apiKey: key });
   }
 
   const result = check.data;
+  // The session refusal is what switched to the key form; it is not an error to show.
+  const showError = check.isError && !(needsKey && sessionNotAccepted(check.error));
 
   return (
     <section className="card" aria-labelledby="chain-title">
@@ -87,8 +117,8 @@ export function ChainCheck({ logId }: { logId: string }) {
               placeholder="qwed_live_…"
             />
             <span className="hint">
-              The check route takes an API key, not your session. The key stays in this tab's memory and is gone when
-              you close it or sign out.
+              This server checks entries with an API key only, not your session. The key stays in this tab's memory
+              and is gone when you close it or sign out.
             </span>
           </label>
           <button type="submit" className="btn btn-primary" disabled={!draft.trim()}>
@@ -96,32 +126,29 @@ export function ChainCheck({ logId }: { logId: string }) {
           </button>
         </form>
       ) : (
-        <button
-          type="button"
-          className="btn"
-          onClick={() => keyToUse && check.mutate(keyToUse)}
-          disabled={check.isPending}
-        >
-          {check.isPending ? 'Checking…' : result ? 'Check again' : 'Check this entry'}
-        </button>
+        <>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => auth && check.mutate(auth)}
+            disabled={check.isPending || !auth}
+          >
+            {check.isPending ? 'Checking…' : result ? 'Check again' : 'Check this entry'}
+          </button>
+          {!adminKey && <span className="hint">Runs with your session. Owners and admins can check entries.</span>}
+        </>
       )}
 
-      {check.isError && (
+      {showError && (
         <p className="alert" role="alert">
-          {isKeyRejection(check.error)
-            ? `The server did not accept this API key: ${check.error.message}. Enter an owner or admin key.`
-            : describeError(check.error)}
+          {refusal(check.error, check.variables)}
         </p>
       )}
 
       {result && (
         <div aria-live="polite">
           <p className="sub" style={{ color: 'var(--ink)', fontWeight: 600, marginBottom: 6 }}>
-            {result.valid
-              ? 'This entry is intact.'
-              : result.legacy
-                ? 'This entry was written before the chain existed, so it cannot be checked.'
-                : 'This entry failed its check.'}
+            {headline(result)}
           </p>
           {CHECKS.map((c) => (
             <div className="check" key={c.key}>

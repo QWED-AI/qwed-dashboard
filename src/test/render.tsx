@@ -17,13 +17,22 @@ const demoSession = {
   user: { id: 'demo', email: 'demo@example.com', org_id: 'demo', role: 'owner' },
 };
 
+/** A signed-in session against a QWED server; stub `fetch` to answer it. */
+export const LIVE_TOKEN = 'live-session-token';
+const liveSession = {
+  mode: 'live',
+  token: LIVE_TOKEN,
+  user: { id: '1', email: 'owner@example.com', org_id: '1', role: 'owner' },
+};
+
 /**
  * Renders a screen inside the app's providers, signed in with sample data
- * unless `signedIn` is false. Each call gets its own query cache.
+ * unless `signedIn` is false, or against a server when `live` is true. Each
+ * call gets its own query cache.
  */
-export function renderApp(ui: ReactElement, { route = '/', signedIn = true } = {}) {
+export function renderApp(ui: ReactElement, { route = '/', signedIn = true, live = false } = {}) {
   sessionStorage.clear();
-  if (signedIn) sessionStorage.setItem(SESSION_KEY, JSON.stringify(demoSession));
+  if (signedIn) sessionStorage.setItem(SESSION_KEY, JSON.stringify(live ? liveSession : demoSession));
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>

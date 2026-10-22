@@ -37,11 +37,15 @@ npm run build
 | Screen | Server route | Credential |
 |---|---|---|
 | Sign in | `POST /auth/signin` | email and password |
-| Decision ledger | `GET /audit/logs` | session token |
+| Home, Decision ledger | `GET /audit/logs` | session token |
 | Record | `GET /audit/logs/{id}` | session token |
-| Audit chain check | `GET /admin/compliance/verify/{id}` | owner or admin API key |
+| API keys | `GET`, `POST /auth/api-keys`, `DELETE /auth/api-keys/{id}` | session token |
+| Audit chain entry check | `GET /admin/compliance/verify/{id}` | session token of an owner or admin |
+| Whole-chain check (Home) | `GET /admin/compliance/verify-trail` | session token of an owner or admin |
 
-The session token is kept in `sessionStorage`, so closing the tab signs you out. The audit chain check route accepts only an API key, so the dashboard asks for one when you first run a check. It keeps the key in memory for that tab and never stores it.
+The session token is kept in `sessionStorage`, so closing the tab signs you out.
+
+The audit chain checks take the signed-in session from qwed-verification releases with [#485](https://github.com/QWED-AI/qwed-verification/issues/485). An older server takes only an owner or admin API key for the entry check and has no whole-chain check. Against such a server the dashboard asks for a key when you first run an entry check, keeps it in memory for that tab and never stores it.
 
 ## Development
 
