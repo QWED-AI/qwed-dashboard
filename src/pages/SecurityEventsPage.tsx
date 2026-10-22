@@ -135,7 +135,7 @@ export function SecurityEventsPage() {
           {(rows.length > 0 || type) && (
             <div className="filters">
               <label className="pill">
-                Type
+                <span>Type</span>
                 <select value={type ?? ''} onChange={(e) => setType(e.target.value)}>
                   <option value="">All</option>
                   {types.map((t) => (
