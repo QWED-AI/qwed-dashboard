@@ -122,11 +122,13 @@ const baseLogs: AuditLog[] = [
 
 /** A sample 64-character hex string, the length of a SHA-256. Not a real hash. */
 function sampleHex(seed: string): string {
+  // FNV-1a over the whole seed, so seeds that differ anywhere differ here.
   let h = 0x811c9dc5;
+  for (const ch of seed) h = Math.imul(h ^ (ch.codePointAt(0) ?? 0), 0x01000193) >>> 0;
   let out = '';
   // Eight rounds of eight hex digits.
   for (let i = 0; i < 8; i++) {
-    h = Math.imul(h ^ (seed.codePointAt(i % seed.length) ?? 0) ^ i, 0x01000193) >>> 0;
+    h = Math.imul(h ^ (i + 1), 0x01000193) >>> 0;
     out += h.toString(16).padStart(8, '0');
   }
   return out;
