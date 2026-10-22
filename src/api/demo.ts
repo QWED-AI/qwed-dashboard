@@ -124,11 +124,12 @@ const baseLogs: AuditLog[] = [
 function sampleHex(seed: string): string {
   let h = 0x811c9dc5;
   let out = '';
-  for (let i = 0; out.length < 64; i++) {
+  // Eight rounds of eight hex digits.
+  for (let i = 0; i < 8; i++) {
     h = Math.imul(h ^ (seed.codePointAt(i % seed.length) ?? 0) ^ i, 0x01000193) >>> 0;
     out += h.toString(16).padStart(8, '0');
   }
-  return out.slice(0, 64);
+  return out;
 }
 
 // Which sample key wrote each row. Key 5 is no longer in the key list (as a
@@ -207,12 +208,13 @@ export const demoApi: QwedApi = {
   async me() {
     return demoUser;
   },
-  async listLogs(_token, limit = 200, before) {
+  async listLogs(_token, limit, before) {
     await wait(250);
+    const size = limit ?? 200;
     const start = before === undefined ? 0 : logs.findIndex((l) => l.id === before) + 1;
     if (start === 0 && before !== undefined) throw new ApiError(404, 'Log not found');
-    const page = logs.slice(start, start + limit).map(listed);
-    const full = page.length > 0 && page.length === limit;
+    const page = logs.slice(start, start + size).map(listed);
+    const full = page.length > 0 && page.length === size;
     return { logs: page, nextBefore: full ? (page.at(-1)?.id ?? null) : null };
   },
   async getLog(_token, id) {

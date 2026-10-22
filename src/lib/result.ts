@@ -79,25 +79,25 @@ export function parseResult(raw: string): ParsedResult {
     };
   }
 
-  // A /verify/batch item row (#477): the item's own result sits under
-  // details.result, read as the server reads it (#484).
-  if ('batch_job_id' in value) {
-    const details = value.details;
-    if (isObj(details) && details.truncated === true) {
-      return empty('truncated', value, 'The server stored a shortened copy of this batch item, so its verdict cannot be read.');
-    }
-    const inner = isObj(details) ? details.result : undefined;
-    if (!isObj(inner)) {
-      const failure = isObj(details) ? asMessage(details.error) : null;
-      return empty('batch-item', value, failure ? `This batch item failed: ${failure}` : 'This batch item stored no result.');
-    }
-    return { ...fromDiagnostic(inner, value), shape: 'batch-item' };
-  }
+  if ('batch_job_id' in value) return fromBatchItem(value);
 
   // A DiagnosticResult (stored by the /verify/* routes). It carries no admission.
   if ('status' in value) return fromDiagnostic(value, value);
 
   return empty('unknown', value, 'The stored result has no verdict field.');
+}
+
+/** A /verify/batch item row (#477): the item's own result sits under
+ * details.result, read as the server reads it (#484). */
+function fromBatchItem(value: Obj): ParsedResult {
+  const details = isObj(value.details) ? value.details : null;
+  if (details?.truncated === true) {
+    return empty('truncated', value, 'The server stored a shortened copy of this batch item, so its verdict cannot be read.');
+  }
+  const inner = details?.result;
+  if (isObj(inner)) return { ...fromDiagnostic(inner, value), shape: 'batch-item' };
+  const failure = asMessage(details?.error);
+  return empty('batch-item', value, failure ? `This batch item failed: ${failure}` : 'This batch item stored no result.');
 }
 
 function fromDiagnostic(result: Obj, value: unknown): ParsedResult {
