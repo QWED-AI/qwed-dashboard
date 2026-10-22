@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { ApiError } from '../api/http';
 import type { SecurityEvent } from '../api/types';
@@ -64,13 +64,21 @@ export function SecurityEventsPage() {
   const type = params.get('type');
   const events = useSecurityEventPages(LIMIT, type);
   const rows = useMemo(() => (events.data?.pages ?? []).flatMap((p) => p.events), [events.data]);
-  // The types to filter by: what the server has written for this organisation
-  // so far, read from the unfiltered list, plus the chosen one.
+  // The types to filter by: the ones the server is known to write, every type
+  // seen on this page so far, and the chosen one. The list is kept, so with
+  // one type chosen (and only its events loaded) the others stay to pick.
+  const [seenTypes, setSeenTypes] = useState<ReadonlySet<string>>(() => new Set(Object.keys(TYPE_LABEL)));
+  useEffect(() => {
+    setSeenTypes((prev) => {
+      const fresh = rows.map((e) => e.event_type).filter((t) => !prev.has(t));
+      return fresh.length ? new Set([...prev, ...fresh]) : prev;
+    });
+  }, [rows]);
   const types = useMemo(() => {
-    const seen = new Set(rows.map((e) => e.event_type));
-    if (type) seen.add(type);
-    return [...seen].sort((a, b) => a.localeCompare(b));
-  }, [rows, type]);
+    const all = new Set(seenTypes);
+    if (type) all.add(type);
+    return [...all].sort((a, b) => a.localeCompare(b));
+  }, [seenTypes, type]);
 
   const emptyText = type
     ? 'There are no events of this type.'
@@ -124,7 +132,7 @@ export function SecurityEventsPage() {
 
       {events.data && (
         <>
-          {(types.length > 0 || type) && (
+          {(rows.length > 0 || type) && (
             <div className="filters">
               <label className="pill">
                 Type

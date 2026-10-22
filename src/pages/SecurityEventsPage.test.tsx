@@ -61,6 +61,47 @@ describe('SecurityEventsPage', () => {
     );
   });
 
+  it('keeps every type in the filter, so one type can be swapped for another', async () => {
+    const user = userEvent.setup();
+    const all = [event('9', { event_type: 'OTHER_EVENT' }), event('8')];
+    const list = vi
+      .spyOn(demoApi, 'listSecurityEvents')
+      .mockImplementation(async (_token, { eventType } = {}) => ({
+        events: all.filter((e) => !eventType || e.event_type === eventType),
+        nextBefore: null,
+      }));
+    renderApp(<App />, { route: '/security' });
+    await screen.findByText('leaked key 9');
+
+    await user.selectOptions(screen.getByRole('combobox'), 'OTHER_EVENT');
+    await vi.waitFor(() => expect(screen.queryByText('leaked key 8')).toBeNull());
+    // Only OTHER_EVENT rows are loaded now, but the other type is still offered.
+    const options = within(screen.getByRole('combobox')).getAllByRole('option').map((o) => o.getAttribute('value'));
+    expect(options).toEqual(['', 'OTHER_EVENT', 'SECRET_LEAK_AUTO_REVOKED']);
+
+    await user.selectOptions(screen.getByRole('combobox'), 'SECRET_LEAK_AUTO_REVOKED');
+    await vi.waitFor(() =>
+      expect(list).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({ eventType: 'SECRET_LEAK_AUTO_REVOKED' })),
+    );
+  });
+
+  it('shows one alert when older events cannot be loaded', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(demoApi, 'listSecurityEvents')
+      .mockResolvedValueOnce({ events: [event('9')], nextBefore: '9' })
+      .mockRejectedValueOnce(new ApiError(500, 'Internal Server Error'));
+    renderApp(<App />, { route: '/security' });
+    await screen.findByText('leaked key 9');
+
+    await user.click(screen.getByRole('button', { name: 'Load 50 older events' }));
+
+    // A next-page failure is not also a refresh failure (TanStack Query keeps
+    // isRefetchError false for it), so only the inline note shows.
+    await vi.waitFor(() => expect(screen.getAllByRole('alert')).toHaveLength(1));
+    expect(screen.getByRole('alert').textContent).toMatch(/Older events could not be loaded/);
+    expect(screen.queryByText(/could not be refreshed/)).toBeNull();
+  });
+
   it('loads older events with the cursor the server gave', async () => {
     const user = userEvent.setup();
     const list = vi
