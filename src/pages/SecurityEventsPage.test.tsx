@@ -118,6 +118,16 @@ describe('SecurityEventsPage', () => {
     expect(screen.queryByRole('button', { name: /older events/ })).toBeNull();
   });
 
+  it.each(['constructor', '__proto__', 'toString'])('shows a type of %s from the URL as plain text', async (name) => {
+    // An object lookup would return an inherited value for these, which
+    // React cannot render as the option's label.
+    vi.spyOn(demoApi, 'listSecurityEvents').mockResolvedValue({ events: [], nextBefore: null });
+    renderApp(<App />, { route: `/security?type=${name}` });
+    const option = await screen.findByRole('option', { name });
+    expect(option.getAttribute('value')).toBe(name);
+    expect(screen.getByRole('heading', { name: 'No security events' })).toBeTruthy();
+  });
+
   it('shows an empty state', async () => {
     vi.spyOn(demoApi, 'listSecurityEvents').mockResolvedValue({ events: [], nextBefore: null });
     renderApp(<App />, { route: '/security' });

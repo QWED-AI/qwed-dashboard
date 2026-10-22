@@ -11,12 +11,12 @@ import { describeError, useSecurityEventPages } from '../lib/useAuthedQuery';
 const LIMIT = 50;
 
 // Plain names for the event types the server writes. Any other type shows
-// as the server sent it.
-const TYPE_LABEL: Record<string, string> = {
-  SECRET_LEAK_AUTO_REVOKED: 'Leaked API key revoked',
-};
+// as the server sent it. A Map, not an object: the type can come from the
+// URL, and an object would answer "constructor" or "__proto__" with an
+// inherited value React cannot render.
+const TYPE_LABEL: ReadonlyMap<string, string> = new Map([['SECRET_LEAK_AUTO_REVOKED', 'Leaked API key revoked']]);
 
-const typeLabel = (type: string) => TYPE_LABEL[type] ?? type;
+const typeLabel = (type: string) => TYPE_LABEL.get(type) ?? type;
 
 /** One sentence for a failed first load, by what the server answered. */
 function loadError(err: unknown): string {
@@ -67,7 +67,7 @@ export function SecurityEventsPage() {
   // The types to filter by: the ones the server is known to write, every type
   // seen on this page so far, and the chosen one. The list is kept, so with
   // one type chosen (and only its events loaded) the others stay to pick.
-  const [seenTypes, setSeenTypes] = useState<ReadonlySet<string>>(() => new Set(Object.keys(TYPE_LABEL)));
+  const [seenTypes, setSeenTypes] = useState<ReadonlySet<string>>(() => new Set(TYPE_LABEL.keys()));
   useEffect(() => {
     setSeenTypes((prev) => {
       const fresh = rows.map((e) => e.event_type).filter((t) => !prev.has(t));
