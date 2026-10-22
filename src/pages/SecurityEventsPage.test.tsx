@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { focusManager } from '@tanstack/react-query';
-import { act, cleanup, screen, within } from '@testing-library/react';
+import { act, cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../App';
@@ -33,7 +33,7 @@ describe('SecurityEventsPage', () => {
   it('lists the sample events newest first, with what happened and why', async () => {
     renderApp(<App />, { route: '/security' });
     expect(await screen.findByRole('heading', { name: 'Security events', level: 1 })).toBeTruthy();
-    const [first, second] = await vi.waitFor(() => {
+    const [first, second] = await waitFor(() => {
       const r = rows();
       expect(r).toHaveLength(2);
       return r;
@@ -56,7 +56,7 @@ describe('SecurityEventsPage', () => {
     await screen.findByRole('table');
     await user.selectOptions(screen.getByRole('combobox'), 'SECRET_LEAK_AUTO_REVOKED');
 
-    await vi.waitFor(() =>
+    await waitFor(() =>
       expect(list).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({ eventType: 'SECRET_LEAK_AUTO_REVOKED' })),
     );
   });
@@ -74,13 +74,13 @@ describe('SecurityEventsPage', () => {
     await screen.findByText('leaked key 9');
 
     await user.selectOptions(screen.getByRole('combobox'), 'OTHER_EVENT');
-    await vi.waitFor(() => expect(screen.queryByText('leaked key 8')).toBeNull());
+    await waitFor(() => expect(screen.queryByText('leaked key 8')).toBeNull());
     // Only OTHER_EVENT rows are loaded now, but the other type is still offered.
     const options = within(screen.getByRole('combobox')).getAllByRole('option').map((o) => o.getAttribute('value'));
     expect(options).toEqual(['', 'OTHER_EVENT', 'SECRET_LEAK_AUTO_REVOKED']);
 
     await user.selectOptions(screen.getByRole('combobox'), 'SECRET_LEAK_AUTO_REVOKED');
-    await vi.waitFor(() =>
+    await waitFor(() =>
       expect(list).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({ eventType: 'SECRET_LEAK_AUTO_REVOKED' })),
     );
   });
@@ -97,7 +97,7 @@ describe('SecurityEventsPage', () => {
 
     // A next-page failure is not also a refresh failure (TanStack Query keeps
     // isRefetchError false for it), so only the inline note shows.
-    await vi.waitFor(() => expect(screen.getAllByRole('alert')).toHaveLength(1));
+    await waitFor(() => expect(screen.getAllByRole('alert')).toHaveLength(1));
     expect(screen.getByRole('alert').textContent).toMatch(/Older events could not be loaded/);
     expect(screen.queryByText(/could not be refreshed/)).toBeNull();
   });

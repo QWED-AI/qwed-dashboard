@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { focusManager } from '@tanstack/react-query';
-import { act, cleanup, screen, within } from '@testing-library/react';
+import { act, cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../App';
@@ -59,7 +59,7 @@ describe('RecordPage', () => {
     it('shows the key id, and says the list failed, when the key list is refused', async () => {
       vi.spyOn(demoApi, 'listKeys').mockRejectedValue(new ApiError(403, 'Insufficient permissions'));
       renderApp(<App />, { route: '/records/1037' });
-      await vi.waitFor(async () => expect(await detail('API key')).toBe('Key 7 (the key list could not be loaded)'));
+      await waitFor(async () => expect(await detail('API key')).toBe('Key 7 (the key list could not be loaded)'));
     });
 
     it('says not recorded for a record written before the server kept its caller', async () => {
@@ -260,6 +260,6 @@ describe('RecordPage', () => {
     expect(await detail('API key')).toBe('payments-agent prod (qwed_live_****x7Qa)');
 
     await user.click(screen.getByRole('button', { name: 'Try again' }));
-    await vi.waitFor(() => expect(screen.queryByText(/This record could not be refreshed/)).toBeNull());
+    await waitFor(() => expect(screen.queryByText(/This record could not be refreshed/)).toBeNull());
   });
 });

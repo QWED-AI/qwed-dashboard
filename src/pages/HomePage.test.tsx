@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { focusManager } from '@tanstack/react-query';
-import { act, cleanup, screen, within } from '@testing-library/react';
+import { act, cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { demoApi } from '../api/demo';
@@ -168,7 +168,7 @@ describe('HomePage', () => {
     expect(screen.queryByText('The records could not be loaded')).toBeNull();
 
     await user.click(screen.getByRole('button', { name: 'Try again' }));
-    await vi.waitFor(() => expect(screen.queryByText(/The records could not be refreshed/)).toBeNull());
+    await waitFor(() => expect(screen.queryByText(/The records could not be refreshed/)).toBeNull());
     // The records' Try again does not touch the key list; it has its own.
     expect(screen.getByText(/The key list could not be refreshed/)).toBeTruthy();
 
