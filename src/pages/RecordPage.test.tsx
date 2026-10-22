@@ -29,11 +29,13 @@ describe('RecordPage', () => {
     expect(by.getByText('Key 5, not in your key list')).toBeTruthy();
   });
 
-  it('still shows the key id when the key list is refused', async () => {
+  it('shows the key id, and says the list failed, when the key list is refused', async () => {
     vi.spyOn(demoApi, 'listKeys').mockRejectedValue(new ApiError(403, 'Insufficient permissions'));
     renderApp(<App />, { route: '/records/1037' });
     const by = await section('Recorded by');
-    expect(by.getByText('Key 7, not in your key list')).toBeTruthy();
+    expect(await by.findByText('Key 7 (the key list could not be loaded)')).toBeTruthy();
+    // Without a list, nothing says the key is missing from it.
+    expect(by.queryByText(/not in your key list/)).toBeNull();
   });
 
   it('says not recorded for a record written before the server kept its caller', async () => {
@@ -54,6 +56,25 @@ describe('RecordPage', () => {
     renderApp(<App />, { route: '/records/1033' });
     const entry = await section('Chain entry, as stored');
     expect(entry.getByText('none: the first entry')).toBeTruthy();
+  });
+
+  it('does not call a row outside the chain its first entry', async () => {
+    vi.spyOn(demoApi, 'getLog').mockResolvedValue({
+      id: '1',
+      request_input: 'q',
+      verification_result: JSON.stringify({ status: 'VERIFIED', agent_message: 'ok' }),
+      engine_used: 'MATH',
+      status: 'verified',
+      created_at: '2026-10-21T10:00:00',
+      entry_hash: null,
+      previous_hash: null,
+      hmac_signature: null,
+    });
+    renderApp(<App />, { route: '/records/1' });
+    const entry = await section('Chain entry, as stored');
+    expect(entry.getByText('none: written outside the chain')).toBeTruthy();
+    expect(entry.queryByText('none: the first entry')).toBeNull();
+    expect(entry.getAllByText('none')).toHaveLength(2);
   });
 
   it('says not recorded for every field a server before #484 does not send', async () => {

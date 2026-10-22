@@ -17,17 +17,25 @@ const SHAPE_LABEL = {
   unknown: 'Unrecognised',
 } as const;
 
+/** The key-list query as the caller label needs it. */
+interface KeyList {
+  status: 'pending' | 'error' | 'success';
+  data: ApiKeyItem[] | undefined;
+}
+
 /** The key that made a row, by name when the key list has it (#484). */
-function keyLabel(keyId: string | null | undefined, keys: ApiKeyItem[] | undefined): string {
+function keyLabel(keyId: string | null | undefined, keys: KeyList): string {
   if (keyId === undefined || keyId === null) return 'not recorded';
-  const key = keys?.find((k) => k.id === keyId);
+  if (keys.status === 'error') return `Key ${keyId} (the key list could not be loaded)`;
+  if (keys.status === 'pending') return `Key ${keyId}`;
+  const key = keys.data?.find((k) => k.id === keyId);
   if (key) return `${key.name} (${key.key_preview})`;
   // The list holds active keys only, and only your own unless you are an
   // admin or owner, so a revoked or another member's key is not in it.
   return `Key ${keyId}, not in your key list`;
 }
 
-function RecordedBy({ log, keys }: Readonly<{ log: AuditLog; keys: ApiKeyItem[] | undefined }>) {
+function RecordedBy({ log, keys }: Readonly<{ log: AuditLog; keys: KeyList }>) {
   return (
     <section aria-labelledby="recorded-by" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       <h2 id="recorded-by" className="sub" style={{ fontSize: 12, fontWeight: 400 }}>
@@ -70,7 +78,8 @@ function ChainEntry({ log }: Readonly<{ log: AuditLog }>) {
         </dd>
         <dt>previous_hash</dt>
         <dd className="mono" style={{ fontSize: 11.5 }}>
-          {chainValue(log.previous_hash, 'none: the first entry')}
+          {/* Only a row in the chain can be its first entry. */}
+          {chainValue(log.previous_hash, log.entry_hash ? 'none: the first entry' : 'none')}
         </dd>
         <dt>HMAC</dt>
         <dd className="mono" style={{ fontSize: 11.5 }}>
@@ -207,7 +216,7 @@ export function RecordPage() {
             </p>
           )}
 
-          <RecordedBy log={log.data} keys={keys.data} />
+          <RecordedBy log={log.data} keys={{ status: keys.status, data: keys.data }} />
           <ChainEntry log={log.data} />
           <ChainCheck logId={r.id} />
         </aside>

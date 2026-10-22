@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { cleanup, screen, within } from '@testing-library/react';
+import { focusManager } from '@tanstack/react-query';
+import { act, cleanup, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { demoApi } from '../api/demo';
@@ -108,6 +109,30 @@ describe('LedgerPage', () => {
 
     expect((await screen.findByRole('alert')).textContent).toMatch(/Older records could not be loaded/);
     expect(screen.getByRole('link', { name: 'claim 2' })).toBeTruthy();
+  });
+
+  it('keeps the records and warns when a refresh fails', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(demoApi, 'listLogs')
+      .mockResolvedValueOnce({ logs: [row('2')], nextBefore: null })
+      .mockRejectedValueOnce(new ApiError(403, 'Insufficient permissions'))
+      .mockResolvedValueOnce({ logs: [row('3'), row('2')], nextBefore: null });
+    renderApp(<LedgerPage />);
+    await rowFor('claim 2');
+
+    // Coming back to the tab refetches the ledger.
+    act(() => {
+      focusManager.setFocused(false);
+      focusManager.setFocused(true);
+    });
+
+    expect((await screen.findByRole('alert')).textContent).toMatch(/could not be refreshed/);
+    expect(screen.getByRole('link', { name: 'claim 2' })).toBeTruthy();
+
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(await rowFor('claim 3')).toBeTruthy();
+    expect(screen.queryByRole('alert')).toBeNull();
+    focusManager.setFocused(undefined);
   });
 
   it('shows the verdict the server sends over its own reading, null included', async () => {

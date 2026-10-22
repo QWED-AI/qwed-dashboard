@@ -90,6 +90,19 @@ export function LedgerPage() {
         </div>
       )}
 
+      {logs.isRefetchError && (
+        // A failed background refresh keeps the records already shown, and
+        // says they may be out of date.
+        <div className="note" role="alert" style={{ margin: '0 24px 16px', display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <span style={{ flex: '1 1 260px' }}>
+            The ledger could not be refreshed, so these records may be out of date. {describeError(logs.error)}
+          </span>
+          <button type="button" className="btn btn-sm" onClick={() => logs.refetch()}>
+            Try again
+          </button>
+        </div>
+      )}
+
       {logs.data && records.length === 0 && (
         <div className="state">
           <span className="state-icon">

@@ -89,6 +89,15 @@ describe('parseResult', () => {
     expect(failed.error).toBe('This batch item failed: audit persistence failed');
     expect(parseResult(batchRow({ truncated: true })).shape).toBe('truncated');
   });
+
+  it('says a batch item with neither a result nor an error stored no result', () => {
+    for (const details of [{ result: null, error: '' }, { error: null }, {}, null]) {
+      const r = parseResult(batchRow(details));
+      expect(r.shape).toBe('batch-item');
+      expect(r.verdict).toBeNull();
+      expect(r.error).toBe('This batch item stored no result.');
+    }
+  });
 });
 
 describe('toRecord', () => {
