@@ -48,6 +48,10 @@ export function Shell({ crumbs, children }: { crumbs: Crumb[]; children: ReactNo
               <Icon name="key" />
               API keys
             </NavLink>
+            <NavLink to="/security" className={({ isActive }) => (isActive ? 'nav active' : 'nav')}>
+              <Icon name="shield" />
+              Security events
+            </NavLink>
           </div>
         </nav>
 

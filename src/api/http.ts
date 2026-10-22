@@ -6,6 +6,8 @@ import type {
   AuditLogPage,
   ComplianceAuth,
   EntryCheck,
+  SecurityEventList,
+  SecurityEventPage,
   SignInResponse,
   TrailCheck,
   User,
@@ -116,6 +118,21 @@ export const httpApi = {
   /** Checks every audit entry of the organisation (#485); open-ended without a period. */
   verifyTrail(auth: ComplianceAuth): Promise<TrailCheck> {
     return request('/admin/compliance/verify-trail', { headers: complianceHeaders(auth) });
+  },
+
+  /**
+   * One page of the organisation's security events, newest first (#486).
+   * Owners and admins only; pass a page's `nextBefore` as `before`.
+   */
+  async listSecurityEvents(
+    token: string,
+    { limit = 50, before, eventType }: { limit?: number; before?: string; eventType?: string } = {},
+  ): Promise<SecurityEventPage> {
+    const query = new URLSearchParams({ limit: String(limit) });
+    if (before !== undefined) query.set('before', before);
+    if (eventType) query.set('event_type', eventType);
+    const data = await request<SecurityEventList>(`/admin/security/events?${query}`, { headers: bearer(token) });
+    return { events: data.events, nextBefore: data.next_before };
   },
 };
 

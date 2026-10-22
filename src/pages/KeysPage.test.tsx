@@ -19,10 +19,20 @@ async function createKey(user: ReturnType<typeof userEvent.setup>, name: string)
 }
 
 describe('KeysPage', () => {
-  it('lists the active keys, with last use not recorded', async () => {
+  it('lists the active keys with when each was last used', async () => {
     renderApp(<KeysPage />);
-    expect(await screen.findByText('payments-agent prod')).toBeTruthy();
-    expect(screen.getAllByText('Not recorded').length).toBeGreaterThan(0);
+    const row = (await screen.findByRole('cell', { name: 'payments-agent prod' })).closest('tr');
+    expect(row?.textContent).toMatch(/2026-10-20 09:41:12 UTC/);
+  });
+
+  it('says no use is recorded for a key with no last use', async () => {
+    vi.spyOn(demoApi, 'listKeys').mockResolvedValue([
+      { id: '9', name: 'fresh', key_preview: 'qwed_live_****abcd', created_at: '2026-10-21T10:00:00', last_used_at: null, is_revoked: false },
+    ]);
+    renderApp(<KeysPage />);
+    const row = (await screen.findByRole('cell', { name: 'fresh' })).closest('tr');
+    expect(row?.textContent).toMatch(/No use recorded/);
+    expect(screen.queryByText('Not recorded')).toBeNull();
   });
 
   it('shows a new key once and drops it when dismissed', async () => {

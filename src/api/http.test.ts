@@ -132,3 +132,22 @@ describe('httpApi compliance checks', () => {
     expect(sessionNotAccepted(new Error('Missing x-api-key header'))).toBe(false);
   });
 });
+
+describe('httpApi security events', () => {
+  it('asks for a page of events with the session and returns its cursor', async () => {
+    const fetchMock = stubFetch(json({ total: 0, next_before: '5', events: [] }));
+    expect(await httpApi.listSecurityEvents('tok', { limit: 2, before: '9', eventType: 'SECRET_LEAK_AUTO_REVOKED' })).toEqual({
+      events: [],
+      nextBefore: '5',
+    });
+    const { url, headers } = call(fetchMock);
+    expect(url).toBe('/api/admin/security/events?limit=2&before=9&event_type=SECRET_LEAK_AUTO_REVOKED');
+    expect(headers.get('Authorization')).toBe('Bearer tok');
+  });
+
+  it('asks for the first fifty by default', async () => {
+    const fetchMock = stubFetch(json({ total: 0, next_before: null, events: [] }));
+    await httpApi.listSecurityEvents('tok');
+    expect(call(fetchMock).url).toBe('/api/admin/security/events?limit=50');
+  });
+});

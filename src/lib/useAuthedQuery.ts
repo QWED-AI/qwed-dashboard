@@ -46,6 +46,25 @@ export function useLedgerPages(limit: number) {
   return query;
 }
 
+/**
+ * The organisation's security events, a page at a time, newest first
+ * (#486), optionally of one type. Paged like the ledger.
+ */
+export function useSecurityEventPages(limit: number, eventType: string | null) {
+  const { api, token, mode, user, signOut } = useSession();
+  const query = useInfiniteQuery({
+    queryKey: [mode, user?.org_id ?? null, user?.id ?? null, 'security-event-pages', limit, eventType],
+    queryFn: ({ pageParam }) =>
+      api.listSecurityEvents(token as string, { limit, before: pageParam, eventType: eventType ?? undefined }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => last.nextBefore ?? undefined,
+    enabled: token !== null,
+    retry,
+  });
+  useSignOutOn401(query.error, signOut);
+  return query;
+}
+
 /** Turns an API error into one sentence for the page. */
 export function describeError(err: unknown): string {
   if (!(err instanceof ApiError)) return 'Something went wrong while loading this page.';

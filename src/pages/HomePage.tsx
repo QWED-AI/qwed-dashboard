@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router';
-import type { Admission, Verdict } from '../api/types';
+import type { Admission, ApiKeyItem, Verdict } from '../api/types';
 import { ChainTrail } from '../components/ChainTrail';
 import { Icon } from '../components/Icon';
 import { RefreshError } from '../components/RefreshError';
@@ -30,6 +30,9 @@ interface Pair {
 }
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+/** Keys with no use recorded: never used since #486, or a server that does not record use. */
+const unusedKeys = (keys: ApiKeyItem[]) => keys.filter((k) => !k.last_used_at).length;
 
 /** One line about the newest record of a group: its request and what the verifier said. */
 function latest(r: LedgerRecord): string {
@@ -172,8 +175,8 @@ export function HomePage() {
               {keys.isError && !keys.data && <p className="sub">{describeError(keys.error)}</p>}
               {keys.data && (
                 <p className="sub">
-                  <Link to="/keys">{plural(keys.data.length, 'active key', 'active keys')}</Link>. The server does not
-                  record when a key was last used yet.
+                  <Link to="/keys">{plural(keys.data.length, 'active key', 'active keys')}</Link>
+                  {unusedKeys(keys.data) > 0 && `, ${unusedKeys(keys.data)} with no use recorded`}.
                 </p>
               )}
               {keys.isRefetchError && (

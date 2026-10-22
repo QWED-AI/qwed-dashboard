@@ -90,6 +90,29 @@ describe('HomePage', () => {
     expect(screen.getByRole('link', { name: '0 active keys' })).toBeTruthy();
   });
 
+  it('counts the keys with no use recorded', async () => {
+    const key = (id: string, lastUsed: string | null) => ({
+      id,
+      name: `key ${id}`,
+      key_preview: 'qwed_live_****abcd',
+      created_at: '2026-10-01T10:00:00',
+      last_used_at: lastUsed,
+      is_revoked: false,
+    });
+    vi.spyOn(demoApi, 'listKeys').mockResolvedValue([key('1', '2026-10-21T09:00:00'), key('2', null)]);
+    renderApp(<HomePage />);
+    const card = within(await screen.findByRole('region', { name: 'API keys' }));
+    expect((await card.findByRole('link', { name: '2 active keys' })).parentElement?.textContent).toBe(
+      '2 active keys, 1 with no use recorded.',
+    );
+  });
+
+  it('says nothing more when every key has a recorded use', async () => {
+    renderApp(<HomePage />);
+    const card = within(await screen.findByRole('region', { name: 'API keys' }));
+    expect((await card.findByRole('link', { name: '2 active keys' })).parentElement?.textContent).toBe('2 active keys.');
+  });
+
   it('still shows the records when the key list is refused', async () => {
     vi.spyOn(demoApi, 'listKeys').mockRejectedValue(new ApiError(403, 'Insufficient permissions'));
     renderApp(<HomePage />);

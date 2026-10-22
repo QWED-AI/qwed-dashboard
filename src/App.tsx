@@ -6,6 +6,7 @@ import { KeysPage } from './pages/KeysPage';
 import { LedgerPage } from './pages/LedgerPage';
 import { LoginPage } from './pages/LoginPage';
 import { RecordPage } from './pages/RecordPage';
+import { SecurityEventsPage } from './pages/SecurityEventsPage';
 
 function RequireSession({ children }: { children: ReactNode }) {
   const { token } = useSession();
@@ -60,6 +61,14 @@ export function App() {
         element={
           <RequireSession>
             <KeysPage />
+          </RequireSession>
+        }
+      />
+      <Route
+        path="/security"
+        element={
+          <RequireSession>
+            <SecurityEventsPage />
           </RequireSession>
         }
       />
