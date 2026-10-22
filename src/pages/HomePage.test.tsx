@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { focusManager } from '@tanstack/react-query';
-import { act, cleanup, screen, within } from '@testing-library/react';
+import { act, cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { demoApi } from '../api/demo';
@@ -90,6 +90,29 @@ describe('HomePage', () => {
     expect(screen.getByRole('link', { name: '0 active keys' })).toBeTruthy();
   });
 
+  it('counts the keys with no use recorded', async () => {
+    const key = (id: string, lastUsed: string | null) => ({
+      id,
+      name: `key ${id}`,
+      key_preview: 'qwed_live_****abcd',
+      created_at: '2026-10-01T10:00:00',
+      last_used_at: lastUsed,
+      is_revoked: false,
+    });
+    vi.spyOn(demoApi, 'listKeys').mockResolvedValue([key('1', '2026-10-21T09:00:00'), key('2', null)]);
+    renderApp(<HomePage />);
+    const card = within(await screen.findByRole('region', { name: 'API keys' }));
+    expect((await card.findByRole('link', { name: '2 active keys' })).parentElement?.textContent).toBe(
+      '2 active keys, 1 with no use recorded.',
+    );
+  });
+
+  it('says nothing more when every key has a recorded use', async () => {
+    renderApp(<HomePage />);
+    const card = within(await screen.findByRole('region', { name: 'API keys' }));
+    expect((await card.findByRole('link', { name: '2 active keys' })).parentElement?.textContent).toBe('2 active keys.');
+  });
+
   it('still shows the records when the key list is refused', async () => {
     vi.spyOn(demoApi, 'listKeys').mockRejectedValue(new ApiError(403, 'Insufficient permissions'));
     renderApp(<HomePage />);
@@ -145,7 +168,7 @@ describe('HomePage', () => {
     expect(screen.queryByText('The records could not be loaded')).toBeNull();
 
     await user.click(screen.getByRole('button', { name: 'Try again' }));
-    await vi.waitFor(() => expect(screen.queryByText(/The records could not be refreshed/)).toBeNull());
+    await waitFor(() => expect(screen.queryByText(/The records could not be refreshed/)).toBeNull());
     // The records' Try again does not touch the key list; it has its own.
     expect(screen.getByText(/The key list could not be refreshed/)).toBeTruthy();
 

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { focusManager } from '@tanstack/react-query';
-import { act, cleanup, screen, within } from '@testing-library/react';
+import { act, cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { demoApi } from '../api/demo';
@@ -85,9 +85,9 @@ describe('LedgerPage', () => {
       focusManager.setFocused(true);
     });
 
-    await vi.waitFor(() => expect(button.disabled).toBe(true));
+    await waitFor(() => expect(button.disabled).toBe(true));
     await act(async () => finishRefresh({ logs: [row('2')], nextBefore: '2' }));
-    await vi.waitFor(() => expect(button.disabled).toBe(false));
+    await waitFor(() => expect(button.disabled).toBe(false));
     focusManager.setFocused(undefined);
   });
 

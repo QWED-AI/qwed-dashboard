@@ -389,6 +389,16 @@ a.btn {
   color: var(--muted);
   white-space: nowrap;
 }
+/* Severity of a security event, as the server set it. */
+.tag.sev-high,
+.tag.sev-critical {
+  color: var(--bad);
+  background: var(--bad-soft);
+  box-shadow: none;
+}
+.tag.sev-critical {
+  font-weight: 600;
+}
 .kbd {
   font-family: var(--font-mono);
   font-size: 10.5px;

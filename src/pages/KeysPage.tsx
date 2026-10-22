@@ -180,7 +180,7 @@ export function KeysPage() {
                     {formatUtcLong(k.created_at)}
                   </td>
                   <td className="muted" style={{ fontSize: 12.5 }}>
-                    {k.last_used_at ? formatUtcLong(k.last_used_at) : 'Not recorded'}
+                    {k.last_used_at ? formatUtcLong(k.last_used_at) : 'No use recorded'}
                   </td>
                   <td style={{ textAlign: 'right' }}>
                     {confirmId === k.id ? (
@@ -225,7 +225,8 @@ export function KeysPage() {
       )}
 
       <p className="sub" style={{ padding: '14px 24px 24px', fontSize: 12.5 }}>
-        Revoked keys drop off this list, and the server does not record when a key was last used yet. Rotation, owners
+        Revoked keys drop off this list. Last used is the most recent request the key made, kept to the minute; a server
+        before qwed-verification #486 does not record it, so there every key reads "No use recorded". Rotation, owners
         and expiry dates will follow once the server returns them.
       </p>
     </Shell>

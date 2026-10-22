@@ -69,6 +69,36 @@ export interface AuditLogPage {
 }
 
 /**
+ * One row of GET /admin/security/events (#486). The server masks anything
+ * shaped like an API key or agent token in `reason` and `query`.
+ */
+export interface SecurityEvent {
+  id: string;
+  timestamp: string;
+  /** For example SECRET_LEAK_AUTO_REVOKED. */
+  event_type: string;
+  /** low, medium, high or critical, as the writer set it. */
+  severity: string;
+  security_layer: string | null;
+  reason: string;
+  query: string;
+  user_id: number | null;
+}
+
+/** GET /admin/security/events */
+export interface SecurityEventList {
+  total: number;
+  next_before: string | null;
+  events: SecurityEvent[];
+}
+
+/** One page of security events, with the cursor for older ones or null. */
+export interface SecurityEventPage {
+  events: SecurityEvent[];
+  nextBefore: string | null;
+}
+
+/**
  * One row of GET /auth/api-keys. The server lists only active keys and does
  * not return the owner, expiry or rotation state yet.
  */

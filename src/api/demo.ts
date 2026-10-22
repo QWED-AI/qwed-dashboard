@@ -1,6 +1,6 @@
 import { parseResult } from '../lib/result';
 import { ApiError, type QwedApi } from './http';
-import type { ApiKeyCreated, ApiKeyItem, AuditLog, EntryCheck, TrailCheck, User } from './types';
+import type { ApiKeyCreated, ApiKeyItem, AuditLog, EntryCheck, SecurityEvent, TrailCheck, User } from './types';
 
 // Sample data for exploring the dashboard without a QWED server. Shaped like
 // the real /audit/logs rows; none of it comes from a real verification.
@@ -171,7 +171,8 @@ let keys: ApiKeyItem[] = [
     name: 'payments-agent prod',
     key_preview: 'qwed_live_****x7Qa',
     created_at: '2026-10-15T09:30:00',
-    last_used_at: null,
+    // The newest sample rows each key made (1042 and 1040), as #486 records.
+    last_used_at: '2026-10-20T09:41:12',
     is_revoked: false,
   },
   {
@@ -179,8 +180,34 @@ let keys: ApiKeyItem[] = [
     name: 'invoice pipeline',
     key_preview: 'qwed_live_****9mBe',
     created_at: '2026-07-22T11:04:00',
-    last_used_at: null,
+    last_used_at: '2026-10-20T08:57:44',
     is_revoked: false,
+  },
+];
+
+// Sample security events, of the one type the server writes today: a key
+// reported as leaked in public is revoked, and the event names it by its
+// preview only. Key 5 made sample rows 1035 and 1036, then was revoked.
+const securityEvents: SecurityEvent[] = [
+  {
+    id: '12',
+    timestamp: '2026-10-20T07:55:02',
+    event_type: 'SECRET_LEAK_AUTO_REVOKED',
+    severity: 'high',
+    security_layer: null,
+    reason: 'Public leak auto-revoked: source=github url=https://example.com/[sample]/config.env',
+    query: 'leaked key qwed_live_****Kd3p',
+    user_id: 1,
+  },
+  {
+    id: '4',
+    timestamp: '2026-09-02T14:10:47',
+    event_type: 'SECRET_LEAK_AUTO_REVOKED',
+    severity: 'high',
+    security_layer: null,
+    reason: 'Public leak auto-revoked: source=github url=https://example.com/[sample]/notebook.ipynb',
+    query: 'leaked key qwed_live_****p2Wt',
+    user_id: 1,
   },
 ];
 let nextKeyId = 8;
@@ -282,5 +309,14 @@ export const demoApi: QwedApi = {
       total_errors: 1,
       errors_truncated: false,
     };
+  },
+  async listSecurityEvents(_token, { limit = 50, before, eventType } = {}) {
+    await wait(200);
+    const matching = securityEvents.filter((e) => !eventType || e.event_type === eventType);
+    const start = before === undefined ? 0 : matching.findIndex((e) => e.id === before) + 1;
+    if (start === 0 && before !== undefined) throw new ApiError(404, 'Event not found');
+    const page = matching.slice(start, start + limit);
+    const full = page.length > 0 && page.length === limit;
+    return { events: page, nextBefore: full ? (page.at(-1)?.id ?? null) : null };
   },
 };

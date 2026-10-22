@@ -26,6 +26,7 @@ const paths = {
       <path d="M11 12l8-8M16 7l3 3" />
     </>
   ),
+  shield: <path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z" />,
   theme: (
     <>
       <circle cx="12" cy="12" r="8" />
