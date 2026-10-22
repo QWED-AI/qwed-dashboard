@@ -215,7 +215,8 @@ describe('RecordPage', () => {
         blobs.push(b);
         return 'blob:x';
       };
-      vi.stubGlobal('URL', { ...URL, createObjectURL, revokeObjectURL: vi.fn() });
+      const revokeObjectURL = vi.fn();
+      vi.stubGlobal('URL', { ...URL, createObjectURL, revokeObjectURL });
       const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
         expect(this.download).toBe('qwed-record-1037.json');
       });
@@ -223,6 +224,8 @@ describe('RecordPage', () => {
       await user.click(await screen.findByRole('button', { name: 'Download .json' }));
 
       expect(click).toHaveBeenCalledTimes(1);
+      // The Blob URL is released once the download has started.
+      expect(revokeObjectURL).toHaveBeenCalledWith('blob:x');
       const [blob] = blobs;
       if (!blob) throw new Error('No file was saved');
       const saved = JSON.parse(await blob.text()) as AuditLog;
