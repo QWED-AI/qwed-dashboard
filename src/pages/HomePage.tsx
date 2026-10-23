@@ -142,6 +142,15 @@ export function HomePage() {
         </div>
       )}
 
+      {/* These cards ask the server for themselves, so they still work when the records do not load. */}
+      {logs.isError && !logs.data && (
+        <div className="overview">
+          <div className="ov-grid">
+            <ServerCards />
+          </div>
+        </div>
+      )}
+
       {logs.isRefetchError && <RefreshError what="The records" error={logs.error} onRetry={() => logs.refetch()} />}
 
       {/* On data, not on success: a failed refresh keeps what loaded. */}
@@ -176,11 +185,7 @@ export function HomePage() {
 
           <div className="ov-grid">
             {win && <Breakdowns win={win} keys={keys} />}
-            <div className="ov-stack">
-              <ActivitySummaryCard />
-              <ChainTrail />
-              <SecurityCard />
-            </div>
+            <ServerCards />
           </div>
 
           {records.length > 0 && (
@@ -291,6 +296,17 @@ function Breakdowns({ win, keys }: Readonly<{ win: OverviewWindow; keys: KeysQue
         <BarList rows={callers} />
       </section>
     </>
+  );
+}
+
+/** The cards that ask the server for themselves, not from the loaded records. */
+function ServerCards() {
+  return (
+    <div className="ov-stack">
+      <ActivitySummaryCard />
+      <ChainTrail />
+      <SecurityCard />
+    </div>
   );
 }
 

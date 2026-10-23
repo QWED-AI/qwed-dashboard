@@ -2,10 +2,10 @@ import { useMutation } from '@tanstack/react-query';
 import { ApiError, sessionNotAccepted } from '../api/http';
 import type { ActivitySummary } from '../api/types';
 import { useSession } from '../auth/session';
-import { formatUtcDay } from '../lib/format';
+import { formatUtcDay, parseUtc } from '../lib/format';
 import { typeLabel } from '../lib/securityEvents';
 import { describeError } from '../lib/useAuthedQuery';
-import { TrailResult } from './ChainTrail';
+import { signOutOnExpiredSession, TrailResult } from './ChainTrail';
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
@@ -21,14 +21,19 @@ function refusal(err: unknown): string {
   return describeError(err);
 }
 
+/** "20 Oct", read as UTC whether or not the time carries an offset. */
+function day(iso: string): string {
+  const d = parseUtc(iso);
+  return d ? formatUtcDay(d.getTime()) : iso;
+}
+
 function Summary({ summary }: Readonly<{ summary: ActivitySummary }>) {
   const { period, metrics } = summary;
   const types = Object.entries(metrics.security_events_by_type);
   return (
     <div aria-live="polite" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <p className="sub">
-        {formatUtcDay(Date.parse(period.start))} to {formatUtcDay(Date.parse(period.end))} UTC,{' '}
-        {plural(period.days, 'day', 'days')}.
+        {day(period.start)} to {day(period.end)} UTC, {plural(period.days, 'day', 'days')}.
       </p>
       <dl className="kv">
         <dt>Verifications</dt>
@@ -62,8 +67,11 @@ function Summary({ summary }: Readonly<{ summary: ActivitySummary }>) {
  * rest of the overview, it does not depend on how many records are loaded.
  */
 export function ActivitySummaryCard() {
-  const { api, token, user } = useSession();
-  const summary = useMutation({ mutationFn: (args: { token: string; orgId: string }) => api.activitySummary(args.token, args.orgId) });
+  const { api, token, user, signOut } = useSession();
+  const summary = useMutation({
+    mutationFn: (args: { token: string; orgId: string }) => api.activitySummary(args.token, args.orgId),
+    onError: (err) => signOutOnExpiredSession(err, signOut),
+  });
   const ready = token && user ? { token, orgId: user.org_id } : null;
   let label = 'Load the 90-day summary';
   if (summary.isPending) label = 'Loading…';

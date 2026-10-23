@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
-import { cleanup, screen, within } from '@testing-library/react';
+import { cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useEffect, type ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { TrailCheck } from '../api/types';
 import { useSession } from '../auth/session';
-import { LIVE_TOKEN, renderApp } from '../test/render';
+import { LIVE_TOKEN, renderApp, SESSION_KEY } from '../test/render';
 import { ChainTrail } from './ChainTrail';
 
 afterEach(() => {
@@ -140,6 +140,19 @@ describe('ChainTrail', () => {
     serve(response);
     const c = await run({ live: true });
     expect((await c.findByRole('alert')).textContent).toMatch(/This server cannot check the whole chain/);
+  });
+
+  it('signs out when the server says the session has ended', async () => {
+    serve(json({ detail: 'Could not validate credentials' }, 401));
+    await run({ live: true });
+    await waitFor(() => expect(sessionStorage.getItem(SESSION_KEY)).toBeNull());
+  });
+
+  it('stays signed in when an older server refuses the session there', async () => {
+    serve(json({ detail: 'Missing x-api-key header' }, 401));
+    const c = await run({ live: true });
+    await c.findByRole('alert');
+    expect(sessionStorage.getItem(SESSION_KEY)).not.toBeNull();
   });
 
   it('says only owners and admins can check', async () => {

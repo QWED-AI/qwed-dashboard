@@ -22,8 +22,8 @@ function refusal(err: unknown): string {
   return describeError(err);
 }
 
-/** What a chain check found, for the whole-chain check and the activity summary. */
-export function TrailResult({ trail }: Readonly<{ trail: TrailCheck }>) {
+/** What the check found. */
+function Finding({ trail }: Readonly<{ trail: TrailCheck }>) {
   if (trail.status === 'NO_ENTRIES') {
     return <p className="sub">There are no audit entries to check yet.</p>;
   }
@@ -81,6 +81,33 @@ export function TrailResult({ trail }: Readonly<{ trail: TrailCheck }>) {
 }
 
 /**
+ * What a chain check found, with what it does not cover: the entries written
+ * before the chain existed, and the scope in the server's words. Shared by
+ * the whole-chain check and the activity summary.
+ */
+export function TrailResult({ trail }: Readonly<{ trail: TrailCheck }>) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <Finding trail={trail} />
+      {(trail.legacy_entries ?? 0) > 0 && (
+        <p className="hint" style={{ margin: 0 }}>
+          {plural(trail.legacy_entries ?? 0, 'entry was', 'entries were')} written before the chain existed and cannot
+          be checked.
+        </p>
+      )}
+      <p className="hint" style={{ margin: 0 }}>
+        {trail.scope}
+      </p>
+    </div>
+  );
+}
+
+/** Signs out on a 401 that is not an older server refusing the session. */
+export function signOutOnExpiredSession(err: unknown, signOut: () => void) {
+  if (err instanceof ApiError && err.status === 401 && !sessionNotAccepted(err)) signOut();
+}
+
+/**
  * Checks every audit entry of the organisation, on request
  * (GET /admin/compliance/verify-trail, #485). It runs only when asked: the
  * server reads every entry to answer.
@@ -89,8 +116,11 @@ export function TrailResult({ trail }: Readonly<{ trail: TrailCheck }>) {
  * server that takes only keys, and such a server has no whole-chain route.
  */
 export function ChainTrail() {
-  const { api, token } = useSession();
-  const trail = useMutation({ mutationFn: (auth: ComplianceAuth) => api.verifyTrail(auth) });
+  const { api, token, signOut } = useSession();
+  const trail = useMutation({
+    mutationFn: (auth: ComplianceAuth) => api.verifyTrail(auth),
+    onError: (err) => signOutOnExpiredSession(err, signOut),
+  });
   const auth: ComplianceAuth | null = token ? { session: token } : null;
   let label = 'Check the whole chain';
   if (trail.isPending) label = 'Checking…';
@@ -116,15 +146,8 @@ export function ChainTrail() {
         </p>
       )}
       {trail.data && (
-        <div aria-live="polite" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div aria-live="polite">
           <TrailResult trail={trail.data} />
-          {(trail.data.legacy_entries ?? 0) > 0 && (
-            <p className="hint">
-              {plural(trail.data.legacy_entries ?? 0, 'entry was', 'entries were')} written before the chain existed and
-              cannot be checked.
-            </p>
-          )}
-          <p className="hint">{trail.data.scope}</p>
         </div>
       )}
     </section>

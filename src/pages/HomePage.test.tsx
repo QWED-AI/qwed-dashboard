@@ -290,6 +290,15 @@ describe('HomePage', () => {
     expect(alert.textContent).toMatch(/Insufficient permissions/);
   });
 
+  it('keeps the cards that ask the server for themselves when the records cannot be loaded', async () => {
+    vi.spyOn(demoApi, 'listLogs').mockRejectedValue(new ApiError(403, 'Insufficient permissions'));
+    renderApp(<HomePage />);
+    expect(await screen.findByText('The records could not be loaded')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Load the 90-day summary' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Check the whole chain' })).toBeTruthy();
+    expect(screen.getByRole('region', { name: 'Security events' })).toBeTruthy();
+  });
+
   it('keeps what loaded and warns when a refresh fails, then recovers on Try again', async () => {
     const user = userEvent.setup();
     const listLogs = demoApi.listLogs.bind(demoApi);

@@ -2,6 +2,7 @@
 import { cleanup, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { App } from '../App';
 import { demoApi } from '../api/demo';
 import { ApiError } from '../api/http';
 import { renderApp } from '../test/render';
@@ -41,7 +42,30 @@ describe('ActivitySummaryCard', () => {
     expect(card.getByText('The chain does not check out.')).toBeTruthy();
     expect(card.getByText(/1 of 47 entries failed/)).toBeTruthy();
     expect(card.getByText(/It is not a SOC 2 report/)).toBeTruthy();
+    // What the chain check covers, in the server's words.
+    expect(card.getByText(/It does not show that every request was recorded/)).toBeTruthy();
     expect(card.getByRole('button', { name: 'Load again' })).toBeTruthy();
+  });
+
+  it('says how many entries predate the chain, and reads a period without an offset as UTC', async () => {
+    const sample = await demoApi.activitySummary('demo', 'demo');
+    vi.spyOn(demoApi, 'activitySummary').mockResolvedValue({
+      ...sample,
+      // Just after midnight UTC: read as local time, it falls on another day east or west of UTC.
+      period: { start: '2026-07-22T00:30:00', end: '2026-10-20T23:30:00', days: 90 },
+      audit_trail: { ...sample.audit_trail, legacy_entries: 3 },
+    });
+    const card = await load();
+    expect(await card.findByText('22 Jul to 20 Oct UTC, 90 days.')).toBeTruthy();
+    expect(card.getByText('3 entries were written before the chain existed and cannot be checked.')).toBeTruthy();
+  });
+
+  it('signs out when the server says the session has ended', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(demoApi, 'activitySummary').mockRejectedValue(new ApiError(401, 'Could not validate credentials'));
+    renderApp(<App />, { route: '/' });
+    await user.click(await screen.findByRole('button', { name: 'Load the 90-day summary' }));
+    expect(await screen.findByRole('button', { name: 'Sign in' })).toBeTruthy();
   });
 
   it.each([
