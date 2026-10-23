@@ -123,26 +123,31 @@ const baseLogs: AuditLog[] = [
 // Older sample rows, 14 to 19 Oct, so a week of the overview has something
 // to show. Built from a fixed list in a fixed order, so every load is the
 // same. Request texts differ from the rows above.
+// `admission` is what the route decided, as the server stores it since #307:
+// ADMIT or BLOCKED on the verify routes, ADMIT or DENY on a Verification
+// Context, null where the route decides none (logic, stats, fact). A claim
+// proven false, or code proven unsafe, is VERIFIED with BLOCKED.
 const HISTORY_TEMPLATES: readonly {
   status: 'VERIFIED' | 'UNVERIFIABLE' | 'BLOCKED' | 'TRUNCATED';
   engine: string;
   claim: string;
   message: string;
+  admission: 'ADMIT' | 'BLOCKED' | null;
 }[] = [
-  { status: 'VERIFIED', engine: 'MATH', claim: 'Monthly interest on 12,000.00 at 1.5% is 180.00', message: 'The arithmetic holds.' },
-  { status: 'VERIFIED', engine: 'SQL', claim: 'SELECT region, SUM(total) FROM orders GROUP BY region', message: 'The query is read-only.' },
-  { status: 'VERIFIED', engine: 'CODE', claim: 'Report export writes only under ./reports', message: 'The code stays inside the allowed paths.' },
-  { status: 'UNVERIFIABLE', engine: 'FACT', claim: 'Vendor [NAME] holds a current ISO 27001 certificate', message: 'The documents supplied do not settle the claim.' },
-  { status: 'VERIFIED', engine: 'MATH', claim: 'Line items for invoice [INVOICE ID] add up to 2,950.00', message: 'The arithmetic holds.' },
-  { status: 'VERIFIED', engine: 'LOGIC', claim: 'No discount stacks above 30% under the pricing rules', message: 'The constraints hold for every case.' },
-  { status: 'BLOCKED', engine: 'MATH', claim: 'Tax on 2,400.00 at 18% is 412.00', message: 'The stated value is wrong; the tax is 432.00.' },
-  { status: 'VERIFIED', engine: 'STATS', claim: 'Median basket size in [FILE] is 3 items', message: 'The computation matches the stated value.' },
-  { status: 'VERIFIED', engine: 'SQL', claim: 'SELECT id, status FROM shipments WHERE eta < NOW()', message: 'The query is read-only.' },
-  { status: 'UNVERIFIABLE', engine: 'LOGIC', claim: 'Every region meets the two-day shipping promise', message: 'The rules supplied do not decide the claim.' },
-  { status: 'VERIFIED', engine: 'VERIFICATION_CONTEXT', claim: 'Refund of 120.00 matches the returned items', message: 'The stated total matches.' },
-  { status: 'BLOCKED', engine: 'CODE', claim: 'Report builder runs the query text it is given', message: 'The code runs input as code.' },
-  { status: 'VERIFIED', engine: 'FACT', claim: 'Supplier [NAME] is listed in the registry extract', message: 'The extract supports the claim.' },
-  { status: 'TRUNCATED', engine: 'STATS', claim: 'Churn in [FILE] fell 4% month on month', message: '' },
+  { status: 'VERIFIED', engine: 'MATH', claim: 'Monthly interest on 12,000.00 at 1.5% is 180.00', message: 'The arithmetic holds.', admission: 'ADMIT' },
+  { status: 'VERIFIED', engine: 'SQL', claim: 'SELECT region, SUM(total) FROM orders GROUP BY region', message: 'The query is read-only.', admission: 'ADMIT' },
+  { status: 'VERIFIED', engine: 'CODE', claim: 'Report export writes only under ./reports', message: 'The code stays inside the allowed paths.', admission: 'ADMIT' },
+  { status: 'UNVERIFIABLE', engine: 'FACT', claim: 'Vendor [NAME] holds a current ISO 27001 certificate', message: 'The documents supplied do not settle the claim.', admission: null },
+  { status: 'VERIFIED', engine: 'MATH', claim: 'Line items for invoice [INVOICE ID] add up to 2,950.00', message: 'The arithmetic holds.', admission: 'ADMIT' },
+  { status: 'VERIFIED', engine: 'LOGIC', claim: 'No discount stacks above 30% under the pricing rules', message: 'The constraints hold for every case.', admission: null },
+  { status: 'VERIFIED', engine: 'MATH', claim: 'Tax on 2,400.00 at 18% is 412.00', message: 'The stated value is wrong; the tax is 432.00.', admission: 'BLOCKED' },
+  { status: 'VERIFIED', engine: 'STATS', claim: 'Median basket size in [FILE] is 3 items', message: 'The computation matches the stated value.', admission: null },
+  { status: 'VERIFIED', engine: 'SQL', claim: 'SELECT id, status FROM shipments WHERE eta < NOW()', message: 'The query is read-only.', admission: 'ADMIT' },
+  { status: 'UNVERIFIABLE', engine: 'LOGIC', claim: 'Every region meets the two-day shipping promise', message: 'The rules supplied do not decide the claim.', admission: null },
+  { status: 'VERIFIED', engine: 'VERIFICATION_CONTEXT', claim: 'Refund of 120.00 matches the returned items', message: 'The stated total matches.', admission: 'ADMIT' },
+  { status: 'VERIFIED', engine: 'CODE', claim: 'Report builder runs the query text it is given', message: 'The code runs input as code.', admission: 'BLOCKED' },
+  { status: 'BLOCKED', engine: 'FACT', claim: 'Supplier [NAME] has no open sanctions listing', message: 'The documents supplied contradict the claim.', admission: null },
+  { status: 'TRUNCATED', engine: 'STATS', claim: 'Churn in [FILE] fell 4% month on month', message: '', admission: null },
 ];
 
 // Records per day, oldest first, from 14 Oct.
@@ -180,6 +185,7 @@ function buildHistory(): AuditLog[] {
         status: t.status === 'VERIFIED' ? 'verified' : 'blocked',
         created_at: createdAt,
         api_key_id: historyCaller(n, createdAt),
+        admission: t.admission,
       });
       n += 1;
     }
@@ -212,8 +218,16 @@ const CALLER: Record<string, string | null> = {
   '1037': '7', '1036': '5', '1035': '5', '1034': null, '1033': null,
 };
 
-// The fields a server after #484 adds: the stored verdict (read the same way
-// the dashboard reads it), the chain entry, and the caller.
+// The admission each of the newest rows' routes decided (#307). The logic,
+// fact and stats routes decide none.
+const ADMISSION: Record<string, string | null> = {
+  '1042': null, '1041': 'BLOCKED', '1040': 'ADMIT', '1039': null, '1038': null,
+  '1037': 'BLOCKED', '1036': 'BLOCKED', '1035': 'BLOCKED', '1034': null, '1033': 'ADMIT',
+};
+
+// The fields a server after #484 and #307 adds: the stored verdict (read the
+// same way the dashboard reads it), the chain entry, the caller and the
+// admission.
 const chain = [...baseLogs, ...history];
 const logs: AuditLog[] = chain.map((log, i) => {
   const older = chain[i + 1];
@@ -226,6 +240,7 @@ const logs: AuditLog[] = chain.map((log, i) => {
     hmac_signature: sampleHex(`hmac-${log.id}`),
     api_key_id: keyId,
     verifier_version: keyId === null ? null : '7.3.0',
+    admission: log.id in ADMISSION ? (ADMISSION[log.id] ?? null) : (log.admission ?? null),
   };
 });
 

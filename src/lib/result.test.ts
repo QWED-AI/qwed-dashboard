@@ -45,8 +45,19 @@ describe('parseResult', () => {
   it('does not accept values outside the specification', () => {
     expect(parseResult(JSON.stringify({ status: 'INCONCLUSIVE' })).verdict).toBeNull();
     expect(parseResult(JSON.stringify({ status: 'verified' })).verdict).toBeNull();
-    // The core AdmissionDecision enum says BLOCKED; the specification says DENY.
-    expect(parseResult(JSON.stringify({ status: 'BLOCKED', admission: 'BLOCKED' })).admission).toBeNull();
+  });
+
+  it('shows a stored BLOCKED admission as DENY and keeps the stored word', () => {
+    // The verify routes store BLOCKED for what the specification calls DENY (#324).
+    const r = parseResult(JSON.stringify({ status: 'VERIFIED', admission: 'BLOCKED' }));
+    expect([r.admission, r.admissionStored]).toEqual(['DENY', 'BLOCKED']);
+  });
+
+  it('keeps an admission word it does not know, without showing it as a decision', () => {
+    const r = parseResult(JSON.stringify({ status: 'VERIFIED', admission: 'REVIEW' }));
+    expect([r.admission, r.admissionStored]).toEqual([null, 'REVIEW']);
+    const blank = parseResult(JSON.stringify({ status: 'VERIFIED', admission: ' ' }));
+    expect([blank.admission, blank.admissionStored]).toEqual([null, null]);
   });
 
   it('reports a truncated result instead of guessing', () => {
@@ -126,6 +137,20 @@ describe('toRecord', () => {
 
   it('keeps the message and other fields from the result', () => {
     expect(toRecord(log({ verdict: 'BLOCKED' })).result.agentMessage).toBe('m');
+  });
+
+  it('uses the admission the row stores (#307) over the document’s, null included', () => {
+    const context = JSON.stringify({
+      spec_version: '1.0',
+      verdict: 'VERIFIED',
+      context: { decision: { admission: 'ADMIT' } },
+    });
+    const row = (extra: Record<string, unknown>) => toRecord(log({ verification_result: context, ...extra })).result;
+    expect([row({ admission: 'DENY' }).admission, row({ admission: 'DENY' }).admissionStored]).toEqual(['DENY', null]);
+    expect([row({ admission: 'BLOCKED' }).admission, row({ admission: 'BLOCKED' }).admissionStored]).toEqual(['DENY', 'BLOCKED']);
+    expect(row({ admission: null }).admission).toBeNull();
+    // An older server sends no field: the document's admission stands.
+    expect(row({}).admission).toBe('ADMIT');
   });
 
   it('keeps the caller as the server sent it: an id, null, or absent before #484', () => {

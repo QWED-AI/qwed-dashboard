@@ -23,7 +23,7 @@ export function RecordTable({ records }: Readonly<{ records: readonly LedgerReco
               {formatUtc(r.createdAt)}
             </td>
             <td>
-              <VerdictChip verdict={r.result.verdict} admission={r.result.admission} />
+              <VerdictChip verdict={r.result.verdict} admission={r.result.admission} admissionStored={r.result.admissionStored} />
             </td>
             <td>
               <Link className="row-link" to={`/records/${encodeURIComponent(r.id)}`}>

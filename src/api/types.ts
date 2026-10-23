@@ -49,6 +49,12 @@ export interface AuditLog {
   api_key_id?: string | null;
   /** The server version that wrote the row; null before #484. */
   verifier_version?: string | null;
+  /**
+   * The admission the row's route decided (#307): "ADMIT" or "BLOCKED" on the
+   * verify routes, "ADMIT" or "DENY" on /verification-context/from-diagnostic,
+   * null where the route decides none or on a row written before it was stored.
+   */
+  admission?: string | null;
 }
 
 /** GET /audit/logs */

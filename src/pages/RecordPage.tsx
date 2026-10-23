@@ -210,6 +210,45 @@ function proofRefState(result: ParsedResult): { title: string; text: string } {
   return { title: 'No proof_ref', text: 'Only a VERIFIED result carries one.' };
 }
 
+/** The admission as the Checks list shows it, with the stored word when it differs. */
+function admissionValue(result: ParsedResult): string {
+  if (result.admission && result.admissionStored) return `${result.admission} (stored as ${result.admissionStored})`;
+  if (result.admission) return result.admission;
+  if (result.admissionStored) return `${result.admissionStored} (not an admission the dashboard knows)`;
+  return 'not recorded';
+}
+
+/** Why the admission reads as it does, when that needs saying. */
+function AdmissionNote({ result }: Readonly<{ result: ParsedResult }>) {
+  if (result.admission && result.admissionStored) {
+    return (
+      <p className="note">
+        <strong>Shown as {result.admission}.</strong> The server stored this admission as {result.admissionStored}, the
+        verify routes’ word for the decision a Verification Context calls DENY (qwed-verification #324). The stored
+        result and the download keep what the server sent.
+      </p>
+    );
+  }
+  if (result.admissionStored) {
+    return (
+      <p className="note">
+        <strong>Not an admission the dashboard knows.</strong> The server stored “{result.admissionStored}”, which is
+        not ADMIT, DENY or BLOCKED, so it is shown as stored and not as a decision.
+      </p>
+    );
+  }
+  if (result.admission === null && result.shape !== 'verification-context') {
+    return (
+      <p className="note">
+        <strong>Why admission is not recorded.</strong> The server keeps the admission its route decided with each
+        record (qwed-verification #307). This route decides none (logic, stats, fact, image, RAG, process and consensus
+        do not), or the record was written before the server kept one.
+      </p>
+    );
+  }
+  return null;
+}
+
 function Checks({ result }: Readonly<{ result: ParsedResult }>) {
   const proof = proofRefState(result);
   return (
@@ -234,20 +273,14 @@ function Checks({ result }: Readonly<{ result: ParsedResult }>) {
       <dl className="kv">
         <dt>Admission</dt>
         <dd className="mono" style={{ fontSize: 12 }}>
-          {result.admission ?? 'not recorded'}
+          {admissionValue(result)}
         </dd>
         <dt>Authoritative</dt>
         <dd className="mono" style={{ fontSize: 12 }}>
           {result.isAuthoritative === null ? 'not recorded' : String(result.isAuthoritative)}
         </dd>
       </dl>
-      {(result.shape === 'diagnostic' || result.shape === 'batch-item') && result.admission === null && (
-        <p className="note">
-          <strong>Why admission is not recorded.</strong> The verify routes store the engine result, which has no
-          admission field. Some routes return an admission to the caller, but the server does not keep it with the
-          record yet.
-        </p>
-      )}
+      <AdmissionNote result={result} />
     </section>
   );
 }
@@ -309,7 +342,7 @@ export function RecordPage() {
       )}
       <div style={{ padding: '24px 24px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <VerdictChip verdict={result.verdict} admission={result.admission} large />
+          <VerdictChip verdict={result.verdict} admission={result.admission} admissionStored={result.admissionStored} large />
           <span className="spacer" />
           <CopyId id={r.id} />
           <button type="button" className="btn btn-sm" onClick={() => downloadRecord(data)}>
