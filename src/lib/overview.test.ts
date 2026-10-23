@@ -58,6 +58,20 @@ describe('overviewWindow', () => {
     expect(new Date(w?.reachesBackTo ?? 0).toISOString()).toBe('2026-10-20T03:00:00.000Z');
   });
 
+  it('does not count a record at exactly a window start as proof the window is loaded', () => {
+    // A next page may hold more records with that same time.
+    const atStart = overviewWindow([rec('2026-10-20T09:00:00', 'VERIFIED'), rec('2026-10-19T10:00:00', 'VERIFIED')], '24h', false);
+    expect(new Date(atStart?.reachesBackTo ?? 0).toISOString()).toBe('2026-10-19T10:00:00.000Z');
+    expect(atStart?.previousTotal).toBeNull();
+
+    const atPreviousStart = overviewWindow([rec('2026-10-20T09:00:00', 'VERIFIED'), rec('2026-10-18T10:00:00', 'VERIFIED')], '24h', false);
+    expect(atPreviousStart?.reachesBackTo).toBeNull();
+    expect(atPreviousStart?.previousTotal).toBeNull();
+
+    const older = overviewWindow([rec('2026-10-20T09:00:00', 'VERIFIED'), rec('2026-10-18T09:59:59', 'VERIFIED')], '24h', false);
+    expect(older?.previousTotal).toBe(0);
+  });
+
   it('is null when no record has a readable time', () => {
     expect(overviewWindow([rec('not a date', 'VERIFIED')], '24h', true)).toBeNull();
     expect(overviewWindow([], '24h', true)).toBeNull();

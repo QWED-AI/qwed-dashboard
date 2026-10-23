@@ -98,8 +98,11 @@ export function overviewWindow(records: LedgerRecord[], range: Range, complete: 
     buckets,
     records: inWindow,
     totals,
-    previousTotal: complete || oldest <= start - span ? previous : null,
-    reachesBackTo: !complete && oldest > start ? oldest : null,
+    // When older records may not be loaded, one at exactly a window's start
+    // proves nothing: the next page can hold more with that same time. Only
+    // an older record shows the window is covered.
+    previousTotal: complete || oldest < start - span ? previous : null,
+    reachesBackTo: !complete && oldest >= start ? oldest : null,
   };
 }
 

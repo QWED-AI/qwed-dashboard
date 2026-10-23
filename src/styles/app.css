@@ -724,9 +724,13 @@ a.btn {
 .card.flush > .card-head {
   padding: 16px 16px 12px;
 }
+/* A fieldset with a hidden legend; the reset drops its default frame. */
 .seg {
   display: inline-flex;
   gap: 2px;
+  margin: 0;
+  border: 0;
+  min-width: 0;
   padding: 3px;
   border-radius: 9px;
   background: var(--sunk);

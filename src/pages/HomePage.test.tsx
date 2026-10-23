@@ -130,6 +130,20 @@ describe('HomePage', () => {
       expect(chart.getByText('20 Oct, 08:00 to 09:00 UTC')).toBeTruthy();
     });
 
+    it('keeps the focused column’s counts when the pointer passes over another and leaves', async () => {
+      const user = userEvent.setup();
+      renderApp(<HomePage />);
+      const chart = within(await screen.findByRole('region', { name: 'Records by verdict' }));
+      const eight = chart.getByRole('button', { name: /^20 Oct, 08:00 to 09:00 UTC, / });
+      const nine = chart.getByRole('button', { name: /^20 Oct, 09:00 to 10:00 UTC, / });
+      act(() => eight.focus());
+      await user.hover(nine);
+      expect(chart.getByText('20 Oct, 09:00 to 10:00 UTC')).toBeTruthy();
+      await user.unhover(nine);
+      expect(document.activeElement).toBe(eight);
+      expect(chart.getByText('20 Oct, 08:00 to 09:00 UTC')).toBeTruthy();
+    });
+
     it('shows the same counts as a table', async () => {
       const user = userEvent.setup();
       renderApp(<HomePage />);
@@ -162,6 +176,25 @@ describe('HomePage', () => {
       const card = within(await screen.findByRole('region', { name: 'Security events' }));
       expect(await card.findByText('Leaked API key revoked')).toBeTruthy();
       expect(card.getByRole('link', { name: 'All events' }).getAttribute('href')).toBe('/security');
+    });
+
+    it('keeps the newest security event and warns when a refresh fails, then recovers', async () => {
+      const user = userEvent.setup();
+      const list = demoApi.listSecurityEvents.bind(demoApi);
+      vi.spyOn(demoApi, 'listSecurityEvents')
+        .mockImplementationOnce(list)
+        .mockRejectedValueOnce(new ApiError(403, 'Insufficient permissions'))
+        .mockImplementation(list);
+      renderApp(<HomePage />);
+      const card = within(await screen.findByRole('region', { name: 'Security events' }));
+      expect(await card.findByText('Leaked API key revoked')).toBeTruthy();
+
+      refocus();
+
+      expect(await card.findByText(/The security events could not be refreshed, so this may be out of date/)).toBeTruthy();
+      expect(card.getByText('Leaked API key revoked')).toBeTruthy();
+      await user.click(card.getByRole('button', { name: 'Try the security events again' }));
+      await waitFor(() => expect(card.queryByText(/could not be refreshed/)).toBeNull());
     });
 
     it('says why there are no security events for a member', async () => {

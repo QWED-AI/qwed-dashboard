@@ -127,4 +127,10 @@ describe('toRecord', () => {
   it('keeps the message and other fields from the result', () => {
     expect(toRecord(log({ verdict: 'BLOCKED' })).result.agentMessage).toBe('m');
   });
+
+  it('keeps the caller as the server sent it: an id, null, or absent before #484', () => {
+    expect(toRecord(log({ api_key_id: '7' })).apiKeyId).toBe('7');
+    expect(toRecord(log({ api_key_id: null })).apiKeyId).toBeNull();
+    expect(toRecord(log({})).apiKeyId).toBeUndefined();
+  });
 });

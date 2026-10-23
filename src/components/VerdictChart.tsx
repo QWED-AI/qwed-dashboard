@@ -20,9 +20,27 @@ const FILL: Record<Key, string> = {
 };
 
 const PLOT = 200;
+const GAP = 2;
 
-const describe = (c: VerdictCounts) =>
-  `${c.total} ${c.total === 1 ? 'record' : 'records'}: ${SERIES.map((s) => `${c[s.key]} ${s.label}`).join(', ')}`;
+function describe(c: VerdictCounts): string {
+  const parts = SERIES.map((s) => `${c[s.key]} ${s.label}`).join(', ');
+  const records = c.total === 1 ? 'record' : 'records';
+  return `${c.total} ${records}: ${parts}`;
+}
+
+/**
+ * A column's segments, top first, in px. The column's height stays
+ * proportional to its total, so a smaller total never draws taller; the
+ * gaps between segments fit inside it, and drop out of a column too short
+ * to hold them.
+ */
+export function columnSegments(c: VerdictCounts, top: number): { gap: number; segs: { key: Key; h: number }[] } {
+  const parts = [...SERIES].reverse().filter((s) => c[s.key] > 0);
+  const height = (c.total / top) * PLOT;
+  const gap = parts.length > 1 && height >= parts.length * 4 ? GAP : 0;
+  const room = height - gap * (parts.length - 1);
+  return { gap, segs: parts.map((s) => ({ key: s.key, h: (c[s.key] / c.total) * room })) };
+}
 
 /**
  * Records per hour or day in the window, stacked by stored verdict. Hovering
@@ -31,11 +49,16 @@ const describe = (c: VerdictCounts) =>
  */
 export function VerdictChart({ win }: Readonly<{ win: OverviewWindow }>) {
   const [view, setView] = useState<'chart' | 'table'>('chart');
-  const [hover, setHover] = useState<number | null>(null);
+  // Columns are known by their start time, which a refresh does not move,
+  // and pointer and keyboard are kept apart: the pointer leaving a column
+  // does not clear the one that has focus.
+  const [hovered, setHovered] = useState<number | null>(null);
+  const [focusedAt, setFocusedAt] = useState<number | null>(null);
   const { top, step } = niceScale(Math.max(...win.buckets.map((b) => b.total)));
   const ticks: number[] = [];
   for (let v = top; v >= 0; v -= step) ticks.push(v);
-  const focused = hover === null ? undefined : win.buckets[hover];
+  const at = hovered ?? focusedAt;
+  const focused = at === null ? undefined : win.buckets.find((b) => b.start === at);
   const shown: VerdictCounts = focused ?? win.totals;
   const name = RANGES[win.range].name;
   // Hours are labelled every three, by the hour alone, so the labels fit a phone.
@@ -54,14 +77,15 @@ export function VerdictChart({ win }: Readonly<{ win: OverviewWindow }>) {
             {win.range === '24h' ? 'Per hour, UTC.' : 'Per day, UTC.'} Hover or focus a column for its counts.
           </p>
         </div>
-        <div className="seg" role="group" aria-label="Show the counts as">
+        <fieldset className="seg">
+          <legend className="sr-only">Show the counts as</legend>
           <button type="button" aria-pressed={view === 'chart'} onClick={() => setView('chart')}>
             Chart
           </button>
           <button type="button" aria-pressed={view === 'table'} onClick={() => setView('table')}>
             Table
           </button>
-        </div>
+        </fieldset>
       </div>
 
       <div className="vc-readout" aria-live="polite">
@@ -93,30 +117,26 @@ export function VerdictChart({ win }: Readonly<{ win: OverviewWindow }>) {
               <span key={v} className="vc-grid" aria-hidden="true" style={{ top: (1 - v / top) * PLOT }} />
             ))}
             <div className="vc-cols">
-              {win.buckets.map((b, i) => (
-                <button
-                  key={b.start}
-                  type="button"
-                  className="vc-col"
-                  aria-label={`${bucketName(b, win.range)}, ${describe(b)}`}
-                  style={{ opacity: hover !== null && hover !== i ? 0.45 : 1 }}
-                  onMouseEnter={() => setHover(i)}
-                  onFocus={() => setHover(i)}
-                  onMouseLeave={() => setHover(null)}
-                  onBlur={() => setHover(null)}
-                >
-                  {[...SERIES]
-                    .reverse()
-                    .filter((s) => b[s.key] > 0)
-                    .map((s) => (
-                      <span
-                        key={s.key}
-                        className="vc-seg"
-                        style={{ height: Math.max(2, Math.round((b[s.key] / top) * PLOT) - 2), background: FILL[s.key] }}
-                      />
+              {win.buckets.map((b) => {
+                const { gap, segs } = columnSegments(b, top);
+                return (
+                  <button
+                    key={b.start}
+                    type="button"
+                    className="vc-col"
+                    aria-label={`${bucketName(b, win.range)}, ${describe(b)}`}
+                    style={{ gap, opacity: focused && focused.start !== b.start ? 0.45 : 1 }}
+                    onMouseEnter={() => setHovered(b.start)}
+                    onMouseLeave={() => setHovered(null)}
+                    onFocus={() => setFocusedAt(b.start)}
+                    onBlur={() => setFocusedAt(null)}
+                  >
+                    {segs.map((s) => (
+                      <span key={s.key} className="vc-seg" style={{ height: s.h, background: FILL[s.key] }} />
                     ))}
-                </button>
-              ))}
+                  </button>
+                );
+              })}
             </div>
           </div>
           <div className="vc-ticks" aria-hidden="true">

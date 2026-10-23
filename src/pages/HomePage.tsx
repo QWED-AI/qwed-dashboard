@@ -113,14 +113,15 @@ export function HomePage() {
             The dashboard groups what the server stored; it never works out a verdict.
           </p>
         </div>
-        <span className="seg" role="group" aria-label="Time range">
+        <fieldset className="seg">
+          <legend className="sr-only">Time range</legend>
           <button type="button" aria-pressed={range === '24h'} onClick={() => pick('24h')}>
             24 hours
           </button>
           <button type="button" aria-pressed={range === '7d'} onClick={() => pick('7d')}>
             7 days
           </button>
-        </span>
+        </fieldset>
       </div>
 
       {logs.isPending && <HomeSkeleton />}
@@ -321,6 +322,17 @@ function SecurityCard() {
         <Link to="/security">All events</Link>
       </div>
       {body}
+      {/* A failed refresh keeps the event that loaded, so say it may be out of date. */}
+      {events.isRefetchError && (
+        <div role="alert" style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-start' }}>
+          <p className="hint" style={{ margin: 0 }}>
+            The security events could not be refreshed, so this may be out of date. {describeError(events.error)}
+          </p>
+          <button type="button" className="btn btn-sm" onClick={() => events.refetch()}>
+            Try the security events again
+          </button>
+        </div>
+      )}
     </section>
   );
 }
