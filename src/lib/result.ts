@@ -118,6 +118,8 @@ export interface LedgerRecord {
   query: string;
   domain: string;
   createdAt: string;
+  /** The API key that made the request: null when none did, undefined before #484. */
+  apiKeyId: string | null | undefined;
   result: ParsedResult;
   raw: string;
 }
@@ -133,6 +135,7 @@ export function toRecord(log: AuditLog): LedgerRecord {
     query: log.request_input,
     domain: log.engine_used,
     createdAt: log.created_at,
+    apiKeyId: log.api_key_id,
     result,
     raw: log.verification_result,
   };

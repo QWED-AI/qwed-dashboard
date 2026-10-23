@@ -8,10 +8,10 @@ import { renderApp } from './test/render';
 afterEach(cleanup);
 
 describe('App routes', () => {
-  it('opens Home at the root, and only Home is the current page', async () => {
+  it('opens the overview at the root, and only it is the current page', async () => {
     renderApp(<App />, { route: '/' });
-    expect(await screen.findByRole('heading', { name: 'Needs attention', level: 1 })).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Home' }).getAttribute('aria-current')).toBe('page');
+    expect(await screen.findByRole('heading', { name: 'Overview', level: 1 })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Overview' }).getAttribute('aria-current')).toBe('page');
     expect(screen.getByRole('link', { name: 'Decision ledger' }).getAttribute('aria-current')).toBeNull();
   });
 
@@ -36,7 +36,7 @@ describe('App routes', () => {
     expect(menu?.closest('aside')?.classList.contains('open')).toBe(true);
 
     // Picking the page already shown still closes the menu.
-    await user.click(screen.getByRole('link', { name: 'Home' }));
+    await user.click(screen.getByRole('link', { name: 'Overview' }));
     expect(button.getAttribute('aria-expanded')).toBe('false');
     expect(menu?.closest('aside')?.classList.contains('open')).toBe(false);
   });

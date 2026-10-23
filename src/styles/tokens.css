@@ -26,6 +26,13 @@
   --btn-text: #ffffff;
   --skel: #ecedf0;
   --shadow: 0 1px 2px rgba(15, 21, 48, 0.06), 0 0 0 1px rgba(15, 21, 48, 0.08);
+  /* Chart fills for the four stored verdicts, checked for colour-blind
+     separation against this surface; the dots keep their shapes as a second cue. */
+  --v-ok: #1f7a4a;
+  --v-un: #bf8418;
+  --v-bad: #a3241b;
+  --v-none: #7c8494;
+  --spark: #b9c0d4;
 
   --font-display: 'Bricolage Grotesque Variable', 'Bricolage Grotesque', system-ui, sans-serif;
   --font-body: 'Instrument Sans', system-ui, sans-serif;
@@ -58,6 +65,11 @@
     --btn-text: #111111;
     --skel: #22252e;
     --shadow: 0 0 0 1px rgba(255, 255, 255, 0.07);
+    --v-ok: #1f7b4c;
+    --v-un: #bd8a2f;
+    --v-bad: #c23d33;
+    --v-none: #7a8292;
+    --spark: #3a4052;
   }
 }
 
@@ -86,4 +98,9 @@
   --btn-text: #111111;
   --skel: #22252e;
   --shadow: 0 0 0 1px rgba(255, 255, 255, 0.07);
+  --v-ok: #1f7b4c;
+  --v-un: #bd8a2f;
+  --v-bad: #c23d33;
+  --v-none: #7a8292;
+  --spark: #3a4052;
 }

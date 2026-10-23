@@ -1,33 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { ApiError } from '../api/http';
 import type { SecurityEvent } from '../api/types';
 import { Icon } from '../components/Icon';
 import { RefreshError } from '../components/RefreshError';
 import { Shell } from '../components/Shell';
 import { formatUtc } from '../lib/format';
+import { securityEventsError, TYPE_LABEL, typeLabel } from '../lib/securityEvents';
 import { describeError, useSecurityEventPages } from '../lib/useAuthedQuery';
 
 const LIMIT = 50;
-
-// Plain names for the event types the server writes. Any other type shows
-// as the server sent it. A Map, not an object: the type can come from the
-// URL, and an object would answer an inherited name such as "constructor"
-// with a function React cannot render.
-const TYPE_LABEL: ReadonlyMap<string, string> = new Map([['SECRET_LEAK_AUTO_REVOKED', 'Leaked API key revoked']]);
-
-const typeLabel = (type: string) => TYPE_LABEL.get(type) ?? type;
-
-/** One sentence for a failed first load, by what the server answered. */
-function loadError(err: unknown): string {
-  if (err instanceof ApiError && err.status === 403) {
-    return 'Only owners and admins can see security events.';
-  }
-  if (err instanceof ApiError && err.status === 404) {
-    return 'This server does not list security events. That needs a qwed-verification release with #486.';
-  }
-  return describeError(err);
-}
 
 function EventRow({ event }: Readonly<{ event: SecurityEvent }>) {
   return (
@@ -119,7 +100,7 @@ export function SecurityEventsPage() {
             <Icon name="alert" size={20} />
           </span>
           <h2>The security events could not be loaded</h2>
-          <p className="sub">{loadError(events.error)}</p>
+          <p className="sub">{securityEventsError(events.error)}</p>
           <div>
             <button type="button" className="btn" onClick={() => events.refetch()}>
               Try again

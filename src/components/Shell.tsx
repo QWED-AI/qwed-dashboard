@@ -59,7 +59,7 @@ export function Shell({ crumbs, children }: Readonly<{ crumbs: Crumb[]; children
           <nav aria-label="Main" style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <div className="grp">Verification</div>
-              <NavItem to="/" icon="home" label="Home" onPick={closeMenu} />
+              <NavItem to="/" icon="home" label="Overview" onPick={closeMenu} />
               <NavItem to="/ledger" icon="ledger" label="Decision ledger" onPick={closeMenu} />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>

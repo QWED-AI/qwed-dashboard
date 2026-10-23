@@ -1,11 +1,10 @@
 import { useMemo } from 'react';
-import { Link, useSearchParams } from 'react-router';
+import { useSearchParams } from 'react-router';
 import type { Verdict } from '../api/types';
 import { Icon } from '../components/Icon';
+import { RecordTable } from '../components/RecordTable';
 import { RefreshError } from '../components/RefreshError';
 import { Shell } from '../components/Shell';
-import { VerdictChip } from '../components/VerdictChip';
-import { formatUtc } from '../lib/format';
 import { toRecord, type LedgerRecord } from '../lib/result';
 import { describeError, useLedgerPages } from '../lib/useAuthedQuery';
 
@@ -156,46 +155,7 @@ export function LedgerPage() {
           </div>
 
           <div className="table-wrap" style={{ borderTop: '1px solid var(--line)' }}>
-            <table className="tbl tbl-stack">
-              <thead>
-                <tr>
-                  <th scope="col">Received (UTC)</th>
-                  <th scope="col">Verdict · admission</th>
-                  <th scope="col">Request · what the verifier said</th>
-                  <th scope="col">Verifier</th>
-                  <th scope="col">Record</th>
-                </tr>
-              </thead>
-              <tbody>
-                {shown.map((r) => (
-                  <tr key={r.id}>
-                    <td className="mono num muted cell-small" style={{ fontSize: 12 }} data-label="Received (UTC)">
-                      {formatUtc(r.createdAt)}
-                    </td>
-                    <td>
-                      <VerdictChip verdict={r.result.verdict} admission={r.result.admission} />
-                    </td>
-                    <td>
-                      <Link className="row-link" to={`/records/${encodeURIComponent(r.id)}`}>
-                        {r.query.split('\n')[0]}
-                      </Link>
-                      {/* VERIFIED means the check ran to a proof, not that the claim
-                          holds: "Identity is false" is VERIFIED too. The message says
-                          which, so it sits next to the verdict. */}
-                      <span className={r.result.agentMessage === null ? 'row-note none' : 'row-note'}>
-                        {r.result.agentMessage ?? 'No message recorded'}
-                      </span>
-                    </td>
-                    <td className="cell-small" data-label="Verifier">
-                      {r.domain.toLowerCase()}
-                    </td>
-                    <td className="mono muted cell-small" style={{ fontSize: 12 }} data-label="Record">
-                      {r.id}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <RecordTable records={shown} />
             {shown.length === 0 && <p className="sub table-empty">No records match these filters.</p>}
           </div>
 
