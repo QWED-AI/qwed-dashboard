@@ -45,8 +45,19 @@ describe('parseResult', () => {
   it('does not accept values outside the specification', () => {
     expect(parseResult(JSON.stringify({ status: 'INCONCLUSIVE' })).verdict).toBeNull();
     expect(parseResult(JSON.stringify({ status: 'verified' })).verdict).toBeNull();
-    // The core AdmissionDecision enum says BLOCKED; the specification says DENY.
-    expect(parseResult(JSON.stringify({ status: 'BLOCKED', admission: 'BLOCKED' })).admission).toBeNull();
+  });
+
+  it('shows a stored BLOCKED admission as DENY and keeps the stored word', () => {
+    // The verify routes store BLOCKED for what the specification calls DENY (#324).
+    const r = parseResult(JSON.stringify({ status: 'VERIFIED', admission: 'BLOCKED' }));
+    expect([r.admission, r.admissionStored]).toEqual(['DENY', 'BLOCKED']);
+  });
+
+  it('keeps an admission word it does not know, without showing it as a decision', () => {
+    const r = parseResult(JSON.stringify({ status: 'VERIFIED', admission: 'REVIEW' }));
+    expect([r.admission, r.admissionStored]).toEqual([null, 'REVIEW']);
+    const blank = parseResult(JSON.stringify({ status: 'VERIFIED', admission: ' ' }));
+    expect([blank.admission, blank.admissionStored]).toEqual([null, null]);
   });
 
   it('reports a truncated result instead of guessing', () => {
@@ -126,6 +137,34 @@ describe('toRecord', () => {
 
   it('keeps the message and other fields from the result', () => {
     expect(toRecord(log({ verdict: 'BLOCKED' })).result.agentMessage).toBe('m');
+  });
+
+  describe('the admission the row stores (#307)', () => {
+    const context = (admission: string) =>
+      JSON.stringify({ spec_version: '1.0', verdict: 'VERIFIED', context: { decision: { admission } } });
+    const row = (doc: string, extra: Record<string, unknown>) =>
+      toRecord(log({ verification_result: context(doc), ...extra })).result;
+
+    it('wins over the document’s when it has one', () => {
+      expect([row('ADMIT', { admission: 'DENY' }).admission, row('ADMIT', { admission: 'DENY' }).admissionStored]).toEqual(['DENY', null]);
+      expect(row('DENY', { admission: 'ADMIT' }).admission).toBe('ADMIT');
+      expect([row('ADMIT', { admission: 'BLOCKED' }).admission, row('ADMIT', { admission: 'BLOCKED' }).admissionStored]).toEqual(['DENY', 'BLOCKED']);
+    });
+
+    it('lets a word it does not know override the document’s, kept and not shown as a decision', () => {
+      const r = row('ADMIT', { admission: 'REVIEW' });
+      expect([r.admission, r.admissionStored]).toEqual([null, 'REVIEW']);
+    });
+
+    it('leaves the document’s standing when it is null, as on a row from before #307, or absent', () => {
+      expect(row('ADMIT', { admission: null }).admission).toBe('ADMIT');
+      expect(row('DENY', {}).admission).toBe('DENY');
+    });
+
+    it('is not recorded when neither the row nor the stored result has one', () => {
+      const r = toRecord(log({ admission: null })).result;
+      expect([r.admission, r.admissionStored]).toEqual([null, null]);
+    });
   });
 
   it('keeps the caller as the server sent it: an id, null, or absent before #484', () => {

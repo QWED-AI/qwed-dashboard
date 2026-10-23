@@ -120,6 +120,57 @@ describe('RecordPage', () => {
     });
   });
 
+  describe('admission', () => {
+    /** The Checks list's admission value. */
+    async function admission() {
+      const checks = await region('Checks');
+      return checks.getByText('Admission', { selector: 'dt' }).nextElementSibling?.textContent;
+    }
+
+    it('shows a stored BLOCKED as DENY, and says what was stored', async () => {
+      renderApp(<App />, { route: '/records/1037' });
+      expect(await admission()).toBe('DENY (stored as BLOCKED)');
+      expect((await region('Checks')).getByText(/The server stored this admission as BLOCKED/)).toBeTruthy();
+      expect(screen.getByRole('heading', { name: '(a + b)**2 = a**2 + b**2' })).toBeTruthy();
+      expect(document.querySelector('.chip.lg')?.getAttribute('aria-label')).toBe('VERIFIED, admission DENY, stored as BLOCKED');
+    });
+
+    it('says why there is none on a route that decides none', async () => {
+      renderApp(<App />, { route: '/records/1042' });
+      expect(await admission()).toBe('not recorded');
+      expect((await region('Checks')).getByText(/This route decides none/)).toBeTruthy();
+    });
+
+    it('shows a Verification Context’s ADMIT with no note', async () => {
+      renderApp(<App />, { route: '/records/1040' });
+      expect(await admission()).toBe('ADMIT');
+      expect((await region('Checks')).queryByText(/stored this admission|decides none/)).toBeNull();
+    });
+
+    it('shows a Verification Context’s own admission on a row from before #307', async () => {
+      const row = await demoApi.getLog('demo', '1040');
+      vi.spyOn(demoApi, 'getLog').mockResolvedValue({ ...row, admission: null });
+      renderApp(<App />, { route: '/records/1040' });
+      expect(await admission()).toBe('ADMIT');
+    });
+
+    it('explains a Verification Context with no admission anywhere', async () => {
+      const row = await demoApi.getLog('demo', '1040');
+      const doc = JSON.parse(row.verification_result) as { context: { decision: Record<string, unknown> } };
+      doc.context.decision = {};
+      vi.spyOn(demoApi, 'getLog').mockResolvedValue({ ...row, admission: null, verification_result: JSON.stringify(doc) });
+      renderApp(<App />, { route: '/records/1040' });
+      expect(await admission()).toBe('not recorded');
+      expect((await region('Checks')).getByText(/its Verification Context document holds none either/)).toBeTruthy();
+    });
+
+    it('keeps reading the stored result on a server that sends no admission', async () => {
+      vi.spyOn(demoApi, 'getLog').mockResolvedValue(olderServerRow);
+      renderApp(<App />, { route: '/records/1' });
+      expect(await admission()).toBe('not recorded');
+    });
+  });
+
   describe('tabs', () => {
     it('shows the stored result first and the audit entry on its tab', async () => {
       renderApp(<App />, { route: '/records/1037' });

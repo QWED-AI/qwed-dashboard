@@ -11,6 +11,12 @@ export interface ParsedResult {
   shape: ResultShape;
   verdict: Verdict | null;
   admission: Admission | null;
+  /**
+   * The word the server stored for the admission, when the dashboard does not
+   * show that word: "BLOCKED", shown as DENY, or a word it does not know,
+   * shown as stored and not as an admission.
+   */
+  admissionStored: string | null;
   agentMessage: string | null;
   proofRef: string | null;
   isAuthoritative: boolean | null;
@@ -20,7 +26,6 @@ export interface ParsedResult {
 }
 
 const VERDICTS: readonly Verdict[] = ['VERIFIED', 'UNVERIFIABLE', 'BLOCKED'];
-const ADMISSIONS: readonly Admission[] = ['ADMIT', 'DENY'];
 
 type Obj = Record<string, unknown>;
 
@@ -29,8 +34,19 @@ const asString = (v: unknown): string | null => (typeof v === 'string' ? v : nul
 /** A message with no text says nothing, so it counts as not recorded. */
 const asMessage = (v: unknown): string | null => (typeof v === 'string' && v.trim() !== '' ? v : null);
 const asVerdict = (v: unknown): Verdict | null => (VERDICTS as readonly unknown[]).includes(v) ? (v as Verdict) : null;
-const asAdmission = (v: unknown): Admission | null =>
-  (ADMISSIONS as readonly unknown[]).includes(v) ? (v as Admission) : null;
+
+/**
+ * An admission as stored. The verify routes store BLOCKED for the decision a
+ * Verification Context calls DENY (qwed-verification #307, #324): the same
+ * decision under another name, so it is shown as DENY and the stored word is
+ * kept. A word the dashboard does not know is kept and not shown as one.
+ */
+export function readAdmission(v: unknown): Pick<ParsedResult, 'admission' | 'admissionStored'> {
+  if (v === 'ADMIT' || v === 'DENY') return { admission: v, admissionStored: null };
+  if (v === 'BLOCKED') return { admission: 'DENY', admissionStored: 'BLOCKED' };
+  if (typeof v === 'string' && v.trim() !== '') return { admission: null, admissionStored: v };
+  return { admission: null, admissionStored: null };
+}
 
 function at(obj: unknown, ...path: string[]): unknown {
   let cur: unknown = obj;
@@ -45,6 +61,7 @@ const empty = (shape: ResultShape, value: unknown, error: string | null): Parsed
   shape,
   verdict: null,
   admission: null,
+  admissionStored: null,
   agentMessage: null,
   proofRef: null,
   isAuthoritative: null,
@@ -70,7 +87,7 @@ export function parseResult(raw: string): ParsedResult {
     return {
       shape: 'verification-context',
       verdict: asVerdict(value.verdict),
-      admission: asAdmission(at(value, 'context', 'decision', 'admission')),
+      ...readAdmission(at(value, 'context', 'decision', 'admission')),
       agentMessage: asMessage(at(value, 'context', 'evidence', 'evidence', 'agent_message')),
       proofRef: asString(at(value, 'context', 'evidence', 'proof_ref')),
       isAuthoritative: null,
@@ -81,7 +98,8 @@ export function parseResult(raw: string): ParsedResult {
 
   if ('batch_job_id' in value) return fromBatchItem(value);
 
-  // A DiagnosticResult (stored by the /verify/* routes). It carries no admission.
+  // A DiagnosticResult (stored by the /verify/* routes). It carries no
+  // admission; the row does, since #307.
   if ('status' in value) return fromDiagnostic(value, value);
 
   return empty('unknown', value, 'The stored result has no verdict field.');
@@ -104,7 +122,7 @@ function fromDiagnostic(result: Obj, value: unknown): ParsedResult {
   return {
     shape: 'diagnostic',
     verdict: asVerdict(result.status),
-    admission: asAdmission(result.admission),
+    ...readAdmission(result.admission),
     agentMessage: asMessage(result.agent_message),
     proofRef: asString(result.proof_ref),
     isAuthoritative: typeof result.is_authoritative === 'boolean' ? result.is_authoritative : null,
@@ -130,6 +148,11 @@ export function toRecord(log: AuditLog): LedgerRecord {
   // its own rules (it also reads /verify/batch rows). It wins, null included;
   // an older server sends no field, and the dashboard reads the result itself.
   if ('verdict' in log) result.verdict = asVerdict(log.verdict);
+  // The admission the route decided (#307) wins when the row has one. A null
+  // is not the same as the verdict's: the server sends it on every row
+  // written before #307 too, and a Verification Context record from then
+  // keeps its admission in the stored document, so that one stands.
+  if (log.admission !== undefined && log.admission !== null) Object.assign(result, readAdmission(log.admission));
   return {
     id: log.id,
     query: log.request_input,
