@@ -299,6 +299,23 @@ describe('HomePage', () => {
     expect(screen.getByRole('region', { name: 'Security events' })).toBeTruthy();
   });
 
+  it('keeps a loaded summary when Try again brings the records', async () => {
+    const user = userEvent.setup();
+    const listLogs = demoApi.listLogs.bind(demoApi);
+    vi.spyOn(demoApi, 'listLogs')
+      .mockRejectedValueOnce(new ApiError(403, 'Insufficient permissions'))
+      .mockImplementation(listLogs);
+    renderApp(<HomePage />);
+    await user.click(await screen.findByRole('button', { name: 'Load the 90-day summary' }));
+    const summary = within(screen.getByRole('region', { name: 'Last 90 days' }));
+    expect(await summary.findByText('22 Jul to 20 Oct UTC, 90 days.')).toBeTruthy();
+
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
+
+    expect(await screen.findByText('5 BLOCKED records')).toBeTruthy();
+    expect(within(screen.getByRole('region', { name: 'Last 90 days' })).getByText('22 Jul to 20 Oct UTC, 90 days.')).toBeTruthy();
+  });
+
   it('keeps what loaded and warns when a refresh fails, then recovers on Try again', async () => {
     const user = userEvent.setup();
     const listLogs = demoApi.listLogs.bind(demoApi);

@@ -142,46 +142,44 @@ export function HomePage() {
         </div>
       )}
 
-      {/* These cards ask the server for themselves, so they still work when the records do not load. */}
-      {logs.isError && !logs.data && (
-        <div className="overview">
-          <div className="ov-grid">
-            <ServerCards />
-          </div>
-        </div>
-      )}
-
       {logs.isRefetchError && <RefreshError what="The records" error={logs.error} onRetry={() => logs.refetch()} />}
 
-      {/* On data, not on success: a failed refresh keeps what loaded. */}
-      {logs.data && (
+      {/* One tree for a failed load and for data, so the cards that ask the
+          server for themselves stay mounted, with their results, when a retry
+          brings the records. On data, not on success: a failed refresh keeps
+          what loaded. */}
+      {(logs.data || logs.isError) && (
         <div className="overview">
-          {win?.reachesBackTo && (
-            <p className="note" style={{ margin: 0 }}>
-              The loaded records reach back to {formatUtc(new Date(win.reachesBackTo).toISOString())} UTC only, so older
-              records in these {name} are not counted. <Link to="/ledger">The ledger</Link> loads older ones.
-            </p>
+          {logs.data && (
+            <>
+              {win?.reachesBackTo && (
+                <p className="note" style={{ margin: 0 }}>
+                  The loaded records reach back to {formatUtc(new Date(win.reachesBackTo).toISOString())} UTC only, so
+                  older records in these {name} are not counted. <Link to="/ledger">The ledger</Link> loads older ones.
+                </p>
+              )}
+
+              <div className="tiles">
+                {win && <RecordTiles win={win} />}
+                <KeysTile keys={keys} />
+              </div>
+
+              <div className="ov-row">
+                {win && (
+                  <div className="wide">
+                    <VerdictChart win={win} />
+                  </div>
+                )}
+                <section className="card narrow" aria-labelledby="attention-title">
+                  <div className="card-head">
+                    <h2 id="attention-title">Needs attention</h2>
+                    <Link to="/ledger">Ledger</Link>
+                  </div>
+                  <AttentionList items={items} total={records.length} />
+                </section>
+              </div>
+            </>
           )}
-
-          <div className="tiles">
-            {win && <RecordTiles win={win} />}
-            <KeysTile keys={keys} />
-          </div>
-
-          <div className="ov-row">
-            {win && (
-              <div className="wide">
-                <VerdictChart win={win} />
-              </div>
-            )}
-            <section className="card narrow" aria-labelledby="attention-title">
-              <div className="card-head">
-                <h2 id="attention-title">Needs attention</h2>
-                <Link to="/ledger">Ledger</Link>
-              </div>
-              <AttentionList items={items} total={records.length} />
-            </section>
-          </div>
 
           <div className="ov-grid">
             {win && <Breakdowns win={win} keys={keys} />}
