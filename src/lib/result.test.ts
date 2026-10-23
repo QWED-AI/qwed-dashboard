@@ -139,18 +139,27 @@ describe('toRecord', () => {
     expect(toRecord(log({ verdict: 'BLOCKED' })).result.agentMessage).toBe('m');
   });
 
-  it('uses the admission the row stores (#307) over the document’s, null included', () => {
-    const context = JSON.stringify({
-      spec_version: '1.0',
-      verdict: 'VERIFIED',
-      context: { decision: { admission: 'ADMIT' } },
+  describe('the admission the row stores (#307)', () => {
+    const context = (admission: string) =>
+      JSON.stringify({ spec_version: '1.0', verdict: 'VERIFIED', context: { decision: { admission } } });
+    const row = (doc: string, extra: Record<string, unknown>) =>
+      toRecord(log({ verification_result: context(doc), ...extra })).result;
+
+    it('wins over the document’s when it has one', () => {
+      expect([row('ADMIT', { admission: 'DENY' }).admission, row('ADMIT', { admission: 'DENY' }).admissionStored]).toEqual(['DENY', null]);
+      expect(row('DENY', { admission: 'ADMIT' }).admission).toBe('ADMIT');
+      expect([row('ADMIT', { admission: 'BLOCKED' }).admission, row('ADMIT', { admission: 'BLOCKED' }).admissionStored]).toEqual(['DENY', 'BLOCKED']);
     });
-    const row = (extra: Record<string, unknown>) => toRecord(log({ verification_result: context, ...extra })).result;
-    expect([row({ admission: 'DENY' }).admission, row({ admission: 'DENY' }).admissionStored]).toEqual(['DENY', null]);
-    expect([row({ admission: 'BLOCKED' }).admission, row({ admission: 'BLOCKED' }).admissionStored]).toEqual(['DENY', 'BLOCKED']);
-    expect(row({ admission: null }).admission).toBeNull();
-    // An older server sends no field: the document's admission stands.
-    expect(row({}).admission).toBe('ADMIT');
+
+    it('leaves the document’s standing when it is null, as on a row from before #307, or absent', () => {
+      expect(row('ADMIT', { admission: null }).admission).toBe('ADMIT');
+      expect(row('DENY', {}).admission).toBe('DENY');
+    });
+
+    it('is not recorded when neither the row nor the stored result has one', () => {
+      const r = toRecord(log({ admission: null })).result;
+      expect([r.admission, r.admissionStored]).toEqual([null, null]);
+    });
   });
 
   it('keeps the caller as the server sent it: an id, null, or absent before #484', () => {

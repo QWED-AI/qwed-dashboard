@@ -148,9 +148,11 @@ export function toRecord(log: AuditLog): LedgerRecord {
   // its own rules (it also reads /verify/batch rows). It wins, null included;
   // an older server sends no field, and the dashboard reads the result itself.
   if ('verdict' in log) result.verdict = asVerdict(log.verdict);
-  // The same for the admission the route decided (#307): the row's wins,
-  // null included; an older server sends no field.
-  if ('admission' in log) Object.assign(result, readAdmission(log.admission));
+  // The admission the route decided (#307) wins when the row has one. A null
+  // is not the same as the verdict's: the server sends it on every row
+  // written before #307 too, and a Verification Context record from then
+  // keeps its admission in the stored document, so that one stands.
+  if (log.admission !== undefined && log.admission !== null) Object.assign(result, readAdmission(log.admission));
   return {
     id: log.id,
     query: log.request_input,

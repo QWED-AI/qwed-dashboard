@@ -237,7 +237,15 @@ function AdmissionNote({ result }: Readonly<{ result: ParsedResult }>) {
       </p>
     );
   }
-  if (result.admission === null && result.shape !== 'verification-context') {
+  if (result.admission === null && result.shape === 'verification-context') {
+    return (
+      <p className="note">
+        <strong>Why admission is not recorded.</strong> The server sent none with this record, and its Verification
+        Context document holds none either.
+      </p>
+    );
+  }
+  if (result.admission === null) {
     return (
       <p className="note">
         <strong>Why admission is not recorded.</strong> The server keeps the admission its route decided with each

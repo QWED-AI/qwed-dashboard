@@ -8,7 +8,7 @@ An open-source web dashboard for [QWED verification](https://github.com/QWED-AI/
 
 - It reads verdicts and admissions from what the server stored. It never works out a verdict or an admission itself; the QWED verifier is the only authority for both.
 - When the server did not store a value, the dashboard says "not recorded" instead of filling it in.
-- The admission is the one the server stored with the record ([qwed-verification #307](https://github.com/QWED-AI/qwed-verification/issues/307)). The verify routes store `BLOCKED` for the decision a Verification Context calls `DENY` ([#324](https://github.com/QWED-AI/qwed-verification/issues/324)), so the dashboard shows it as DENY and says it was stored as BLOCKED. Routes that decide no admission (logic, stats, fact, image, RAG, process, consensus), and records from before the server stored one, show it as not recorded.
+- The admission is the one the server stored with the record ([qwed-verification #307](https://github.com/QWED-AI/qwed-verification/issues/307)). The verify routes store `BLOCKED` for the decision a Verification Context calls `DENY` ([#324](https://github.com/QWED-AI/qwed-verification/issues/324)), so the dashboard shows it as DENY and says it was stored as BLOCKED. Routes that decide no admission (logic, stats, fact, image, RAG, process, consensus), and records from before the server stored one, show it as not recorded, unless the stored result holds one itself: a Verification Context document keeps its admission, and the dashboard shows that.
 - It does not run or replay the actions that were verified.
 
 ## Run it

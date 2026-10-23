@@ -147,6 +147,23 @@ describe('RecordPage', () => {
       expect((await region('Checks')).queryByText(/stored this admission|decides none/)).toBeNull();
     });
 
+    it('shows a Verification Context’s own admission on a row from before #307', async () => {
+      const row = await demoApi.getLog('demo', '1040');
+      vi.spyOn(demoApi, 'getLog').mockResolvedValue({ ...row, admission: null });
+      renderApp(<App />, { route: '/records/1040' });
+      expect(await admission()).toBe('ADMIT');
+    });
+
+    it('explains a Verification Context with no admission anywhere', async () => {
+      const row = await demoApi.getLog('demo', '1040');
+      const doc = JSON.parse(row.verification_result) as { context: { decision: Record<string, unknown> } };
+      doc.context.decision = {};
+      vi.spyOn(demoApi, 'getLog').mockResolvedValue({ ...row, admission: null, verification_result: JSON.stringify(doc) });
+      renderApp(<App />, { route: '/records/1040' });
+      expect(await admission()).toBe('not recorded');
+      expect((await region('Checks')).getByText(/its Verification Context document holds none either/)).toBeTruthy();
+    });
+
     it('keeps reading the stored result on a server that sends no admission', async () => {
       vi.spyOn(demoApi, 'getLog').mockResolvedValue(olderServerRow);
       renderApp(<App />, { route: '/records/1' });
