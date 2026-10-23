@@ -1,6 +1,7 @@
 import { useMemo, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import type { ApiKeyItem, Verdict } from '../api/types';
+import { ActivitySummaryCard } from '../components/ActivitySummary';
 import { ChainTrail } from '../components/ChainTrail';
 import { Icon } from '../components/Icon';
 import { RecordTable } from '../components/RecordTable';
@@ -176,6 +177,7 @@ export function HomePage() {
           <div className="ov-grid">
             {win && <Breakdowns win={win} keys={keys} />}
             <div className="ov-stack">
+              <ActivitySummaryCard />
               <ChainTrail />
               <SecurityCard />
             </div>

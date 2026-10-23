@@ -43,6 +43,7 @@ npm run build
 | API keys | `GET`, `POST /auth/api-keys`, `DELETE /auth/api-keys/{id}` | session token |
 | Audit chain entry check | `GET /admin/compliance/verify/{id}` | session token of an owner or admin |
 | Whole-chain check (Overview) | `GET /admin/compliance/verify-trail` | session token of an owner or admin |
+| 90-day activity summary (Overview, on request) | `GET /admin/compliance/report/soc2/{org_id}` | session token of an owner or admin |
 | Security events (also the Overview card) | `GET /admin/security/events` | session token of an owner or admin |
 
 The API keys screen shows when each key was last used. qwed-verification records it from [#486](https://github.com/QWED-AI/qwed-verification/issues/486), at most once a minute per key; on an older server every key reads "No use recorded". The security events screen needs #486 too.

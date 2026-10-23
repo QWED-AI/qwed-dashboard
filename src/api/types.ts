@@ -171,3 +171,26 @@ export interface TrailCheck {
   total_errors: number;
   errors_truncated: boolean;
 }
+
+/**
+ * GET /admin/compliance/report/soc2/{org_id}: the security activity summary
+ * (#476), for a signed-in owner or admin since #485. Every value is counted
+ * by the server over the last 90 days. In the server's own words, it is not
+ * a SOC 2 report.
+ */
+export interface ActivitySummary {
+  report_type: string;
+  disclaimer: string;
+  organization: { id: number; name: string | null; tier: string | null };
+  period: { start: string; end: string; days: number };
+  metrics: {
+    total_verifications: number;
+    security_events_detected: number;
+    security_events_by_type: Record<string, number>;
+    active_users: number;
+    active_api_keys: number;
+  };
+  /** The signature and chain check of the entries in the period, as verify-trail returns it. */
+  audit_trail: TrailCheck;
+  generated_at: string;
+}

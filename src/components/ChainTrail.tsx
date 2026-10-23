@@ -22,7 +22,8 @@ function refusal(err: unknown): string {
   return describeError(err);
 }
 
-function Result({ trail }: Readonly<{ trail: TrailCheck }>) {
+/** What a chain check found, for the whole-chain check and the activity summary. */
+export function TrailResult({ trail }: Readonly<{ trail: TrailCheck }>) {
   if (trail.status === 'NO_ENTRIES') {
     return <p className="sub">There are no audit entries to check yet.</p>;
   }
@@ -116,7 +117,7 @@ export function ChainTrail() {
       )}
       {trail.data && (
         <div aria-live="polite" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <Result trail={trail.data} />
+          <TrailResult trail={trail.data} />
           {(trail.data.legacy_entries ?? 0) > 0 && (
             <p className="hint">
               {plural(trail.data.legacy_entries ?? 0, 'entry was', 'entries were')} written before the chain existed and
