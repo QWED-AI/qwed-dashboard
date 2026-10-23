@@ -128,7 +128,11 @@ export function VerdictChart({ win }: Readonly<{ win: OverviewWindow }>) {
                     style={{ gap, opacity: focused && focused.start !== b.start ? 0.45 : 1 }}
                     onMouseEnter={() => setHovered(b.start)}
                     onMouseLeave={() => setHovered(null)}
-                    onFocus={() => setFocusedAt(b.start)}
+                    onFocus={() => {
+                      // A new focus wins over a pointer resting elsewhere.
+                      setHovered(null);
+                      setFocusedAt(b.start);
+                    }}
                     onBlur={() => setFocusedAt(null)}
                   >
                     {segs.map((s) => (

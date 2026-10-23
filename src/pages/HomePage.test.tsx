@@ -144,6 +144,17 @@ describe('HomePage', () => {
       expect(chart.getByText('20 Oct, 08:00 to 09:00 UTC')).toBeTruthy();
     });
 
+    it('follows a new focus even while the pointer rests on another column', async () => {
+      const user = userEvent.setup();
+      renderApp(<HomePage />);
+      const chart = within(await screen.findByRole('region', { name: 'Records by verdict' }));
+      const eight = chart.getByRole('button', { name: /^20 Oct, 08:00 to 09:00 UTC, / });
+      const nine = chart.getByRole('button', { name: /^20 Oct, 09:00 to 10:00 UTC, / });
+      await user.hover(nine);
+      act(() => eight.focus());
+      expect(chart.getByText('20 Oct, 08:00 to 09:00 UTC')).toBeTruthy();
+    });
+
     it('shows the same counts as a table', async () => {
       const user = userEvent.setup();
       renderApp(<HomePage />);
