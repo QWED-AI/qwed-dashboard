@@ -1,5 +1,5 @@
 // The server sends naive UTC timestamps (no offset), so they are read as UTC.
-function parseUtc(iso: string): Date | null {
+export function parseUtc(iso: string): Date | null {
   const withZone = /(?:[zZ]|[+-]\d\d:?\d\d)$/.test(iso) ? iso : `${iso}Z`;
   const d = new Date(withZone);
   return Number.isNaN(d.getTime()) ? null : d;
@@ -20,6 +20,17 @@ export function formatUtcLong(iso: string): string {
   const d = parseUtc(iso);
   if (!d) return iso;
   return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())} UTC`;
+}
+
+/** "20 Oct", the UTC day of a time in milliseconds. */
+export function formatUtcDay(ms: number): string {
+  const d = new Date(ms);
+  return `${pad(d.getUTCDate())} ${MONTHS[d.getUTCMonth()]}`;
+}
+
+/** "09:00", the UTC hour of a time in milliseconds. */
+export function formatUtcHour(ms: number): string {
+  return `${pad(new Date(ms).getUTCHours())}:00`;
 }
 
 /** "sha256:86a6c8a8…7c21" */

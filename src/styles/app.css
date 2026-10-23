@@ -665,6 +665,335 @@ a.btn {
   color: var(--muted);
 }
 
+/* Overview ------------------------------------------------------------- */
+
+.overview {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 0 24px 28px;
+}
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+.ov-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: stretch;
+}
+.ov-row > .wide {
+  flex: 999 1 520px;
+  min-width: 0;
+}
+.ov-row > .narrow {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+.ov-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+.ov-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.card-head h2 {
+  flex: 1 1 auto;
+}
+.card-head a {
+  font-size: 12.5px;
+}
+.card.flush {
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+}
+.card.flush > .card-head {
+  padding: 16px 16px 12px;
+}
+/* A fieldset with a hidden legend; the reset drops its default frame. */
+.seg {
+  display: inline-flex;
+  gap: 2px;
+  margin: 0;
+  border: 0;
+  min-width: 0;
+  padding: 3px;
+  border-radius: 9px;
+  background: var(--sunk);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.seg button {
+  height: 28px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.seg button[aria-pressed='true'] {
+  background: var(--sheet);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+}
+
+.tile {
+  gap: 6px;
+}
+.tile-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.tile-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+}
+/* Proportional figures: a lone big number reads loose in tabular ones. */
+.tile-value {
+  font-size: 28px;
+  line-height: 1.1;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+.tile-value a {
+  color: var(--ink);
+}
+.tile-note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.spark {
+  flex: none;
+  overflow: visible;
+}
+.spark polyline {
+  fill: none;
+  stroke: var(--spark);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.spark circle {
+  fill: var(--accent);
+  stroke: var(--raise);
+  stroke-width: 2;
+}
+
+.vc-readout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 14px;
+  font-size: 12.5px;
+}
+.vc-readout strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+.vc-readout .mono {
+  font-size: 12px;
+  color: var(--muted);
+}
+.vc-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--text);
+}
+.vc-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.vc-legend b {
+  color: var(--ink);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+/* Swatches keep the chips' dot shapes, so identity is not colour alone. */
+.sw {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  flex: none;
+}
+.sw-ok {
+  border-radius: 50%;
+  background: var(--v-ok);
+}
+.sw-un {
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 2.5px var(--v-un);
+}
+.sw-bad {
+  border-radius: 1.5px;
+  background: var(--v-bad);
+}
+.sw-none {
+  border-radius: 1px;
+  box-shadow: inset 0 0 0 1.5px var(--v-none);
+}
+.vc-plot {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  column-gap: 8px;
+  row-gap: 6px;
+}
+.vc-axis,
+.vc-area {
+  position: relative;
+  height: 200px;
+}
+.vc-axis span {
+  position: absolute;
+  right: 0;
+  transform: translateY(-50%);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--muted);
+}
+.vc-grid {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--line);
+}
+.vc-cols {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+}
+.vc-col {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 2px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  cursor: default;
+}
+.vc-col:hover,
+.vc-col:focus-visible {
+  background: var(--hover);
+}
+.vc-seg {
+  display: block;
+  width: 100%;
+  max-width: 24px;
+}
+.vc-seg:first-child {
+  border-radius: 4px 4px 0 0;
+}
+.vc-ticks {
+  grid-column: 2;
+  display: flex;
+  gap: 3px;
+}
+.vc-ticks span {
+  flex: 1 1 0;
+  min-width: 0;
+  text-align: center;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--muted);
+}
+.vc-table {
+  max-height: 260px;
+  overflow-y: auto;
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.vc-table .tbl th:first-child,
+.vc-table .tbl td:first-child {
+  padding-left: 12px;
+}
+
+.bars {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.bars li {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12.5px;
+}
+.bars-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--ink);
+}
+.bars-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.bars-head .num {
+  font-weight: 600;
+}
+.bars-track {
+  display: block;
+  height: 8px;
+}
+.bars-track span {
+  display: block;
+  height: 8px;
+  min-width: 2px;
+  border-radius: 0 4px 4px 0;
+  background: var(--accent);
+}
+/* In the narrow attention card the button sits under its text. */
+.attn.compact li {
+  grid-template-columns: 10px minmax(0, 1fr);
+}
+.attn.compact li .btn {
+  grid-column: 2;
+  justify-self: start;
+}
+
 /* Record --------------------------------------------------------------- */
 
 .meta-row {
@@ -989,6 +1318,17 @@ a.btn {
   .facet .n {
     font-size: 18px;
   }
+  .tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .tile-value {
+    font-size: 24px;
+  }
+  .spark {
+    width: 56px;
+    height: 24px;
+  }
   /* Each row of a stacked table is a block: the main cells one under the
      other, then the small ones (time, ids) on a line at the end. The header
      row is hidden from sight but kept for screen readers, which still read
@@ -1060,7 +1400,8 @@ a.btn {
   .filters,
   .facets,
   .table-foot,
-  .table-empty {
+  .table-empty,
+  .overview {
     padding-left: 16px;
     padding-right: 16px;
   }

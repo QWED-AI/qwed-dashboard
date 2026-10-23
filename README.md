@@ -37,14 +37,16 @@ npm run build
 | Screen | Server route | Credential |
 |---|---|---|
 | Sign in | `POST /auth/signin` | email and password |
-| Home, Decision ledger | `GET /audit/logs` | session token |
+| Overview, Decision ledger | `GET /audit/logs` | session token |
 | Record | `GET /audit/logs/{id}` | session token |
 | API keys | `GET`, `POST /auth/api-keys`, `DELETE /auth/api-keys/{id}` | session token |
 | Audit chain entry check | `GET /admin/compliance/verify/{id}` | session token of an owner or admin |
-| Whole-chain check (Home) | `GET /admin/compliance/verify-trail` | session token of an owner or admin |
-| Security events | `GET /admin/security/events` | session token of an owner or admin |
+| Whole-chain check (Overview) | `GET /admin/compliance/verify-trail` | session token of an owner or admin |
+| Security events (also the Overview card) | `GET /admin/security/events` | session token of an owner or admin |
 
 The API keys screen shows when each key was last used. qwed-verification records it from [#486](https://github.com/QWED-AI/qwed-verification/issues/486), at most once a minute per key; on an older server every key reads "No use recorded". The security events screen needs #486 too.
+
+The Overview counts the newest 200 records the server returns, over the 24 hours or 7 days up to the newest record. When older records in that range are not loaded, it says how far back the counts reach. It groups the stored verdicts; it never works one out.
 
 The session token is kept in `sessionStorage`, so closing the tab signs you out.
 

@@ -58,28 +58,171 @@ describe('HomePage', () => {
       nextBefore: null,
     });
     renderApp(<HomePage />);
-    expect(await screen.findByText(/Nothing needs attention in the newest 2 records/)).toBeTruthy();
-    expect(screen.queryByText(/The identity is false/)).toBeNull();
+    const attention = within(await screen.findByRole('region', { name: 'Needs attention' }));
+    expect(await attention.findByText(/Nothing needs attention in the newest 2 records/)).toBeTruthy();
+    expect(attention.queryByText(/The identity is false/)).toBeNull();
   });
 
-  it('counts records by verdict and admission, as stored', async () => {
-    renderApp(<HomePage />);
-    const counts = within(await screen.findByRole('region', { name: 'Newest records' }));
-    expect(counts.getByText(/^10 records, the newest received/)).toBeTruthy();
-    const rows = counts.getAllByRole('listitem').map((li) => [li.querySelector('.chip')?.getAttribute('aria-label'), li.textContent?.match(/\d+$/)?.[0]]);
-    expect(rows).toEqual([
-      ['VERIFIED, admission not recorded', '4'],
-      ['UNVERIFIABLE, admission not recorded', '2'],
-      ['BLOCKED, admission not recorded', '2'],
-      ['VERIFIED, admission ADMIT', '1'],
-      ['No verdict recorded, admission not recorded', '1'],
-    ]);
-  });
+  describe('the overview', () => {
+    /** A tile's number and its line of context. */
+    async function tile(name: string) {
+      const t = await screen.findByRole('region', { name });
+      return [t.querySelector('.tile-value')?.textContent, t.querySelector('.tile-note')?.textContent];
+    }
 
-  it('says the counts cover the newest page when the ledger has older records', async () => {
-    vi.spyOn(demoApi, 'listLogs').mockResolvedValue({ logs: [verified('1', 'ok')], nextBefore: '1' });
-    renderApp(<HomePage />);
-    expect(await screen.findByText(/These cover the newest 200; the ledger loads older ones/)).toBeTruthy();
+    it('counts the records in the 24 hours up to the newest one, by stored verdict', async () => {
+      renderApp(<HomePage />);
+      expect(await screen.findByText(/^The 24 hours up to the newest record, received 20 Oct 09:41:12 UTC/)).toBeTruthy();
+      expect(await tile('Records')).toEqual(['10', 'None in the 24 hours before']);
+      expect(await tile('BLOCKED')).toEqual(['2', '20.0% of these records']);
+      expect(await tile('UNVERIFIABLE')).toEqual(['2', '20.0% of these records']);
+      expect(await tile('No verdict recorded')).toEqual(['1', '10.0% of these records']);
+    });
+
+    it('compares with the window before when the loaded records reach it', async () => {
+      vi.spyOn(demoApi, 'listLogs').mockResolvedValue({
+        logs: [verified('3', 'ok'), { ...verified('2', 'ok'), created_at: '2026-10-21T09:00:00' }, { ...verified('1', 'ok'), created_at: '2026-10-20T10:30:00' }],
+        nextBefore: null,
+      });
+      renderApp(<HomePage />);
+      expect(await tile('Records')).toEqual(['2', '100% more than the 24 hours before']);
+    });
+
+    it('says how far back the loaded records reach when older ones are not loaded', async () => {
+      vi.spyOn(demoApi, 'listLogs').mockResolvedValue({ logs: [verified('1', 'ok')], nextBefore: '1' });
+      renderApp(<HomePage />);
+      expect(await screen.findByText(/The loaded records reach back to 21 Oct 10:00:00 UTC only/)).toBeTruthy();
+      // Older records may exist, so there is nothing to compare with.
+      expect(await tile('Records')).toEqual(['1', 'In the 24 hours up to the newest record.']);
+    });
+
+    it('switches to seven days, kept in the address', async () => {
+      const user = userEvent.setup();
+      renderApp(<HomePage />);
+      await user.click(await screen.findByRole('button', { name: '7 days' }));
+      expect(screen.getByRole('button', { name: '7 days' }).getAttribute('aria-pressed')).toBe('true');
+      expect(screen.getByText(/^The 7 days up to the newest record/)).toBeTruthy();
+      expect(screen.getByText('All 7 days')).toBeTruthy();
+      expect(screen.getAllByRole('button', { name: /^\d\d Oct UTC, / })).toHaveLength(7);
+    });
+
+    it('opens on seven days from the address', async () => {
+      renderApp(<HomePage />, { route: '/?range=7d' });
+      expect((await screen.findByRole('button', { name: '7 days' })).getAttribute('aria-pressed')).toBe('true');
+    });
+
+    it('shows a column’s counts when it is focused, and the whole window otherwise', async () => {
+      const user = userEvent.setup();
+      renderApp(<HomePage />);
+      const chart = within(await screen.findByRole('region', { name: 'Records by verdict' }));
+      const legend = () => chart.getAllByRole('listitem').map((li) => li.textContent);
+      expect(chart.getByText('All 24 hours')).toBeTruthy();
+      expect(legend()).toEqual(['VERIFIED 5', 'UNVERIFIABLE 2', 'BLOCKED 2', 'No verdict recorded 1']);
+
+      const eight = chart.getByRole('button', { name: /^20 Oct, 08:00 to 09:00 UTC, 4 records: / });
+      await user.hover(eight);
+      expect(chart.getByText('20 Oct, 08:00 to 09:00 UTC')).toBeTruthy();
+      expect(legend()).toEqual(['VERIFIED 2', 'UNVERIFIABLE 1', 'BLOCKED 1', 'No verdict recorded 0']);
+      await user.unhover(eight);
+      expect(chart.getByText('All 24 hours')).toBeTruthy();
+
+      act(() => eight.focus());
+      expect(chart.getByText('20 Oct, 08:00 to 09:00 UTC')).toBeTruthy();
+    });
+
+    it('keeps the focused column’s counts when the pointer passes over another and leaves', async () => {
+      const user = userEvent.setup();
+      renderApp(<HomePage />);
+      const chart = within(await screen.findByRole('region', { name: 'Records by verdict' }));
+      const eight = chart.getByRole('button', { name: /^20 Oct, 08:00 to 09:00 UTC, / });
+      const nine = chart.getByRole('button', { name: /^20 Oct, 09:00 to 10:00 UTC, / });
+      act(() => eight.focus());
+      await user.hover(nine);
+      expect(chart.getByText('20 Oct, 09:00 to 10:00 UTC')).toBeTruthy();
+      await user.unhover(nine);
+      expect(document.activeElement).toBe(eight);
+      expect(chart.getByText('20 Oct, 08:00 to 09:00 UTC')).toBeTruthy();
+    });
+
+    it('follows a new focus even while the pointer rests on another column', async () => {
+      const user = userEvent.setup();
+      renderApp(<HomePage />);
+      const chart = within(await screen.findByRole('region', { name: 'Records by verdict' }));
+      const eight = chart.getByRole('button', { name: /^20 Oct, 08:00 to 09:00 UTC, / });
+      const nine = chart.getByRole('button', { name: /^20 Oct, 09:00 to 10:00 UTC, / });
+      await user.hover(nine);
+      act(() => eight.focus());
+      expect(chart.getByText('20 Oct, 08:00 to 09:00 UTC')).toBeTruthy();
+    });
+
+    it('shows the same counts as a table', async () => {
+      const user = userEvent.setup();
+      renderApp(<HomePage />);
+      const chart = within(await screen.findByRole('region', { name: 'Records by verdict' }));
+      await user.click(chart.getByRole('button', { name: 'Table' }));
+      const row = chart.getByRole('rowheader', { name: '20 Oct, 08:00 to 09:00' }).closest('tr');
+      expect([...(row?.querySelectorAll('td') ?? [])].map((td) => td.textContent)).toEqual(['2', '1', '1', '0', '4']);
+      expect(chart.getAllByRole('row')).toHaveLength(25);
+    });
+
+    it('counts the records by verifier and by API key', async () => {
+      renderApp(<HomePage />);
+      const rows = async (name: string) =>
+        within(await screen.findByRole('region', { name }))
+          .getAllByRole('listitem')
+          .map((li) => li.querySelector('.bars-head')?.textContent);
+      expect(await rows('By verifier')).toEqual(['code2', 'fact2', 'math2', 'logic1', 'sql1', 'stats1', 'verification_context1']);
+      await waitFor(async () =>
+        expect(await rows('By API key')).toEqual([
+          'invoice pipeline3',
+          'payments-agent prod3',
+          'Not recorded2',
+          'Key 5, not in your key list2',
+        ]),
+      );
+    });
+
+    it('shows the newest security event', async () => {
+      renderApp(<HomePage />);
+      const card = within(await screen.findByRole('region', { name: 'Security events' }));
+      expect(await card.findByText('Leaked API key revoked')).toBeTruthy();
+      expect(card.getByRole('link', { name: 'All events' }).getAttribute('href')).toBe('/security');
+    });
+
+    it('keeps the newest security event and warns when a refresh fails, then recovers', async () => {
+      const user = userEvent.setup();
+      const list = demoApi.listSecurityEvents.bind(demoApi);
+      vi.spyOn(demoApi, 'listSecurityEvents')
+        .mockImplementationOnce(list)
+        .mockRejectedValueOnce(new ApiError(403, 'Insufficient permissions'))
+        .mockImplementation(list);
+      renderApp(<HomePage />);
+      const card = within(await screen.findByRole('region', { name: 'Security events' }));
+      expect(await card.findByText('Leaked API key revoked')).toBeTruthy();
+
+      refocus();
+
+      expect(await card.findByText(/The security events could not be refreshed, so this may be out of date/)).toBeTruthy();
+      expect(card.getByText('Leaked API key revoked')).toBeTruthy();
+      await user.click(card.getByRole('button', { name: 'Try the security events again' }));
+      await waitFor(() => expect(card.queryByText(/could not be refreshed/)).toBeNull());
+    });
+
+    it('says why there are no security events for a member', async () => {
+      vi.spyOn(demoApi, 'listSecurityEvents').mockRejectedValue(new ApiError(403, 'Insufficient permissions'));
+      renderApp(<HomePage />);
+      const card = within(await screen.findByRole('region', { name: 'Security events' }));
+      expect(await card.findByText('Only owners and admins can see security events.')).toBeTruthy();
+    });
+
+    it('lists the five newest records, each linked to its page', async () => {
+      renderApp(<HomePage />);
+      const latest = within(await screen.findByRole('region', { name: 'Latest records' }));
+      expect(latest.getAllByRole('row')).toHaveLength(6);
+      expect(
+        latest.getByRole('link', { name: 'Refund of 3,400.00 for order [ORDER ID] is within the 30-day return window' }).getAttribute('href'),
+      ).toBe('/records/1042');
+    });
   });
 
   it('asks for a key when the organisation has none', async () => {

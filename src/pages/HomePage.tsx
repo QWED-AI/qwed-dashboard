@@ -1,18 +1,23 @@
-import { useMemo } from 'react';
-import { Link } from 'react-router';
-import type { Admission, ApiKeyItem, Verdict } from '../api/types';
+import { useMemo, type ReactNode } from 'react';
+import { Link, useSearchParams } from 'react-router';
+import type { ApiKeyItem, Verdict } from '../api/types';
 import { ChainTrail } from '../components/ChainTrail';
 import { Icon } from '../components/Icon';
+import { RecordTable } from '../components/RecordTable';
 import { RefreshError } from '../components/RefreshError';
 import { Shell } from '../components/Shell';
-import { VerdictChip } from '../components/VerdictChip';
+import { BarList, StatTile, type BarRow } from '../components/Stat';
+import { VerdictChart } from '../components/VerdictChart';
 import { formatUtc } from '../lib/format';
+import { comparedText, countBy, overviewWindow, RANGES, type OverviewWindow, type Range } from '../lib/overview';
 import { toRecord, type LedgerRecord } from '../lib/result';
-import { describeError, useAuthedQuery } from '../lib/useAuthedQuery';
+import { securityEventsError, typeLabel } from '../lib/securityEvents';
+import { describeError, useAuthedQuery, useSecurityEventPages } from '../lib/useAuthedQuery';
 
-// Home reads the newest page only. The keys query shares its cache with the
-// keys screen; the ledger pages through its own.
+// The overview reads the newest page only. The keys query shares its cache
+// with the keys screen; the ledger pages through its own.
 const LIMIT = 200;
+const LATEST = 5;
 
 interface Attention {
   id: string;
@@ -23,11 +28,7 @@ interface Attention {
   to: string;
 }
 
-interface Pair {
-  verdict: Verdict | null;
-  admission: Admission | null;
-  n: number;
-}
+type KeysQuery = ReturnType<typeof useAuthedQuery<ApiKeyItem[]>>;
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
@@ -76,36 +77,51 @@ function needsAttention(records: LedgerRecord[], activeKeys: number | null): Att
   return items;
 }
 
-function countPairs(records: LedgerRecord[]): Pair[] {
-  const pairs = new Map<string, Pair>();
-  for (const r of records) {
-    const k = `${r.result.verdict ?? ''}|${r.result.admission ?? ''}`;
-    const p = pairs.get(k) ?? { verdict: r.result.verdict, admission: r.result.admission, n: 0 };
-    p.n += 1;
-    pairs.set(k, p);
-  }
-  return [...pairs.values()].sort((a, b) => b.n - a.n);
-}
+/** "12.5% of these records" */
+const shareOf = (n: number, total: number) => `${(Math.round((n / total) * 1000) / 10).toFixed(1)}% of these records`;
 
 export function HomePage() {
+  const [params, setParams] = useSearchParams();
+  const range: Range = params.get('range') === '7d' ? '7d' : '24h';
   const logs = useAuthedQuery(['logs', LIMIT], (api, token) => api.listLogs(token, LIMIT));
   const keys = useAuthedQuery(['keys'], (api, token) => api.listKeys(token));
   const records = useMemo(() => (logs.data?.logs ?? []).map(toRecord), [logs.data]);
   const nextBefore = logs.data?.nextBefore;
+  // All the server has: it said nothing is older, or it does not page and sent less than a page.
+  const complete = nextBefore === null || (nextBefore === undefined && records.length < LIMIT);
+  const win = useMemo(() => overviewWindow(records, range, complete), [records, range, complete]);
   const activeKeys = keys.data ? keys.data.length : null;
   const items = useMemo(() => needsAttention(records, activeKeys), [records, activeKeys]);
-  const pairs = useMemo(() => countPairs(records), [records]);
+  const name = RANGES[range].name;
+
+  function pick(next: Range) {
+    const p = new URLSearchParams(params);
+    if (next === '24h') p.delete('range');
+    else p.set('range', next);
+    setParams(p, { replace: true });
+  }
 
   return (
-    <Shell crumbs={[{ label: 'Verification' }, { label: 'Home' }]}>
+    <Shell crumbs={[{ label: 'Verification' }, { label: 'Overview' }]}>
       <div className="page-head">
         <div>
-          <h1 className="h1">Needs attention</h1>
+          <h1 className="h1">Overview</h1>
           <p className="sub">
-            What to look at first, from the newest records and the key list. Each line opens the place where you can see
-            more. The dashboard only groups what the server stored; it never works out a verdict.
+            {records[0]
+              ? `The ${name} up to the newest record, received ${formatUtc(records[0].createdAt)} UTC. `
+              : 'What your organisation’s verifications show, once there are some. '}
+            The dashboard groups what the server stored; it never works out a verdict.
           </p>
         </div>
+        <fieldset className="seg">
+          <legend className="sr-only">Time range</legend>
+          <button type="button" aria-pressed={range === '24h'} onClick={() => pick('24h')}>
+            24 hours
+          </button>
+          <button type="button" aria-pressed={range === '7d'} onClick={() => pick('7d')}>
+            7 days
+          </button>
+        </fieldset>
       </div>
 
       {logs.isPending && <HomeSkeleton />}
@@ -129,73 +145,195 @@ export function HomePage() {
 
       {/* On data, not on success: a failed refresh keeps what loaded. */}
       {logs.data && (
-        <div className="split">
-          <section className="main" aria-labelledby="attention-title">
-            <h2 id="attention-title" className="sr-only">
-              Needs attention
-            </h2>
-            <AttentionList items={items} total={records.length} />
-          </section>
+        <div className="overview">
+          {win?.reachesBackTo && (
+            <p className="note" style={{ margin: 0 }}>
+              The loaded records reach back to {formatUtc(new Date(win.reachesBackTo).toISOString())} UTC only, so older
+              records in these {name} are not counted. <Link to="/ledger">The ledger</Link> loads older ones.
+            </p>
+          )}
 
-          <aside className="aside" aria-label="At a glance">
-            <section className="card" aria-labelledby="counts-title">
-              <h2 id="counts-title">Newest records</h2>
-              {records.length === 0 ? (
-                <p className="sub">No records yet.</p>
-              ) : (
-                <>
-                  <p className="sub">
-                    {plural(records.length, 'record', 'records')}, the newest received{' '}
-                    {formatUtc(records[0]?.createdAt ?? '')} UTC.
-                  </p>
-                  <ul className="pairs">
-                    {pairs.map((p) => (
-                      <li key={`${p.verdict}|${p.admission}`}>
-                        <Link to={`/ledger?verdict=${p.verdict ?? 'none'}`}>
-                          <VerdictChip verdict={p.verdict} admission={p.admission} />
-                        </Link>
-                        <span className="num">{p.n}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <p className="hint">
-                    Counts, not a chart. Open one to see the records with that verdict.
-                    {typeof nextBefore === 'string' && ` These cover the newest ${LIMIT}; the ledger loads older ones.`}
-                    {nextBefore === undefined &&
-                      records.length >= LIMIT &&
-                      ` This server returns at most ${LIMIT} records and does not page.`}
-                  </p>
-                </>
-              )}
+          <div className="tiles">
+            {win && <RecordTiles win={win} />}
+            <KeysTile keys={keys} />
+          </div>
+
+          <div className="ov-row">
+            {win && (
+              <div className="wide">
+                <VerdictChart win={win} />
+              </div>
+            )}
+            <section className="card narrow" aria-labelledby="attention-title">
+              <div className="card-head">
+                <h2 id="attention-title">Needs attention</h2>
+                <Link to="/ledger">Ledger</Link>
+              </div>
+              <AttentionList items={items} total={records.length} />
             </section>
+          </div>
 
-            <section className="card" aria-labelledby="keys-title">
-              <h2 id="keys-title">API keys</h2>
-              {keys.isPending && <span className="sk" style={{ width: '50%' }} aria-hidden="true" />}
-              {keys.isError && !keys.data && <p className="sub">{describeError(keys.error)}</p>}
-              {keys.data && (
-                <p className="sub">
-                  <Link to="/keys">{plural(keys.data.length, 'active key', 'active keys')}</Link>
-                  {unusedKeys(keys.data) > 0 && `, ${unusedKeys(keys.data)} with no use recorded`}.
-                </p>
-              )}
-              {keys.isRefetchError && (
-                <div role="alert" style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-start' }}>
-                  <p className="hint" style={{ margin: 0 }}>
-                    The key list could not be refreshed, so this count may be out of date. {describeError(keys.error)}
-                  </p>
-                  <button type="button" className="btn btn-sm" onClick={() => keys.refetch()}>
-                    Try the key list again
-                  </button>
-                </div>
-              )}
+          <div className="ov-grid">
+            {win && <Breakdowns win={win} keys={keys} />}
+            <div className="ov-stack">
+              <ChainTrail />
+              <SecurityCard />
+            </div>
+          </div>
+
+          {records.length > 0 && (
+            <section className="card flush" aria-labelledby="latest-title">
+              <div className="card-head">
+                <h2 id="latest-title">Latest records</h2>
+                <Link to="/ledger">Open the ledger</Link>
+              </div>
+              <div className="table-wrap" style={{ borderTop: '1px solid var(--line)' }}>
+                <RecordTable records={records.slice(0, LATEST)} />
+              </div>
             </section>
-
-            <ChainTrail />
-          </aside>
+          )}
         </div>
       )}
     </Shell>
+  );
+}
+
+function RecordTiles({ win }: Readonly<{ win: OverviewWindow }>) {
+  const t = win.totals;
+  const name = RANGES[win.range].name;
+  const series = (key: 'total' | 'blocked' | 'unverifiable' | 'none') => win.buckets.map((b) => b[key]);
+  return (
+    <>
+      <StatTile label="Records" value={t.total} trend={series('total')}>
+        {comparedText(t.total, win.previousTotal, name) ?? `In the ${name} up to the newest record.`}
+      </StatTile>
+      <StatTile label="BLOCKED" dot="d-BLOCKED" value={t.blocked} trend={series('blocked')}>
+        {shareOf(t.blocked, t.total)}
+      </StatTile>
+      <StatTile label="UNVERIFIABLE" dot="d-UNVERIFIABLE" value={t.unverifiable} trend={series('unverifiable')}>
+        {shareOf(t.unverifiable, t.total)}
+      </StatTile>
+      <StatTile label="No verdict recorded" dot="d-none" value={t.none} trend={series('none')}>
+        {shareOf(t.none, t.total)}
+      </StatTile>
+    </>
+  );
+}
+
+function KeysTile({ keys }: Readonly<{ keys: KeysQuery }>) {
+  let note: ReactNode = null;
+  if (keys.isError && !keys.data) note = describeError(keys.error);
+  else if (keys.data) {
+    const unused = unusedKeys(keys.data);
+    note = (
+      <>
+        <Link to="/keys">{plural(keys.data.length, 'active key', 'active keys')}</Link>
+        {unused > 0 && `, ${unused} with no use recorded`}.
+      </>
+    );
+  }
+  return (
+    <StatTile
+      label="API keys"
+      value={keys.data ? keys.data.length : <span className="sk" style={{ width: 40, height: 24 }} aria-hidden="true" />}
+      after={
+        keys.isRefetchError && (
+          <div role="alert" style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-start' }}>
+            <p className="hint" style={{ margin: 0 }}>
+              The key list could not be refreshed, so this count may be out of date. {describeError(keys.error)}
+            </p>
+            <button type="button" className="btn btn-sm" onClick={() => keys.refetch()}>
+              Try the key list again
+            </button>
+          </div>
+        )
+      }
+    >
+      {note}
+    </StatTile>
+  );
+}
+
+/** Who made the records: the key's name from the key list, else its id. */
+function keyRow(id: string, n: number, list: ApiKeyItem[] | undefined): BarRow {
+  if (id === '') return { key: 'none', label: 'Not recorded', n, note: 'No key made these, or the server did not keep the caller.' };
+  const key = list?.find((k) => k.id === id);
+  if (key) {
+    const used = key.last_used_at ? `last used ${formatUtc(key.last_used_at)} UTC` : 'no use recorded';
+    return { key: id, label: key.name, n, note: `${key.key_preview}, ${used}` };
+  }
+  // The list holds active keys only, and only your own unless you are an owner or admin.
+  return { key: id, label: list ? `Key ${id}, not in your key list` : `Key ${id}`, n };
+}
+
+function Breakdowns({ win, keys }: Readonly<{ win: OverviewWindow; keys: KeysQuery }>) {
+  const count = plural(win.totals.total, 'record', 'records');
+  const verifiers = countBy(win.records, (r) => r.domain.toLowerCase()).map(
+    ({ key, n }): BarRow => ({ key, label: <span className="mono">{key}</span>, n }),
+  );
+  const callers = countBy(win.records, (r) => r.apiKeyId ?? '').map(({ key, n }) => keyRow(key, n, keys.data));
+  return (
+    <>
+      <section className="card" aria-labelledby="by-verifier-title">
+        <div className="card-head">
+          <h2 id="by-verifier-title">By verifier</h2>
+          <span className="hint num">{count}</span>
+        </div>
+        <BarList rows={verifiers} />
+      </section>
+      <section className="card" aria-labelledby="by-key-title">
+        <div className="card-head">
+          <h2 id="by-key-title">By API key</h2>
+          <Link to="/keys">API keys</Link>
+        </div>
+        <BarList rows={callers} />
+      </section>
+    </>
+  );
+}
+
+/** The newest security event, for owners and admins (#486). */
+function SecurityCard() {
+  const events = useSecurityEventPages(LATEST, null);
+  const newest = events.data?.pages[0]?.events[0];
+  let body: ReactNode;
+  if (events.isPending) body = <span className="sk" style={{ width: '60%' }} aria-hidden="true" />;
+  else if (!events.data) body = <p className="sub">{securityEventsError(events.error)}</p>;
+  else if (newest) {
+    body = (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <span className={`tag sev-${newest.severity}`}>{newest.severity}</span>
+          <span style={{ color: 'var(--ink)', fontWeight: 500, fontSize: 13 }}>{typeLabel(newest.event_type)}</span>
+          <span className="mono num muted" style={{ fontSize: 11.5, marginLeft: 'auto' }}>
+            {formatUtc(newest.timestamp)}
+          </span>
+        </div>
+        <p className="hint" style={{ margin: 0, overflowWrap: 'anywhere' }}>
+          {newest.query} · {newest.reason}
+        </p>
+      </div>
+    );
+  } else body = <p className="sub">No security events.</p>;
+  return (
+    <section className="card" aria-labelledby="security-title">
+      <div className="card-head">
+        <h2 id="security-title">Security events</h2>
+        <Link to="/security">All events</Link>
+      </div>
+      {body}
+      {/* A failed refresh keeps the event that loaded, so say it may be out of date. */}
+      {events.isRefetchError && (
+        <div role="alert" style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-start' }}>
+          <p className="hint" style={{ margin: 0 }}>
+            The security events could not be refreshed, so this may be out of date. {describeError(events.error)}
+          </p>
+          <button type="button" className="btn btn-sm" onClick={() => events.refetch()}>
+            Try the security events again
+          </button>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -223,7 +361,7 @@ function AttentionList({ items, total }: Readonly<{ items: Attention[]; total: n
 
 function Items({ items }: Readonly<{ items: Attention[] }>) {
   return (
-    <ul className="attn">
+    <ul className="attn compact">
       {items.map((it) => (
         <li key={it.id}>
           <span className={`dot ${it.dot}`} aria-hidden="true" />
@@ -242,14 +380,19 @@ function Items({ items }: Readonly<{ items: Attention[] }>) {
 
 function HomeSkeleton() {
   return (
-    <div aria-busy="true" aria-live="polite" style={{ padding: '0 24px 24px' }}>
+    <div className="overview" aria-busy="true" aria-live="polite">
       <span className="sr-only">Loading</span>
-      {Array.from({ length: 3 }, (_, i) => (
-        <div key={i} aria-hidden="true" style={{ display: 'flex', gap: 16, padding: '16px 0', borderBottom: '1px solid var(--line)' }}>
-          <span className="sk" style={{ width: 180 }} />
-          <span className="sk" style={{ width: `${45 + i * 10}%` }} />
-        </div>
-      ))}
+      <div className="tiles" aria-hidden="true">
+        {Array.from({ length: 5 }, (_, i) => (
+          <div key={i} className="card tile">
+            <span className="sk" style={{ width: '50%' }} />
+            <span className="sk" style={{ width: '30%', height: 24 }} />
+          </div>
+        ))}
+      </div>
+      <div className="card" aria-hidden="true" style={{ height: 280 }}>
+        <span className="sk" style={{ width: '30%' }} />
+      </div>
     </div>
   );
 }
