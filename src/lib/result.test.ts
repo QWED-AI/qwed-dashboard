@@ -151,6 +151,11 @@ describe('toRecord', () => {
       expect([row('ADMIT', { admission: 'BLOCKED' }).admission, row('ADMIT', { admission: 'BLOCKED' }).admissionStored]).toEqual(['DENY', 'BLOCKED']);
     });
 
+    it('lets a word it does not know override the document’s, kept and not shown as a decision', () => {
+      const r = row('ADMIT', { admission: 'REVIEW' });
+      expect([r.admission, r.admissionStored]).toEqual([null, 'REVIEW']);
+    });
+
     it('leaves the document’s standing when it is null, as on a row from before #307, or absent', () => {
       expect(row('ADMIT', { admission: null }).admission).toBe('ADMIT');
       expect(row('DENY', {}).admission).toBe('DENY');
