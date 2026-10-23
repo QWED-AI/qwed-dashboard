@@ -35,9 +35,9 @@ const verified = (id: string, message: string): AuditLog => ({
 describe('HomePage', () => {
   it('lists the BLOCKED, UNVERIFIABLE and unreadable records, each linked to its ledger filter', async () => {
     renderApp(<HomePage />);
-    expect(await screen.findByText('2 BLOCKED records')).toBeTruthy();
-    expect(screen.getByText('2 UNVERIFIABLE records')).toBeTruthy();
-    expect(screen.getByText('1 record with no readable verdict')).toBeTruthy();
+    expect(await screen.findByText('8 BLOCKED records')).toBeTruthy();
+    expect(screen.getByText('6 UNVERIFIABLE records')).toBeTruthy();
+    expect(screen.getByText('3 records with no readable verdict')).toBeTruthy();
 
     const links = screen.getAllByRole('link', { name: /^Open in the ledger/ }).map((a) => a.getAttribute('href'));
     expect(links).toEqual(['/ledger?verdict=BLOCKED', '/ledger?verdict=UNVERIFIABLE', '/ledger?verdict=none']);
@@ -73,10 +73,11 @@ describe('HomePage', () => {
     it('counts the records in the 24 hours up to the newest one, by stored verdict', async () => {
       renderApp(<HomePage />);
       expect(await screen.findByText(/^The 24 hours up to the newest record, received 20 Oct 09:41:12 UTC/)).toBeTruthy();
-      expect(await tile('Records')).toEqual(['10', 'None in the 24 hours before']);
-      expect(await tile('BLOCKED')).toEqual(['2', '20.0% of these records']);
-      expect(await tile('UNVERIFIABLE')).toEqual(['2', '20.0% of these records']);
-      expect(await tile('No verdict recorded')).toEqual(['1', '10.0% of these records']);
+      // 15 records from 19 Oct 10:00 to 20 Oct 10:00, and 6 in the 24 hours before.
+      expect(await tile('Records')).toEqual(['15', '150% more than the 24 hours before']);
+      expect(await tile('BLOCKED')).toEqual(['4', '26.7% of these records']);
+      expect(await tile('UNVERIFIABLE')).toEqual(['2', '13.3% of these records']);
+      expect(await tile('No verdict recorded')).toEqual(['1', '6.7% of these records']);
     });
 
     it('compares with the window before when the loaded records reach it', async () => {
@@ -117,7 +118,7 @@ describe('HomePage', () => {
       const chart = within(await screen.findByRole('region', { name: 'Records by verdict' }));
       const legend = () => chart.getAllByRole('listitem').map((li) => li.textContent);
       expect(chart.getByText('All 24 hours')).toBeTruthy();
-      expect(legend()).toEqual(['VERIFIED 5', 'UNVERIFIABLE 2', 'BLOCKED 2', 'No verdict recorded 1']);
+      expect(legend()).toEqual(['VERIFIED 8', 'UNVERIFIABLE 2', 'BLOCKED 4', 'No verdict recorded 1']);
 
       const eight = chart.getByRole('button', { name: /^20 Oct, 08:00 to 09:00 UTC, 4 records: / });
       await user.hover(eight);
@@ -171,13 +172,13 @@ describe('HomePage', () => {
         within(await screen.findByRole('region', { name }))
           .getAllByRole('listitem')
           .map((li) => li.querySelector('.bars-head')?.textContent);
-      expect(await rows('By verifier')).toEqual(['code2', 'fact2', 'math2', 'logic1', 'sql1', 'stats1', 'verification_context1']);
+      expect(await rows('By verifier')).toEqual(['code4', 'fact3', 'math3', 'stats2', 'logic1', 'sql1', 'verification_context1']);
       await waitFor(async () =>
         expect(await rows('By API key')).toEqual([
-          'invoice pipeline3',
-          'payments-agent prod3',
+          'invoice pipeline5',
+          'payments-agent prod5',
+          'Key 5, not in your key list3',
           'Not recorded2',
-          'Key 5, not in your key list2',
         ]),
       );
     });
@@ -259,7 +260,7 @@ describe('HomePage', () => {
   it('still shows the records when the key list is refused', async () => {
     vi.spyOn(demoApi, 'listKeys').mockRejectedValue(new ApiError(403, 'Insufficient permissions'));
     renderApp(<HomePage />);
-    expect(await screen.findByText('2 BLOCKED records')).toBeTruthy();
+    expect(await screen.findByText('8 BLOCKED records')).toBeTruthy();
     const keys = within(screen.getByRole('region', { name: 'API keys' }));
     expect(await keys.findByText('The server refused this request: Insufficient permissions')).toBeTruthy();
     expect(screen.queryByText('No active API keys')).toBeNull();
@@ -298,7 +299,7 @@ describe('HomePage', () => {
       .mockImplementation(listLogs);
     vi.spyOn(demoApi, 'listKeys').mockResolvedValueOnce([]).mockRejectedValueOnce(new ApiError(403, 'Denied'));
     renderApp(<HomePage />);
-    expect(await screen.findByText('2 BLOCKED records')).toBeTruthy();
+    expect(await screen.findByText('8 BLOCKED records')).toBeTruthy();
     expect(await screen.findByRole('link', { name: '0 active keys' })).toBeTruthy();
 
     refocus();
@@ -306,7 +307,7 @@ describe('HomePage', () => {
     expect(await screen.findByText(/The records could not be refreshed/)).toBeTruthy();
     expect(await screen.findByText(/The key list could not be refreshed/)).toBeTruthy();
     // Both cards still show what loaded.
-    expect(screen.getByText('2 BLOCKED records')).toBeTruthy();
+    expect(screen.getByText('8 BLOCKED records')).toBeTruthy();
     expect(screen.getByRole('link', { name: '0 active keys' })).toBeTruthy();
     expect(screen.queryByText('The records could not be loaded')).toBeNull();
 
