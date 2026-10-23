@@ -101,7 +101,7 @@ describe('ChainTrail', () => {
   it('names the first failed entry and links to it (sample data)', async () => {
     const c = await run();
     expect(await c.findByText('The chain does not check out.')).toBeTruthy();
-    expect(c.getByText(/1 of 10 entries failed/)).toBeTruthy();
+    expect(c.getByText(/1 of 47 entries failed/)).toBeTruthy();
     expect(c.getByRole('link', { name: 'record 1037' }).getAttribute('href')).toBe('/records/1037');
     expect(c.getByText('Entry 1037: HMAC signature mismatch (sample data)')).toBeTruthy();
   });

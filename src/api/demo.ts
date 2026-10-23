@@ -120,6 +120,76 @@ const baseLogs: AuditLog[] = [
   },
 ];
 
+// Older sample rows, 14 to 19 Oct, so a week of the overview has something
+// to show. Built from a fixed list in a fixed order, so every load is the
+// same. Request texts differ from the rows above.
+const HISTORY_TEMPLATES: readonly {
+  status: 'VERIFIED' | 'UNVERIFIABLE' | 'BLOCKED' | 'TRUNCATED';
+  engine: string;
+  claim: string;
+  message: string;
+}[] = [
+  { status: 'VERIFIED', engine: 'MATH', claim: 'Monthly interest on 12,000.00 at 1.5% is 180.00', message: 'The arithmetic holds.' },
+  { status: 'VERIFIED', engine: 'SQL', claim: 'SELECT region, SUM(total) FROM orders GROUP BY region', message: 'The query is read-only.' },
+  { status: 'VERIFIED', engine: 'CODE', claim: 'Report export writes only under ./reports', message: 'The code stays inside the allowed paths.' },
+  { status: 'UNVERIFIABLE', engine: 'FACT', claim: 'Vendor [NAME] holds a current ISO 27001 certificate', message: 'The documents supplied do not settle the claim.' },
+  { status: 'VERIFIED', engine: 'MATH', claim: 'Line items for invoice [INVOICE ID] add up to 2,950.00', message: 'The arithmetic holds.' },
+  { status: 'VERIFIED', engine: 'LOGIC', claim: 'No discount stacks above 30% under the pricing rules', message: 'The constraints hold for every case.' },
+  { status: 'BLOCKED', engine: 'MATH', claim: 'Tax on 2,400.00 at 18% is 412.00', message: 'The stated value is wrong; the tax is 432.00.' },
+  { status: 'VERIFIED', engine: 'STATS', claim: 'Median basket size in [FILE] is 3 items', message: 'The computation matches the stated value.' },
+  { status: 'VERIFIED', engine: 'SQL', claim: 'SELECT id, status FROM shipments WHERE eta < NOW()', message: 'The query is read-only.' },
+  { status: 'UNVERIFIABLE', engine: 'LOGIC', claim: 'Every region meets the two-day shipping promise', message: 'The rules supplied do not decide the claim.' },
+  { status: 'VERIFIED', engine: 'VERIFICATION_CONTEXT', claim: 'Refund of 120.00 matches the returned items', message: 'The stated total matches.' },
+  { status: 'BLOCKED', engine: 'CODE', claim: 'Report builder runs the query text it is given', message: 'The code runs input as code.' },
+  { status: 'VERIFIED', engine: 'FACT', claim: 'Supplier [NAME] is listed in the registry extract', message: 'The extract supports the claim.' },
+  { status: 'TRUNCATED', engine: 'STATS', claim: 'Churn in [FILE] fell 4% month on month', message: '' },
+];
+
+// Records per day, oldest first, from 14 Oct.
+const HISTORY_PER_DAY = [5, 7, 4, 8, 6, 7];
+
+/** Which sample key made an older row: key 7 exists from 15 Oct 09:30, so earlier rows came from 6 or 5. */
+function historyCaller(i: number, createdAt: string): string {
+  if (createdAt < '2026-10-15T09:30:00') return i % 2 === 0 ? '6' : '5';
+  return ['7', '6', '7', '5', '6'][i % 5] ?? '7';
+}
+
+function historyResult(t: (typeof HISTORY_TEMPLATES)[number], n: number): string {
+  if (t.status === 'TRUNCATED') {
+    return JSON.stringify({ truncated: true, preview: "{'status': 'VERIFIED', 'agent_message': 'Sandboxed computation ran..." });
+  }
+  const proofRef = t.status === 'VERIFIED' ? `sha256:sample-h${String(n).padStart(3, '0')}` : null;
+  return diagnostic(t.status, t.message, {}, proofRef);
+}
+
+function buildHistory(): AuditLog[] {
+  const rows: AuditLog[] = [];
+  let n = 0;
+  HISTORY_PER_DAY.forEach((count, day) => {
+    for (let k = 0; k < count; k++) {
+      const t = HISTORY_TEMPLATES[(n * 5) % HISTORY_TEMPLATES.length];
+      if (!t) continue;
+      const hour = 7 + Math.floor((k * 11) / count);
+      const minute = (n * 17 + 3) % 60;
+      const createdAt = `2026-10-${String(14 + day).padStart(2, '0')}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:${String((n * 23) % 60).padStart(2, '0')}`;
+      rows.push({
+        id: String(996 + n),
+        request_input: t.claim,
+        verification_result: historyResult(t, n),
+        engine_used: t.engine,
+        status: t.status === 'VERIFIED' ? 'verified' : 'blocked',
+        created_at: createdAt,
+        api_key_id: historyCaller(n, createdAt),
+      });
+      n += 1;
+    }
+  });
+  // Newest first, as the server lists them.
+  return rows.reverse();
+}
+
+const history = buildHistory();
+
 /** A sample 64-character hex string, the length of a SHA-256. Not a real hash. */
 function sampleHex(seed: string): string {
   // FNV-1a over the whole seed, so seeds that differ anywhere differ here.
@@ -134,9 +204,9 @@ function sampleHex(seed: string): string {
   return out;
 }
 
-// Which sample key wrote each row. Key 5 is no longer in the key list (as a
-// revoked key would not be). The two oldest rows were written before the
-// server recorded a caller (#484), so they have none.
+// Which sample key wrote each of the newest rows. Key 5 is no longer in the
+// key list (as a revoked key would not be). Rows 1034 and 1033 were made
+// without a key (a signed-in session), so they have none.
 const CALLER: Record<string, string | null> = {
   '1042': '7', '1041': '7', '1040': '6', '1039': '6', '1038': '6',
   '1037': '7', '1036': '5', '1035': '5', '1034': null, '1033': null,
@@ -144,9 +214,10 @@ const CALLER: Record<string, string | null> = {
 
 // The fields a server after #484 adds: the stored verdict (read the same way
 // the dashboard reads it), the chain entry, and the caller.
-const logs: AuditLog[] = baseLogs.map((log, i) => {
-  const older = baseLogs[i + 1];
-  const keyId = CALLER[log.id] ?? null;
+const chain = [...baseLogs, ...history];
+const logs: AuditLog[] = chain.map((log, i) => {
+  const older = chain[i + 1];
+  const keyId = log.id in CALLER ? (CALLER[log.id] ?? null) : (log.api_key_id ?? null);
   return {
     ...log,
     verdict: parseResult(log.verification_result).verdict,

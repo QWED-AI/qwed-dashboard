@@ -163,7 +163,8 @@ describe('RecordPage', () => {
     });
 
     it('says so for the first entry in the chain', async () => {
-      renderApp(<App />, { route: '/records/1033' });
+      // The oldest sample row.
+      renderApp(<App />, { route: '/records/996' });
       expect((await openAuditEntry()).getByText('none: the first entry')).toBeTruthy();
     });
 
