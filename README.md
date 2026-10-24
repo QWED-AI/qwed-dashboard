@@ -51,6 +51,8 @@ The API keys screen shows when each key was last used. qwed-verification records
 
 The Overview counts the newest 200 records the server returns, over the 24 hours or 7 days up to the newest record. When older records in that range are not loaded, it says how far back the counts reach. It groups the stored verdicts; it never works one out.
 
+**Export CSV** on the decision ledger saves the records it shows, with the filters applied, as a CSV file built in the browser: record id, time received (UTC), verifier, request, the stored verdict and admission as the ledger shows them (and the stored admission word where it differs), the verifier's message, proof_ref, API key, and the attestation refusal where there is one. It covers the loaded records only; load older ones first to include them. It does not use the server's CSV routes, which carry no stored verdict or admission yet ([qwed-verification #508](https://github.com/QWED-AI/qwed-verification/issues/508)). A cell that starts with `=`, `+`, `-`, `@`, a tab or a carriage return gets a leading apostrophe, so a spreadsheet does not run it as a formula.
+
 The session token is kept in `sessionStorage`, so closing the tab signs you out.
 
 The audit chain checks take the signed-in session from qwed-verification releases with [#485](https://github.com/QWED-AI/qwed-verification/issues/485). An older server takes only an owner or admin API key for the entry check and has no whole-chain check. Against such a server the dashboard asks for a key when you first run an entry check, keeps it in memory for that tab and never stores it.

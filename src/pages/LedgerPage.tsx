@@ -5,6 +5,7 @@ import { Icon } from '../components/Icon';
 import { RecordTable } from '../components/RecordTable';
 import { RefreshError } from '../components/RefreshError';
 import { Shell } from '../components/Shell';
+import { downloadLedgerCsv } from '../lib/csv';
 import { toRecord, type LedgerRecord } from '../lib/result';
 import { describeError, useLedgerPages } from '../lib/useAuthedQuery';
 
@@ -152,7 +153,20 @@ export function LedgerPage() {
                 ))}
               </select>
             </label>
+            <button
+              type="button"
+              className="btn btn-sm"
+              disabled={shown.length === 0}
+              aria-describedby="export-note"
+              onClick={() => downloadLedgerCsv(shown)}
+            >
+              Export CSV
+            </button>
           </div>
+          <p id="export-note" className="hint" style={{ margin: '0 24px 12px' }}>
+            The CSV holds the {shown.length} records shown, with the stored verdict and admission as the ledger shows
+            them. It is built in your browser from the loaded records, not exported by the server.
+          </p>
 
           <div className="table-wrap" style={{ borderTop: '1px solid var(--line)' }}>
             <RecordTable records={shown} />
