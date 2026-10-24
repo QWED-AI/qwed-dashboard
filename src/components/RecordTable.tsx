@@ -1,6 +1,6 @@
 import { Link } from 'react-router';
 import { formatUtc } from '../lib/format';
-import type { LedgerRecord } from '../lib/result';
+import { attestationVerdictLabel, type LedgerRecord } from '../lib/result';
 import { VerdictChip } from './VerdictChip';
 
 /** Records as the ledger lists them, newest first. On a phone each row stacks (see .tbl-stack). */
@@ -35,6 +35,12 @@ export function RecordTable({ records }: Readonly<{ records: readonly LedgerReco
               <span className={r.result.agentMessage === null ? 'row-note none' : 'row-note'}>
                 {r.result.agentMessage ?? 'No message recorded'}
               </span>
+              {r.result.attestationBlock && (
+                <span className="row-note">
+                  Blocked by the attestation check. The verifier’s verdict:{' '}
+                  {attestationVerdictLabel(r.result.attestationBlock)}.
+                </span>
+              )}
             </td>
             <td className="cell-small" data-label="Verifier">
               {r.domain.toLowerCase()}

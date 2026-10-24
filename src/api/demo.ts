@@ -95,9 +95,22 @@ const baseLogs: AuditLog[] = [
     created_at: '2026-10-20T07:48:30',
   },
   {
+    // The code checked out, but the server could not sign the VERIFIED
+    // result, so it stored BLOCKED with the verdict beside it (#320).
     id: '1035',
-    request_input: 'def refund(:\n    return total',
-    verification_result: diagnostic('BLOCKED', 'The code could not be parsed.', {}, null),
+    request_input: 'def refund_total(items):\n    return sum(i.price for i in items)',
+    verification_result: diagnostic(
+      'BLOCKED',
+      'Attestation unavailable — cannot sign VERIFIED result',
+      {
+        constraint_id: 'api.attestation.signing_error',
+        attestation_error: 'SIGNING_FAILURE',
+        engine: 'code',
+        verdict_status: 'VERIFIED',
+        verdict_proof_ref: 'sha256:sample-5f12-c08e',
+      },
+      null,
+    ),
     engine_used: 'CODE',
     status: 'blocked',
     created_at: '2026-10-20T07:33:10',

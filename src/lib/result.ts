@@ -20,10 +20,33 @@ export interface ParsedResult {
   agentMessage: string | null;
   proofRef: string | null;
   isAuthoritative: boolean | null;
+  /** Set when the trust gate or attestation signing, not the verifier, made this result BLOCKED. */
+  attestationBlock: AttestationBlock | null;
   /** The parsed JSON, or null when the stored text is not valid JSON. */
   value: unknown;
   error: string | null;
 }
+
+/**
+ * A result the attestation check refused (qwed-verification #320). The verify
+ * routes sign every VERIFIED result; when the attestation cannot be issued or
+ * does not check out, they store BLOCKED instead, and most refusals keep the
+ * verdict the verifier reached or its proof_ref beside it. Those were not
+ * admitted, and the dashboard shows them only as what the verifier said.
+ */
+export interface AttestationBlock {
+  /** The server's id for the refusal, such as trust_gate.mandatory_attestation_missing. */
+  constraintId: string;
+  /** The verifier's verdict, when it is one the specification allows. */
+  verdict: Verdict | null;
+  /** What the server stored for that verdict when it is not one the dashboard knows. */
+  verdictStored: string | null;
+  proofRef: string | null;
+}
+
+// Matched by prefix: qwed-verification #320 is still open, so the ids behind
+// these prefixes may still change.
+const ATTESTATION_PREFIXES = ['trust_gate.', 'api.attestation.'];
 
 const VERDICTS: readonly Verdict[] = ['VERIFIED', 'UNVERIFIABLE', 'BLOCKED'];
 
@@ -57,6 +80,35 @@ function at(obj: unknown, ...path: string[]): unknown {
   return cur;
 }
 
+/**
+ * The attestation refusal a BLOCKED result's developer_fields name, if any.
+ * Most refusals keep the verifier's verdict as verdict_status and its proof_ref
+ * as verdict_proof_ref. The claim mismatches keep only what they compared:
+ * result_status (claims_status_mismatch) or result_proof_ref
+ * (claims_proof_mismatch). The query mismatch and the snapshot failure keep
+ * neither, so those read as not recorded.
+ */
+function readAttestationBlock(verdict: Verdict | null, fields: unknown): AttestationBlock | null {
+  if (verdict !== 'BLOCKED') return null;
+  const constraintId = asString(at(fields, 'constraint_id'));
+  if (!constraintId || !ATTESTATION_PREFIXES.some((p) => constraintId.startsWith(p))) return null;
+  const stored = at(fields, 'verdict_status') ?? at(fields, 'result_status');
+  const reached = asVerdict(stored);
+  return {
+    constraintId,
+    verdict: reached,
+    verdictStored: reached ? null : asMessage(stored),
+    proofRef: asString(at(fields, 'verdict_proof_ref') ?? at(fields, 'result_proof_ref')),
+  };
+}
+
+/** The verifier's verdict as a refusal records it, for the card and the ledger. */
+export function attestationVerdictLabel(block: AttestationBlock): string {
+  if (block.verdict) return block.verdict;
+  if (block.verdictStored) return `${block.verdictStored} (not a verdict the dashboard knows)`;
+  return 'not recorded';
+}
+
 const empty = (shape: ResultShape, value: unknown, error: string | null): ParsedResult => ({
   shape,
   verdict: null,
@@ -65,6 +117,7 @@ const empty = (shape: ResultShape, value: unknown, error: string | null): Parsed
   agentMessage: null,
   proofRef: null,
   isAuthoritative: null,
+  attestationBlock: null,
   value,
   error,
 });
@@ -84,13 +137,15 @@ export function parseResult(raw: string): ParsedResult {
 
   // A Verification Context document (stored by the /verification-context routes).
   if ('spec_version' in value && 'verdict' in value) {
+    const verdict = asVerdict(value.verdict);
     return {
       shape: 'verification-context',
-      verdict: asVerdict(value.verdict),
+      verdict,
       ...readAdmission(at(value, 'context', 'decision', 'admission')),
       agentMessage: asMessage(at(value, 'context', 'evidence', 'evidence', 'agent_message')),
       proofRef: asString(at(value, 'context', 'evidence', 'proof_ref')),
       isAuthoritative: null,
+      attestationBlock: readAttestationBlock(verdict, at(value, 'context', 'evidence', 'evidence', 'developer_fields')),
       value,
       error: null,
     };
@@ -119,13 +174,15 @@ function fromBatchItem(value: Obj): ParsedResult {
 }
 
 function fromDiagnostic(result: Obj, value: unknown): ParsedResult {
+  const verdict = asVerdict(result.status);
   return {
     shape: 'diagnostic',
-    verdict: asVerdict(result.status),
+    verdict,
     ...readAdmission(result.admission),
     agentMessage: asMessage(result.agent_message),
     proofRef: asString(result.proof_ref),
     isAuthoritative: typeof result.is_authoritative === 'boolean' ? result.is_authoritative : null,
+    attestationBlock: readAttestationBlock(verdict, result.developer_fields),
     value,
     error: null,
   };
@@ -148,6 +205,8 @@ export function toRecord(log: AuditLog): LedgerRecord {
   // its own rules (it also reads /verify/batch rows). It wins, null included;
   // an older server sends no field, and the dashboard reads the result itself.
   if ('verdict' in log) result.verdict = asVerdict(log.verdict);
+  // The refusal explains a BLOCKED verdict, so it goes with one.
+  if (result.verdict !== 'BLOCKED') result.attestationBlock = null;
   // The admission the route decided (#307) wins when the row has one. A null
   // is not the same as the verdict's: the server sends it on every row
   // written before #307 too, and a Verification Context record from then
