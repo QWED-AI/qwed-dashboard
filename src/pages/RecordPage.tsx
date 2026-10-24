@@ -8,7 +8,7 @@ import { RefreshError } from '../components/RefreshError';
 import { Shell } from '../components/Shell';
 import { VerdictChip } from '../components/VerdictChip';
 import { formatUtcLong } from '../lib/format';
-import { toRecord, type ParsedResult } from '../lib/result';
+import { toRecord, type AttestationBlock, type ParsedResult } from '../lib/result';
 import { describeError, useAuthedQuery } from '../lib/useAuthedQuery';
 
 // Laid out as the RecordCore wireframe: what was checked and how it came
@@ -73,6 +73,45 @@ const NEXT: Record<Verdict | 'none', { title: string; text: string }> = {
     text: 'The stored result has no verdict the dashboard can read. The stored result tab shows it exactly as the server keeps it.',
   },
 };
+
+/** For a BLOCKED result the attestation check made: the request itself may be fine. */
+const NEXT_ATTESTATION = {
+  title: 'Look at the server’s attestation',
+  text: 'The verifier’s check ran, but its result was not signed, or its attestation did not match the result. That points at the server’s signing key or trust settings, not at the request. Check the server and its logs, then send the request again. A new request gets a new record; this one stays as it is.',
+};
+
+/** Why a BLOCKED result is blocked, when the attestation check, not the verifier, blocked it. */
+function AttestationCard({ block }: Readonly<{ block: AttestationBlock }>) {
+  let reached = 'not recorded';
+  if (block.verdict) reached = block.verdict;
+  else if (block.verdictStored) reached = `${block.verdictStored} (not a verdict the dashboard knows)`;
+  return (
+    <section className="card" aria-labelledby="attestation-title">
+      <h2 id="attestation-title">Blocked by the attestation check</h2>
+      <p className="sub">
+        The server signs every VERIFIED result and blocks the ones it cannot sign or whose attestation does not check
+        out. This record is BLOCKED for that reason; what the verifier reached was not admitted.
+      </p>
+      <dl className="kv">
+        <dt>Verifier’s verdict</dt>
+        <dd className="mono" style={{ fontSize: 12 }}>
+          {reached}
+        </dd>
+        <dt>Its proof_ref</dt>
+        <dd className="mono" style={{ fontSize: 11.5, overflowWrap: 'anywhere' }}>
+          {block.proofRef ?? 'not recorded'}
+        </dd>
+        <dt>Reason</dt>
+        <dd className="mono" style={{ fontSize: 12, overflowWrap: 'anywhere' }}>
+          {block.constraintId}
+        </dd>
+      </dl>
+      <p className="hint" style={{ margin: 0 }}>
+        The server does not store the attestation token, so the dashboard cannot check an attestation again later.
+      </p>
+    </section>
+  );
+}
 
 const TABS = [
   { id: 'result', label: 'Stored result' },
@@ -338,7 +377,7 @@ export function RecordPage() {
   const r = toRecord(data);
   const { result } = r;
   const multiline = r.query.includes('\n');
-  const next = NEXT[result.verdict ?? 'none'];
+  const next = result.attestationBlock ? NEXT_ATTESTATION : NEXT[result.verdict ?? 'none'];
   const noKey = data.api_key_id === null || data.api_key_id === undefined;
 
   return (
@@ -431,6 +470,8 @@ export function RecordPage() {
             </p>
             {result.error && <p className="note">{result.error}</p>}
           </section>
+
+          {result.attestationBlock && <AttestationCard block={result.attestationBlock} />}
 
           <section className="card" aria-labelledby="next-title">
             <h2 id="next-title">{next.title}</h2>

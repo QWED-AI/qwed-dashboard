@@ -35,6 +35,12 @@ export function RecordTable({ records }: Readonly<{ records: readonly LedgerReco
               <span className={r.result.agentMessage === null ? 'row-note none' : 'row-note'}>
                 {r.result.agentMessage ?? 'No message recorded'}
               </span>
+              {r.result.attestationBlock && (
+                <span className="row-note">
+                  Blocked by the attestation check; the verifier said{' '}
+                  {r.result.attestationBlock.verdict ?? 'nothing the dashboard can read'}.
+                </span>
+              )}
             </td>
             <td className="cell-small" data-label="Verifier">
               {r.domain.toLowerCase()}

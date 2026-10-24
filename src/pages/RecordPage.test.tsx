@@ -113,6 +113,43 @@ describe('RecordPage', () => {
       expect(checks.queryByText('No proof_ref')).toBeNull();
     });
 
+    it('says when the attestation check, not the verifier, blocked the result', async () => {
+      renderApp(<App />, { route: '/records/1035' });
+      const card = await region('Blocked by the attestation check');
+      expect(card.getByText('VERIFIED')).toBeTruthy();
+      expect(card.getByText('sha256:sample-5f12-c08e')).toBeTruthy();
+      expect(card.getByText('api.attestation.signing_error')).toBeTruthy();
+      expect(card.getByText(/does not store the attestation token/)).toBeTruthy();
+      // The next step points at the server, and the record stays BLOCKED.
+      expect(await screen.findByRole('heading', { name: 'Look at the server’s attestation' })).toBeTruthy();
+      expect(screen.queryByRole('heading', { name: 'Send a new request' })).toBeNull();
+      expect(screen.getAllByText('BLOCKED').length).toBeGreaterThan(0);
+      expect((await region('Checks')).getByText('No proof_ref')).toBeTruthy();
+    });
+
+    it('shows no attestation note when the verifier itself blocked the result', async () => {
+      renderApp(<App />, { route: '/records/1038' });
+      expect(await screen.findByRole('heading', { name: 'Send a new request' })).toBeTruthy();
+      expect(screen.queryByRole('region', { name: 'Blocked by the attestation check' })).toBeNull();
+    });
+
+    it('says the verifier’s verdict was not recorded when the server kept none', async () => {
+      vi.spyOn(demoApi, 'getLog').mockResolvedValue({
+        ...olderServerRow,
+        verification_result: JSON.stringify({
+          status: 'BLOCKED',
+          agent_message: 'Verification blocked — diagnostic snapshot failed',
+          developer_fields: { constraint_id: 'trust_gate.diagnostic_snapshot_failed', policy: 'mandatory' },
+          proof_ref: null,
+        }),
+        verdict: 'BLOCKED',
+      });
+      renderApp(<App />, { route: '/records/1' });
+      const card = await region('Blocked by the attestation check');
+      expect(card.getAllByText('not recorded')).toHaveLength(2);
+      expect(card.getByText('trust_gate.diagnostic_snapshot_failed')).toBeTruthy();
+    });
+
     it('says a VERIFIED result with no proof_ref did not record one', async () => {
       vi.spyOn(demoApi, 'getLog').mockResolvedValue(olderServerRow); // VERIFIED, no proof_ref
       renderApp(<App />, { route: '/records/1' });

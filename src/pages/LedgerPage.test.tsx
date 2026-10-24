@@ -43,6 +43,16 @@ describe('LedgerPage', () => {
     expect(within(row).getByText('The identity is false.')).toBeTruthy();
   });
 
+  it('notes a result the attestation check blocked, with what the verifier said', async () => {
+    renderApp(<LedgerPage />);
+    const row = await rowFor('def refund_total(items):');
+    expect(within(row).getByText('BLOCKED')).toBeTruthy();
+    expect(within(row).getByText('Blocked by the attestation check; the verifier said VERIFIED.')).toBeTruthy();
+    // A result the verifier blocked has no such note.
+    const own = await rowFor('Supplier [NAME] is registered in Germany');
+    expect(within(own).queryByText(/attestation check/)).toBeNull();
+  });
+
   it('says so when the stored result has no message', async () => {
     renderApp(<LedgerPage />);
     const row = await rowFor('Mean order value in [FILE] is 1,240.50');
