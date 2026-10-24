@@ -35,12 +35,15 @@ describe('csvCell', () => {
   });
 
   it('keeps a spreadsheet from reading a cell as a formula', () => {
-    for (const start of ['=', '+', '-', '@', '\t', '\r']) {
+    // Control characters at the start, the formula characters (also full width)
+    // after any white space an import may trim.
+    for (const start of ['=', '+', '-', '@', '\t', '\r', '\n', '\0', ' =', '  +', '\n=', '＝', ' ＠']) {
       expect(csvCell(`${start}SUM(A1:A9)`)).toBe(`"'${start}SUM(A1:A9)"`);
     }
     expect(csvCell('=HYPERLINK("http://x", "y")')).toBe('"\'=HYPERLINK(""http://x"", ""y"")"');
-    // Only the first character counts.
+    // Only the start of the cell counts.
     expect(csvCell('2 - 1 = 1')).toBe('2 - 1 = 1');
+    expect(csvCell(' 2 - 1')).toBe(' 2 - 1');
   });
 });
 
@@ -62,8 +65,9 @@ describe('ledgerCsv', () => {
         'api_key_id',
         'attestation_refusal',
         'attestation_verifier_verdict',
+        'attestation_verifier_proof_ref',
       ],
-      ['7', '2026-10-20T06:44:17', 'MATH', '(x + 1)**2 = x**2 + 2*x + 1', 'VERIFIED', 'ADMIT', '', 'The identity holds.', 'sha256:a', '6', '', ''],
+      ['7', '2026-10-20T06:44:17Z', 'MATH', '(x + 1)**2 = x**2 + 2*x + 1', 'VERIFIED', 'ADMIT', '', 'The identity holds.', 'sha256:a', '6', '', '', ''],
     ]);
   });
 
@@ -99,15 +103,25 @@ describe('ledgerCsv', () => {
         admission: 'BLOCKED',
       });
     const csv = ledgerCsv([
-      toRecord(blocked({ constraint_id: 'api.attestation.signing_error', verdict_status: 'VERIFIED' })),
+      toRecord(blocked({ constraint_id: 'api.attestation.signing_error', verdict_status: 'VERIFIED', verdict_proof_ref: 'sha256:v' })),
       toRecord(blocked({ constraint_id: 'trust_gate.claims_status_mismatch', result_status: 'SAT' })),
+      toRecord(blocked({ constraint_id: 'trust_gate.claims_proof_mismatch', result_proof_ref: 'sha256:r' })),
       toRecord(blocked({ constraint_id: 'trust_gate.claims_query_mismatch' })),
     ]);
-    expect(lines(csv).slice(1).map((c) => c.slice(10))).toEqual([
-      ['api.attestation.signing_error', 'VERIFIED'],
-      ['trust_gate.claims_status_mismatch', 'SAT'],
-      ['trust_gate.claims_query_mismatch', ''],
+    // proof_ref (column 8) stays the result's own, which a BLOCKED result does not have.
+    expect(lines(csv).slice(1).map((c) => [c[8], ...c.slice(10)])).toEqual([
+      ['', 'api.attestation.signing_error', 'VERIFIED', 'sha256:v'],
+      ['', 'trust_gate.claims_status_mismatch', 'SAT', ''],
+      ['', 'trust_gate.claims_proof_mismatch', '', 'sha256:r'],
+      ['', 'trust_gate.claims_query_mismatch', '', ''],
     ]);
+  });
+
+  it('marks the time received as UTC, and keeps an offset the server sent', () => {
+    expect(lines(ledgerCsv([toRecord(log())]))[1]?.[1]).toBe('2026-10-20T06:44:17Z');
+    for (const t of ['2026-10-20T06:44:17Z', '2026-10-20T06:44:17+00:00', '2026-10-20T12:14:17+0530']) {
+      expect(lines(ledgerCsv([toRecord(log({ created_at: t }))]))[1]?.[1]).toBe(t);
+    }
   });
 
   it('quotes a request that spans lines, so it stays one record', () => {
