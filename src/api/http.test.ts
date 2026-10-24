@@ -124,6 +124,14 @@ describe('httpApi compliance checks', () => {
     expect(call(fetchMock).url).toBe('/api/admin/compliance/verify-trail');
   });
 
+  it('asks for the activity summary of the organisation with the session', async () => {
+    const fetchMock = stubFetch(json({ report_type: 'Security activity summary' }));
+    expect((await httpApi.activitySummary('tok', '12')).report_type).toBe('Security activity summary');
+    const { url, headers } = call(fetchMock);
+    expect(url).toBe('/api/admin/compliance/report/soc2/12');
+    expect(headers.get('Authorization')).toBe('Bearer tok');
+  });
+
   it('tells a server that takes only API keys from other refusals', () => {
     expect(sessionNotAccepted(new ApiError(401, 'Missing x-api-key header'))).toBe(true);
     // After #485 the same route names the bearer token too.

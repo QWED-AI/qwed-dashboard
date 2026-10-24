@@ -1,6 +1,7 @@
 import { useMemo, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import type { ApiKeyItem, Verdict } from '../api/types';
+import { ActivitySummaryCard } from '../components/ActivitySummary';
 import { ChainTrail } from '../components/ChainTrail';
 import { Icon } from '../components/Icon';
 import { RecordTable } from '../components/RecordTable';
@@ -143,42 +144,47 @@ export function HomePage() {
 
       {logs.isRefetchError && <RefreshError what="The records" error={logs.error} onRetry={() => logs.refetch()} />}
 
-      {/* On data, not on success: a failed refresh keeps what loaded. */}
-      {logs.data && (
+      {/* One tree once the records have been asked for, failed or not, so the
+          cards that ask the server for themselves stay mounted, with their
+          results, through a retry: a retry after a failed first load puts the
+          query back to pending, with no error and no data, until it answers.
+          On data, not on success: a failed refresh keeps what loaded. */}
+      {(logs.data || logs.isFetched) && (
         <div className="overview">
-          {win?.reachesBackTo && (
-            <p className="note" style={{ margin: 0 }}>
-              The loaded records reach back to {formatUtc(new Date(win.reachesBackTo).toISOString())} UTC only, so older
-              records in these {name} are not counted. <Link to="/ledger">The ledger</Link> loads older ones.
-            </p>
+          {logs.data && (
+            <>
+              {win?.reachesBackTo && (
+                <p className="note" style={{ margin: 0 }}>
+                  The loaded records reach back to {formatUtc(new Date(win.reachesBackTo).toISOString())} UTC only, so
+                  older records in these {name} are not counted. <Link to="/ledger">The ledger</Link> loads older ones.
+                </p>
+              )}
+
+              <div className="tiles">
+                {win && <RecordTiles win={win} />}
+                <KeysTile keys={keys} />
+              </div>
+
+              <div className="ov-row">
+                {win && (
+                  <div className="wide">
+                    <VerdictChart win={win} />
+                  </div>
+                )}
+                <section className="card narrow" aria-labelledby="attention-title">
+                  <div className="card-head">
+                    <h2 id="attention-title">Needs attention</h2>
+                    <Link to="/ledger">Ledger</Link>
+                  </div>
+                  <AttentionList items={items} total={records.length} />
+                </section>
+              </div>
+            </>
           )}
-
-          <div className="tiles">
-            {win && <RecordTiles win={win} />}
-            <KeysTile keys={keys} />
-          </div>
-
-          <div className="ov-row">
-            {win && (
-              <div className="wide">
-                <VerdictChart win={win} />
-              </div>
-            )}
-            <section className="card narrow" aria-labelledby="attention-title">
-              <div className="card-head">
-                <h2 id="attention-title">Needs attention</h2>
-                <Link to="/ledger">Ledger</Link>
-              </div>
-              <AttentionList items={items} total={records.length} />
-            </section>
-          </div>
 
           <div className="ov-grid">
             {win && <Breakdowns win={win} keys={keys} />}
-            <div className="ov-stack">
-              <ChainTrail />
-              <SecurityCard />
-            </div>
+            <ServerCards />
           </div>
 
           {records.length > 0 && (
@@ -289,6 +295,17 @@ function Breakdowns({ win, keys }: Readonly<{ win: OverviewWindow; keys: KeysQue
         <BarList rows={callers} />
       </section>
     </>
+  );
+}
+
+/** The cards that ask the server for themselves, not from the loaded records. */
+function ServerCards() {
+  return (
+    <div className="ov-stack">
+      <ActivitySummaryCard />
+      <ChainTrail />
+      <SecurityCard />
+    </div>
   );
 }
 

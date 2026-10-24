@@ -1,4 +1,5 @@
 import type {
+  ActivitySummary,
   ApiKeyCreated,
   ApiKeyItem,
   AuditLog,
@@ -125,6 +126,15 @@ export const httpApi = {
   /** Checks every audit entry of the organisation (#485); open-ended without a period. */
   verifyTrail(auth: ComplianceAuth): Promise<TrailCheck> {
     return request('/admin/compliance/verify-trail', { headers: complianceHeaders(auth) });
+  },
+
+  /**
+   * The security activity summary for the last 90 days (#476), with the
+   * session (#485). Owners and admins only. The server checks every audit
+   * entry in the period to answer, so it is slow on a large trail.
+   */
+  activitySummary(token: string, orgId: string): Promise<ActivitySummary> {
+    return request(`/admin/compliance/report/soc2/${encodeURIComponent(orgId)}`, { headers: bearer(token) });
   },
 
   /**
