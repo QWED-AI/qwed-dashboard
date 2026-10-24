@@ -86,6 +86,77 @@ describe('LedgerPage', () => {
     for (const r of rows) expect(within(r).getByText('logic')).toBeTruthy();
   });
 
+  describe('Export CSV', () => {
+    /** Clicks Export CSV and returns the saved file's text and name. */
+    async function exportCsv(user: ReturnType<typeof userEvent.setup>) {
+      const blobs: Blob[] = [];
+      let name = '';
+      const revokeObjectURL = vi.fn();
+      vi.stubGlobal('URL', {
+        ...URL,
+        createObjectURL: (b: Blob) => {
+          blobs.push(b);
+          return 'blob:x';
+        },
+        revokeObjectURL,
+      });
+      vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+        name = this.download;
+      });
+      await user.click(screen.getByRole('button', { name: 'Export CSV' }));
+      expect(revokeObjectURL).toHaveBeenCalledWith('blob:x');
+      const [blob] = blobs;
+      if (!blob) throw new Error('No file was saved');
+      expect(blob.type).toBe('text/csv;charset=utf-8');
+      // Read the bytes: text() would drop the byte order mark.
+      const bytes = new Uint8Array(await blob.arrayBuffer());
+      return { text: new TextDecoder('utf-8', { ignoreBOM: true }).decode(bytes), name };
+    }
+
+    afterEach(() => vi.unstubAllGlobals());
+
+    it('saves the records shown, with the filters applied', async () => {
+      const user = userEvent.setup();
+      renderApp(<LedgerPage />);
+      await rowFor('(x + 1)**2 = x**2 + 2*x + 1');
+      await user.selectOptions(screen.getByRole('combobox', { name: 'Verifier' }), 'LOGIC');
+      const shown = within(screen.getByRole('table')).getAllByRole('row').length - 1;
+      expect(screen.getByText(new RegExp(`The CSV holds the ${shown} records shown`))).toBeTruthy();
+
+      const { text, name } = await exportCsv(user);
+      expect(name).toMatch(/^qwed-ledger-\d{4}-\d{2}-\d{2}\.csv$/);
+      expect(text.startsWith('﻿record_id,received_utc,verifier,')).toBe(true);
+      const records = text.split('\r\n').filter(Boolean).slice(1);
+      expect(records).toHaveLength(shown);
+      for (const line of records) expect(line.split(',')[2]).toBe('LOGIC');
+    });
+
+    it('cannot be pressed when no record is shown', async () => {
+      const user = userEvent.setup();
+      renderApp(<LedgerPage />);
+      await rowFor('(x + 1)**2 = x**2 + 2*x + 1');
+      await user.type(screen.getByRole('searchbox'), 'no record says this');
+      expect((screen.getByRole('button', { name: 'Export CSV' }) as HTMLButtonElement).disabled).toBe(true);
+    });
+
+    it('is offered to an admin as to an owner', async () => {
+      renderApp(<LedgerPage />, { role: 'admin' });
+      await rowFor('(x + 1)**2 = x**2 + 2*x + 1');
+      expect(screen.getByRole('button', { name: 'Export CSV' })).toBeTruthy();
+    });
+
+    it('is not offered to a member or a viewer, who are told who can export', async () => {
+      for (const role of ['member', 'viewer']) {
+        renderApp(<LedgerPage />, { role });
+        await rowFor('(x + 1)**2 = x**2 + 2*x + 1');
+        expect(screen.queryByRole('button', { name: 'Export CSV' })).toBeNull();
+        expect(screen.queryByText(/The CSV holds/)).toBeNull();
+        expect(screen.getByText('An owner or admin of your organisation can export these records as CSV.')).toBeTruthy();
+        cleanup();
+      }
+    });
+  });
+
   it('names the column of each small cell, for the stacked rows on a phone', async () => {
     renderApp(<LedgerPage />);
     await rowFor('(x + 1)**2 = x**2 + 2*x + 1');
