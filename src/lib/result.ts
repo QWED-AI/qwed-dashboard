@@ -30,9 +30,9 @@ export interface ParsedResult {
 /**
  * A result the attestation check refused (qwed-verification #320). The verify
  * routes sign every VERIFIED result; when the attestation cannot be issued or
- * does not check out, they store BLOCKED instead, with the verdict the
- * verifier reached and its proof_ref beside it. Those were not admitted, and
- * the dashboard shows them only as what the verifier said.
+ * does not check out, they store BLOCKED instead, and most refusals keep the
+ * verdict the verifier reached or its proof_ref beside it. Those were not
+ * admitted, and the dashboard shows them only as what the verifier said.
  */
 export interface AttestationBlock {
   /** The server's id for the refusal, such as trust_gate.mandatory_attestation_missing. */
@@ -80,19 +80,33 @@ function at(obj: unknown, ...path: string[]): unknown {
   return cur;
 }
 
-/** The attestation refusal a BLOCKED result's developer_fields name, if any. */
+/**
+ * The attestation refusal a BLOCKED result's developer_fields name, if any.
+ * Most refusals keep the verifier's verdict as verdict_status and its proof_ref
+ * as verdict_proof_ref. The claim mismatches keep only what they compared:
+ * result_status (claims_status_mismatch) or result_proof_ref
+ * (claims_proof_mismatch). The query mismatch and the snapshot failure keep
+ * neither, so those read as not recorded.
+ */
 function readAttestationBlock(verdict: Verdict | null, fields: unknown): AttestationBlock | null {
   if (verdict !== 'BLOCKED') return null;
   const constraintId = asString(at(fields, 'constraint_id'));
   if (!constraintId || !ATTESTATION_PREFIXES.some((p) => constraintId.startsWith(p))) return null;
-  const stored = at(fields, 'verdict_status');
+  const stored = at(fields, 'verdict_status') ?? at(fields, 'result_status');
   const reached = asVerdict(stored);
   return {
     constraintId,
     verdict: reached,
     verdictStored: reached ? null : asMessage(stored),
-    proofRef: asString(at(fields, 'verdict_proof_ref')),
+    proofRef: asString(at(fields, 'verdict_proof_ref') ?? at(fields, 'result_proof_ref')),
   };
+}
+
+/** The verifier's verdict as a refusal records it, for the card and the ledger. */
+export function attestationVerdictLabel(block: AttestationBlock): string {
+  if (block.verdict) return block.verdict;
+  if (block.verdictStored) return `${block.verdictStored} (not a verdict the dashboard knows)`;
+  return 'not recorded';
 }
 
 const empty = (shape: ResultShape, value: unknown, error: string | null): ParsedResult => ({

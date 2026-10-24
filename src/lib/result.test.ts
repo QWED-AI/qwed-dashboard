@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AuditLog, Verdict } from '../api/types';
-import { parseResult, toRecord } from './result';
+import { attestationVerdictLabel, parseResult, toRecord } from './result';
 
 describe('parseResult', () => {
   it('reads a DiagnosticResult and records no admission', () => {
@@ -185,23 +185,26 @@ describe('the attestation check (qwed-verification #320)', () => {
     verdict_proof_ref: 'sha256:reached',
   });
 
-  // The ids qwed-verification main writes today.
-  const ids = [
-    'trust_gate.mandatory_attestation_missing',
-    'trust_gate.invalid_attestation_token',
-    'trust_gate.attestation_verification_error',
-    'trust_gate.claims_missing',
-    'trust_gate.claims_status_mismatch',
-    'trust_gate.claims_proof_mismatch',
-    'trust_gate.claims_query_mismatch',
-    'api.attestation.signing_error',
+  // What qwed-verification main stores for each refusal today (core/diagnostics.py, core/trust.py).
+  const V = 'sha256:reached';
+  const shapes: { fields: Record<string, unknown>; verdict: string | null; proofRef: string | null }[] = [
+    { fields: { constraint_id: 'trust_gate.mandatory_attestation_missing', missing: 'attestation_token', policy: 'p', verdict_status: 'VERIFIED', verdict_proof_ref: V }, verdict: 'VERIFIED', proofRef: V },
+    { fields: { constraint_id: 'trust_gate.invalid_attestation_token', validation_error: 'expired', policy: 'p', verdict_status: 'VERIFIED', verdict_proof_ref: V }, verdict: 'VERIFIED', proofRef: V },
+    { fields: { constraint_id: 'trust_gate.attestation_verification_error', error: 'x', policy: 'p', verdict_status: 'VERIFIED', verdict_proof_ref: V }, verdict: 'VERIFIED', proofRef: V },
+    { fields: { constraint_id: 'trust_gate.claims_missing', policy: 'p', verdict_status: 'VERIFIED', verdict_proof_ref: V }, verdict: 'VERIFIED', proofRef: V },
+    // The claim mismatches keep only what they compared.
+    { fields: { constraint_id: 'trust_gate.claims_status_mismatch', token_status: 'UNVERIFIABLE', result_status: 'VERIFIED', policy: 'p' }, verdict: 'VERIFIED', proofRef: null },
+    { fields: { constraint_id: 'trust_gate.claims_proof_mismatch', token_proof_hash: 'sha256:token', result_proof_ref: V, policy: 'p' }, verdict: null, proofRef: V },
+    { fields: { constraint_id: 'trust_gate.claims_query_mismatch', expected_query_hash: 'a', token_query_hash: 'b', policy: 'p' }, verdict: null, proofRef: null },
+    { fields: { constraint_id: 'trust_gate.diagnostic_snapshot_failed', policy: 'p' }, verdict: null, proofRef: null },
+    { fields: { constraint_id: 'api.attestation.signing_error', attestation_error: 'SIGNING_FAILURE', engine: 'code', verdict_status: 'VERIFIED', verdict_proof_ref: V }, verdict: 'VERIFIED', proofRef: V },
   ];
 
-  it('reads each refusal the server writes, with the verdict the verifier reached', () => {
-    for (const id of ids) {
-      const r = parseResult(blocked(refused(id)));
+  it('reads each refusal the server writes, from the fields it keeps for that refusal', () => {
+    for (const { fields, verdict, proofRef } of shapes) {
+      const r = parseResult(blocked(fields));
       expect(r.verdict).toBe('BLOCKED');
-      expect(r.attestationBlock).toEqual({ constraintId: id, verdict: 'VERIFIED', verdictStored: null, proofRef: 'sha256:reached' });
+      expect(r.attestationBlock).toEqual({ constraintId: fields.constraint_id, verdict, verdictStored: null, proofRef });
     }
   });
 
@@ -209,14 +212,16 @@ describe('the attestation check (qwed-verification #320)', () => {
     expect(parseResult(blocked(refused('trust_gate.some_new_reason'))).attestationBlock?.constraintId).toBe(
       'trust_gate.some_new_reason',
     );
-    // The snapshot refusal carries no verdict: it is still the trust gate's.
-    const r = parseResult(blocked({ constraint_id: 'trust_gate.diagnostic_snapshot_failed', policy: 'mandatory' }));
-    expect(r.attestationBlock).toEqual({
-      constraintId: 'trust_gate.diagnostic_snapshot_failed',
-      verdict: null,
-      verdictStored: null,
-      proofRef: null,
-    });
+  });
+
+  it('labels the verifier’s verdict: as read, as stored, or not recorded', () => {
+    const label = (fields: Record<string, unknown>) => {
+      const block = parseResult(blocked(fields)).attestationBlock;
+      return block ? attestationVerdictLabel(block) : null;
+    };
+    expect(label(refused('trust_gate.claims_missing'))).toBe('VERIFIED');
+    expect(label({ ...refused('trust_gate.claims_missing'), verdict_status: 'SAT' })).toBe('SAT (not a verdict the dashboard knows)');
+    expect(label({ constraint_id: 'trust_gate.claims_query_mismatch' })).toBe('not recorded');
   });
 
   it('leaves a result the verifier blocked alone', () => {

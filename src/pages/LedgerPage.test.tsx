@@ -47,7 +47,7 @@ describe('LedgerPage', () => {
     renderApp(<LedgerPage />);
     const row = await rowFor('def refund_total(items):');
     expect(within(row).getByText('BLOCKED')).toBeTruthy();
-    expect(within(row).getByText('Blocked by the attestation check; the verifier said VERIFIED.')).toBeTruthy();
+    expect(within(row).getByText('Blocked by the attestation check. The verifier’s verdict: VERIFIED.')).toBeTruthy();
     // A result the verifier blocked has no such note.
     const own = await rowFor('Supplier [NAME] is registered in Germany');
     expect(within(own).queryByText(/attestation check/)).toBeNull();

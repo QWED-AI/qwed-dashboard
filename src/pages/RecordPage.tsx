@@ -8,7 +8,7 @@ import { RefreshError } from '../components/RefreshError';
 import { Shell } from '../components/Shell';
 import { VerdictChip } from '../components/VerdictChip';
 import { formatUtcLong } from '../lib/format';
-import { toRecord, type AttestationBlock, type ParsedResult } from '../lib/result';
+import { attestationVerdictLabel, toRecord, type AttestationBlock, type ParsedResult } from '../lib/result';
 import { describeError, useAuthedQuery } from '../lib/useAuthedQuery';
 
 // Laid out as the RecordCore wireframe: what was checked and how it came
@@ -77,25 +77,23 @@ const NEXT: Record<Verdict | 'none', { title: string; text: string }> = {
 /** For a BLOCKED result the attestation check made: the request itself may be fine. */
 const NEXT_ATTESTATION = {
   title: 'Look at the server’s attestation',
-  text: 'The verifier’s check ran, but its result was not signed, or its attestation did not match the result. That points at the server’s signing key or trust settings, not at the request. Check the server and its logs, then send the request again. A new request gets a new record; this one stays as it is.',
+  text: 'The verifier’s check ran, but a step of the server’s attestation check failed: signing the result, or checking its attestation. The reason names the step. It points at the server, not at the request: check its signing key, trust settings and logs, then send the request again. A new request gets a new record; this one stays as it is.',
 };
 
 /** Why a BLOCKED result is blocked, when the attestation check, not the verifier, blocked it. */
 function AttestationCard({ block }: Readonly<{ block: AttestationBlock }>) {
-  let reached = 'not recorded';
-  if (block.verdict) reached = block.verdict;
-  else if (block.verdictStored) reached = `${block.verdictStored} (not a verdict the dashboard knows)`;
   return (
     <section className="card" aria-labelledby="attestation-title">
       <h2 id="attestation-title">Blocked by the attestation check</h2>
       <p className="sub">
-        The server signs every VERIFIED result and blocks the ones it cannot sign or whose attestation does not check
-        out. This record is BLOCKED for that reason; what the verifier reached was not admitted.
+        The server signs every VERIFIED result and checks its attestation; when a step of that fails, it stores BLOCKED
+        instead. This record is BLOCKED for that reason. What the verifier reached, where the server kept it, was not
+        admitted.
       </p>
       <dl className="kv">
         <dt>Verifier’s verdict</dt>
         <dd className="mono" style={{ fontSize: 12 }}>
-          {reached}
+          {attestationVerdictLabel(block)}
         </dd>
         <dt>Its proof_ref</dt>
         <dd className="mono" style={{ fontSize: 11.5, overflowWrap: 'anywhere' }}>

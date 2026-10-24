@@ -150,6 +150,28 @@ describe('RecordPage', () => {
       expect(card.getByText('trust_gate.diagnostic_snapshot_failed')).toBeTruthy();
     });
 
+    it('shows the proof_ref a proof mismatch keeps, with no verdict', async () => {
+      vi.spyOn(demoApi, 'getLog').mockResolvedValue({
+        ...olderServerRow,
+        verification_result: JSON.stringify({
+          status: 'BLOCKED',
+          agent_message: 'Verification blocked',
+          developer_fields: {
+            constraint_id: 'trust_gate.claims_proof_mismatch',
+            token_proof_hash: 'sha256:token',
+            result_proof_ref: 'sha256:verifier',
+            policy: 'mandatory',
+          },
+          proof_ref: null,
+        }),
+        verdict: 'BLOCKED',
+      });
+      renderApp(<App />, { route: '/records/1' });
+      const card = await region('Blocked by the attestation check');
+      expect(card.getByText('sha256:verifier')).toBeTruthy();
+      expect(card.getByText('not recorded')).toBeTruthy();
+    });
+
     it('says a VERIFIED result with no proof_ref did not record one', async () => {
       vi.spyOn(demoApi, 'getLog').mockResolvedValue(olderServerRow); // VERIFIED, no proof_ref
       renderApp(<App />, { route: '/records/1' });
