@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useSearchParams } from 'react-router';
 import type { Verdict } from '../api/types';
+import { useSession } from '../auth/session';
 import { Icon } from '../components/Icon';
 import { RecordTable } from '../components/RecordTable';
 import { RefreshError } from '../components/RefreshError';
@@ -38,6 +39,10 @@ export function LedgerPage() {
   const q = params.get('q') ?? '';
   const domain = params.get('verifier') ?? 'all';
 
+  const { user } = useSession();
+  // Export is offered to owners and admins only (#32). The file holds the rows
+  // the ledger already shows, so this limits the button, not what a member sees.
+  const canExport = user?.role === 'owner' || user?.role === 'admin';
   const logs = useLedgerPages(LIMIT);
   const records = useMemo(() => (logs.data?.pages ?? []).flatMap((p) => p.logs).map(toRecord), [logs.data]);
   // A server before #484 sends no cursor: a full page may hide older rows.
@@ -153,20 +158,28 @@ export function LedgerPage() {
                 ))}
               </select>
             </label>
-            <button
-              type="button"
-              className="btn btn-sm"
-              disabled={shown.length === 0}
-              aria-describedby="export-note"
-              onClick={() => downloadLedgerCsv(shown)}
-            >
-              Export CSV
-            </button>
+            {canExport && (
+              <button
+                type="button"
+                className="btn btn-sm"
+                disabled={shown.length === 0}
+                aria-describedby="export-note"
+                onClick={() => downloadLedgerCsv(shown)}
+              >
+                Export CSV
+              </button>
+            )}
           </div>
-          <p id="export-note" className="hint" style={{ margin: '0 24px 12px' }}>
-            The CSV holds the {shown.length} records shown, with the stored verdict and admission as the ledger shows
-            them. It is built in your browser from the loaded records, not exported by the server.
-          </p>
+          {canExport ? (
+            <p id="export-note" className="hint" style={{ margin: '0 24px 12px' }}>
+              The CSV holds the {shown.length} records shown, with the stored verdict and admission as the ledger shows
+              them. It is built in your browser from the loaded records, not exported by the server.
+            </p>
+          ) : (
+            <p className="hint" style={{ margin: '0 24px 12px' }}>
+              An owner or admin of your organisation can export these records as CSV.
+            </p>
+          )}
 
           <div className="table-wrap" style={{ borderTop: '1px solid var(--line)' }}>
             <RecordTable records={shown} />

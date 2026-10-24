@@ -138,6 +138,23 @@ describe('LedgerPage', () => {
       await user.type(screen.getByRole('searchbox'), 'no record says this');
       expect((screen.getByRole('button', { name: 'Export CSV' }) as HTMLButtonElement).disabled).toBe(true);
     });
+
+    it('is offered to an admin as to an owner', async () => {
+      renderApp(<LedgerPage />, { role: 'admin' });
+      await rowFor('(x + 1)**2 = x**2 + 2*x + 1');
+      expect(screen.getByRole('button', { name: 'Export CSV' })).toBeTruthy();
+    });
+
+    it('is not offered to a member or a viewer, who are told who can export', async () => {
+      for (const role of ['member', 'viewer']) {
+        renderApp(<LedgerPage />, { role });
+        await rowFor('(x + 1)**2 = x**2 + 2*x + 1');
+        expect(screen.queryByRole('button', { name: 'Export CSV' })).toBeNull();
+        expect(screen.queryByText(/The CSV holds/)).toBeNull();
+        expect(screen.getByText('An owner or admin of your organisation can export these records as CSV.')).toBeTruthy();
+        cleanup();
+      }
+    });
   });
 
   it('names the column of each small cell, for the stacked rows on a phone', async () => {
