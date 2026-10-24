@@ -144,11 +144,12 @@ export function HomePage() {
 
       {logs.isRefetchError && <RefreshError what="The records" error={logs.error} onRetry={() => logs.refetch()} />}
 
-      {/* One tree for a failed load and for data, so the cards that ask the
-          server for themselves stay mounted, with their results, when a retry
-          brings the records. On data, not on success: a failed refresh keeps
-          what loaded. */}
-      {(logs.data || logs.isError) && (
+      {/* One tree once the records have been asked for, failed or not, so the
+          cards that ask the server for themselves stay mounted, with their
+          results, through a retry: a retry after a failed first load puts the
+          query back to pending, with no error and no data, until it answers.
+          On data, not on success: a failed refresh keeps what loaded. */}
+      {(logs.data || logs.isFetched) && (
         <div className="overview">
           {logs.data && (
             <>
