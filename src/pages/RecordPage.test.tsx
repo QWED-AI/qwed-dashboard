@@ -7,7 +7,7 @@ import { Link } from 'react-router';
 import { App } from '../App';
 import { demoApi } from '../api/demo';
 import { ApiError } from '../api/http';
-import type { AuditLog } from '../api/types';
+import type { AuditLog, Verdict } from '../api/types';
 import { CALLER_SUPPLIED_NOTICE } from '../lib/result';
 import { DID, keyPair, signAttestation } from '../test/attest';
 import { renderApp } from '../test/render';
@@ -118,6 +118,25 @@ describe('RecordPage', () => {
       const why = await region('Why');
       expect(await why.findByText(`The server’s notice: ${CALLER_SUPPLIED_NOTICE}`)).toBeTruthy();
       expect(why.getByText('The total holds.').tagName).toBe('BDI');
+    });
+
+    it('does not send a reader of a Verification Context record to the verifier’s reason, whatever its verdict', async () => {
+      for (const verdict of ['VERIFIED', 'UNVERIFIABLE', 'BLOCKED']) {
+        vi.spyOn(demoApi, 'getLog').mockResolvedValue({
+          ...olderServerRow,
+          verification_result: JSON.stringify({
+            spec_version: '1.0',
+            verdict,
+            context: { evidence: { evidence: { agent_message: CALLER_SUPPLIED_NOTICE } } },
+          }),
+          verdict: verdict as Verdict,
+        });
+        renderApp(<App />, { route: '/records/1' });
+        const next = await region('Built from the caller’s diagnostic');
+        expect(next.getByText(/neither says whether the claim holds/)).toBeTruthy();
+        expect(screen.queryByRole('heading', { name: 'Read what the verifier said' })).toBeNull();
+        cleanup();
+      }
     });
 
     it('starts the checks afresh on another record, even when the page stays open', async () => {

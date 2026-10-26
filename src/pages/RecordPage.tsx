@@ -75,6 +75,16 @@ const NEXT: Record<Verdict | 'none', { title: string; text: string }> = {
   },
 };
 
+/**
+ * For a Verification Context record: built from a diagnostic its caller sent
+ * (POST /verification-context/from-diagnostic), so no message in it is the
+ * verifier's, whatever its verdict.
+ */
+const NEXT_CALLER_DIAGNOSTIC = {
+  title: 'Built from the caller’s diagnostic',
+  text: 'This record was built from a diagnostic its caller sent. Its messages are the server’s notice and the caller’s, so neither says whether the claim holds. To have QWED check the claim, send it to a verify route. A new request gets a new record; this one stays as it is.',
+};
+
 /** For a BLOCKED result the attestation check made: the request itself may be fine. */
 const NEXT_ATTESTATION = {
   title: 'Look at the server’s attestation',
@@ -376,7 +386,9 @@ export function RecordPage() {
   const r = toRecord(data);
   const { result } = r;
   const multiline = r.query.includes('\n');
-  const next = result.attestationBlock ? NEXT_ATTESTATION : NEXT[result.verdict ?? 'none'];
+  let next = NEXT[result.verdict ?? 'none'];
+  if (result.attestationBlock) next = NEXT_ATTESTATION;
+  else if (result.shape === 'verification-context') next = NEXT_CALLER_DIAGNOSTIC;
   const noKey = data.api_key_id === null || data.api_key_id === undefined;
 
   return (
