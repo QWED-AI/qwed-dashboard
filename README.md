@@ -32,6 +32,22 @@ Then open <http://localhost:5173>. During development, requests to `/api` go to 
 
 To look around without a server, choose **Explore with sample data** on the sign-in page. Sample data stays in your browser.
 
+### First sign-in on a new server
+
+A new QWED server has no user, and the dashboard can only sign in. Create the first owner with the server's sign-up route:
+
+```bash
+curl -X POST http://localhost:8000/auth/signup \
+  -H "Content-Type: application/json" \
+  -d '{"email": "owner@example.com", "password": "choose-a-long-password", "organization_name": "Example Org"}'
+```
+
+- Each sign-up creates a new organisation, with you as its owner. The email and the organisation name must not be taken already.
+- Sign in to the dashboard with that email and password, then create an API key on the **API keys** screen.
+- Send your verify requests with that key. The dashboard shows your organisation's records only, so records made with another organisation's key do not appear.
+
+`qwed init` creates an organisation of its own, with an email and password it does not show you, and hands you only an API key. Records made with that key belong to that organisation, and you cannot sign in to it here. Use a key created in the dashboard instead.
+
 ### Build
 
 ```bash
