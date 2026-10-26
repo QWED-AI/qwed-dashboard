@@ -23,6 +23,8 @@ const row = (id: string, extra: Partial<AuditLog> = {}): AuditLog => ({
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  // restoreAllMocks does not undo stubGlobal: a failed test must not leave its fetch behind.
+  vi.unstubAllGlobals();
 });
 
 /** The table row whose request link has this text. */
@@ -283,7 +285,6 @@ describe('LedgerPage', () => {
       screen.getByText('The QWED server could not be reached. The proxy in front of it answered 502 Bad Gateway.'),
     ).toBeTruthy();
     expect(screen.queryByText(/The server returned 502/)).toBeNull();
-    vi.unstubAllGlobals();
   });
 
   it('keeps the records and warns when a refresh fails', async () => {
