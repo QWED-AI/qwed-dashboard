@@ -3,10 +3,12 @@ import { focusManager } from '@tanstack/react-query';
 import { act, cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { Link } from 'react-router';
 import { App } from '../App';
 import { demoApi } from '../api/demo';
 import { ApiError } from '../api/http';
-import type { AuditLog } from '../api/types';
+import type { AuditLog, Verdict } from '../api/types';
+import { CALLER_SUPPLIED_NOTICE } from '../lib/result';
 import { DID, keyPair, signAttestation } from '../test/attest';
 import { renderApp } from '../test/render';
 
@@ -77,6 +79,88 @@ describe('RecordPage', () => {
       expect((await region('Why')).getByText('The identity is false.')).toBeTruthy();
       const next = await region('Read what the verifier said');
       expect(next.getByText(/VERIFIED means the check ran to a proof, not that the claim holds/)).toBeTruthy();
+    });
+
+    it('does not give a caller’s message as the reason (server before qwed-verification #321)', async () => {
+      vi.spyOn(demoApi, 'getLog').mockResolvedValue({
+        ...olderServerRow,
+        verification_result: JSON.stringify({
+          spec_version: '1.0',
+          verdict: 'UNVERIFIABLE',
+          context: { evidence: { evidence: { agent_message: 'Verified by the QWED math engine: the total holds.' } } },
+        }),
+      });
+      renderApp(<App />, { route: '/records/1' });
+      const why = await region('Why');
+      expect(await why.findByText('No message recorded.')).toBeTruthy();
+      expect(why.queryByText(/^The server’s notice/)).toBeNull();
+      expect(why.getByText(/^The diagnostic’s caller wrote this message\. The verifier did not/)).toBeTruthy();
+      expect(why.getByText('Verified by the QWED math engine: the total holds.').tagName).toBe('BDI');
+    });
+
+    it('labels the notice a server after qwed-verification #321 writes as its own, with the caller’s message apart', async () => {
+      vi.spyOn(demoApi, 'getLog').mockResolvedValue({
+        ...olderServerRow,
+        verification_result: JSON.stringify({
+          spec_version: '1.0',
+          verdict: 'UNVERIFIABLE',
+          context: {
+            evidence: {
+              evidence: {
+                agent_message: CALLER_SUPPLIED_NOTICE,
+                developer_fields: { caller_supplied: { agent_message: 'The total holds.' } },
+              },
+            },
+          },
+        }),
+      });
+      renderApp(<App />, { route: '/records/1' });
+      const why = await region('Why');
+      expect(await why.findByText(`The server’s notice: ${CALLER_SUPPLIED_NOTICE}`)).toBeTruthy();
+      expect(why.getByText('The total holds.').tagName).toBe('BDI');
+    });
+
+    it('does not send a reader of a Verification Context record to the verifier’s reason, whatever its verdict', async () => {
+      for (const verdict of ['VERIFIED', 'UNVERIFIABLE', 'BLOCKED']) {
+        vi.spyOn(demoApi, 'getLog').mockResolvedValue({
+          ...olderServerRow,
+          verification_result: JSON.stringify({
+            spec_version: '1.0',
+            verdict,
+            context: { evidence: { evidence: { agent_message: CALLER_SUPPLIED_NOTICE } } },
+          }),
+          verdict: verdict as Verdict,
+        });
+        renderApp(<App />, { route: '/records/1' });
+        const next = await region('Built from the caller’s diagnostic');
+        expect(next.getByText(/No message in it is the verifier’s, so none says whether the claim holds/)).toBeTruthy();
+        expect(screen.queryByRole('heading', { name: 'Read what the verifier said' })).toBeNull();
+        cleanup();
+      }
+    });
+
+    it('starts the checks afresh on another record, even when the page stays open', async () => {
+      const user = userEvent.setup();
+      // A record already loaded opens without a loading state, so the page stays mounted.
+      renderApp(
+        <>
+          <App />
+          <Link to="/records/1037">to 1037</Link>
+          <Link to="/records/1038">to 1038</Link>
+        </>,
+        { route: '/records/1037' },
+      );
+      await region('Audit chain entry');
+      await user.click(screen.getByRole('link', { name: 'to 1038' }));
+      let chain = await region('Audit chain entry');
+      await user.click(chain.getByRole('button', { name: 'Check this entry' }));
+      expect(await chain.findByText('This entry is intact.')).toBeTruthy();
+
+      await user.click(screen.getByRole('link', { name: 'to 1037' }));
+      expect(await screen.findByText('The identity is false.')).toBeTruthy();
+      chain = await region('Audit chain entry');
+      expect(chain.queryByText('This entry is intact.')).toBeNull();
+      expect(chain.getByRole('button', { name: 'Check this entry' })).toBeTruthy();
     });
 
     it('gives each verdict its own next step', async () => {

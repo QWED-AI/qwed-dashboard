@@ -9,7 +9,7 @@ import { RefreshError } from '../components/RefreshError';
 import { Shell } from '../components/Shell';
 import { VerdictChip } from '../components/VerdictChip';
 import { formatUtcLong } from '../lib/format';
-import { attestationVerdictLabel, toRecord, type AttestationBlock, type ParsedResult } from '../lib/result';
+import { attestationVerdictLabel, isServerNotice, toRecord, type AttestationBlock, type ParsedResult } from '../lib/result';
 import { describeError, useAuthedQuery } from '../lib/useAuthedQuery';
 
 // Laid out as the RecordCore wireframe: what was checked and how it came
@@ -73,6 +73,16 @@ const NEXT: Record<Verdict | 'none', { title: string; text: string }> = {
     title: 'No readable verdict',
     text: 'The stored result has no verdict the dashboard can read. The stored result tab shows it exactly as the server keeps it.',
   },
+};
+
+/**
+ * For a Verification Context record: built from a diagnostic its caller sent
+ * (POST /verification-context/from-diagnostic), so no message in it is the
+ * verifier's, whatever its verdict.
+ */
+const NEXT_CALLER_DIAGNOSTIC = {
+  title: 'Built from the caller’s diagnostic',
+  text: 'This record was built from a diagnostic its caller sent. No message in it is the verifier’s, so none says whether the claim holds. To have QWED check the claim, send it to a verify route. A new request gets a new record; this one stays as it is.',
 };
 
 /** For a BLOCKED result the attestation check made: the request itself may be fine. */
@@ -376,7 +386,9 @@ export function RecordPage() {
   const r = toRecord(data);
   const { result } = r;
   const multiline = r.query.includes('\n');
-  const next = result.attestationBlock ? NEXT_ATTESTATION : NEXT[result.verdict ?? 'none'];
+  let next = NEXT[result.verdict ?? 'none'];
+  if (result.attestationBlock) next = NEXT_ATTESTATION;
+  else if (result.shape === 'verification-context') next = NEXT_CALLER_DIAGNOSTIC;
   const noKey = data.api_key_id === null || data.api_key_id === undefined;
 
   return (
@@ -465,8 +477,20 @@ export function RecordPage() {
               Why
             </h2>
             <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: 'var(--ink)' }}>
+              {isServerNotice(result) && 'The server’s notice: '}
               {result.agentMessage ?? 'No message recorded.'}
             </p>
+            {result.callerMessage !== null && (
+              <div className="note">
+                <p style={{ margin: 0 }}>
+                  The diagnostic’s caller wrote this message. The verifier did not, so it is not the reason for the
+                  verdict:
+                </p>
+                <p style={{ margin: '6px 0 0', overflowWrap: 'anywhere' }}>
+                  <bdi>{result.callerMessage}</bdi>
+                </p>
+              </div>
+            )}
             {result.error && <p className="note">{result.error}</p>}
           </section>
 
@@ -479,8 +503,9 @@ export function RecordPage() {
 
           <Checks result={result} />
           {/* The server signs VERIFIED results, so a VERIFIED one without a signature says so (#39). */}
-          {(result.attestation || result.verdict === 'VERIFIED') && <AttestationCheck record={r} />}
-          <ChainCheck logId={r.id} />
+          {/* Keyed by the record, so a check run on one record never shows on another. */}
+          {(result.attestation || result.verdict === 'VERIFIED') && <AttestationCheck key={r.id} record={r} />}
+          <ChainCheck key={r.id} logId={r.id} />
         </aside>
       </div>
     </Shell>

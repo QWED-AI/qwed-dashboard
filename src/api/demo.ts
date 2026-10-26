@@ -1,4 +1,4 @@
-import { parseResult } from '../lib/result';
+import { CALLER_SUPPLIED_NOTICE, parseResult } from '../lib/result';
 import { ApiError, type QwedApi } from './http';
 import type { ActivitySummary, ApiKeyCreated, ApiKeyItem, AuditLog, EntryCheck, Jwks, SecurityEvent, TrailCheck, User } from './types';
 
@@ -29,7 +29,16 @@ const contextDocument = JSON.stringify({
     interpretation: { theory: 'math verification' },
     proof: { verifier: 'math', verifier_version: '7.3.0' },
     evidence: {
-      evidence: { status: 'VERIFIED', agent_message: 'The stated total matches.' },
+      // As a server after qwed-verification #321 stores it: its own notice,
+      // with the caller's diagnostic kept apart.
+      evidence: {
+        status: 'VERIFIED',
+        agent_message: CALLER_SUPPLIED_NOTICE,
+        developer_fields: {
+          constraint_id: 'verification_context.caller_supplied_diagnostic',
+          caller_supplied: { agent_message: 'The stated total matches.', developer_fields: {} },
+        },
+      },
       proof_ref: 'sha256:sample-41aa-3f90',
     },
     decision: { admission: 'ADMIT' },

@@ -29,7 +29,7 @@ function EventRow({ event }: Readonly<{ event: SecurityEvent }>) {
       </td>
       <td>
         <span className="row-link" style={{ whiteSpace: 'normal' }}>
-          {event.query}
+          <bdi>{event.query}</bdi>
         </span>
         <span className="row-note" style={{ whiteSpace: 'normal' }}>
           {event.reason}

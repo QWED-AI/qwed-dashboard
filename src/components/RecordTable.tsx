@@ -1,6 +1,6 @@
 import { Link } from 'react-router';
 import { formatUtc } from '../lib/format';
-import { attestationVerdictLabel, type LedgerRecord } from '../lib/result';
+import { attestationVerdictLabel, isServerNotice, type LedgerRecord } from '../lib/result';
 import { VerdictChip } from './VerdictChip';
 
 /** Records as the ledger lists them, newest first. On a phone each row stacks (see .tbl-stack). */
@@ -27,14 +27,20 @@ export function RecordTable({ records }: Readonly<{ records: readonly LedgerReco
             </td>
             <td>
               <Link className="row-link" to={`/records/${encodeURIComponent(r.id)}`}>
-                {r.query.split('\n')[0]}
+                <bdi>{r.query.split('\n')[0]}</bdi>
               </Link>
               {/* VERIFIED means the check ran to a proof, not that the claim
                   holds: "Identity is false" is VERIFIED too. The message says
                   which, so it sits next to the verdict. */}
               <span className={r.result.agentMessage === null ? 'row-note none' : 'row-note'}>
+                {isServerNotice(r.result) && 'The server’s notice: '}
                 {r.result.agentMessage ?? 'No message recorded'}
               </span>
+              {r.result.callerMessage !== null && (
+                <span className="row-note">
+                  The caller’s message, not the verifier’s: <bdi>{r.result.callerMessage}</bdi>
+                </span>
+              )}
               {r.result.attestationBlock && (
                 <span className="row-note">
                   Blocked by the attestation check. The verifier’s verdict:{' '}

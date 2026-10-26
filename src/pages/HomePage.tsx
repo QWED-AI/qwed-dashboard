@@ -20,7 +20,7 @@ import {
   type Period,
   type Range,
 } from '../lib/overview';
-import { toRecord, type LedgerRecord } from '../lib/result';
+import { isServerNotice, toRecord, type LedgerRecord } from '../lib/result';
 import { securityEventsError, typeLabel } from '../lib/securityEvents';
 import { describeError, useAuthedQuery, useSecurityEventPages } from '../lib/useAuthedQuery';
 
@@ -33,7 +33,7 @@ interface Attention {
   id: string;
   dot: string;
   title: string;
-  detail: string;
+  detail: ReactNode;
   action: string;
   to: string;
 }
@@ -45,10 +45,39 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
 /** Keys with no use recorded: never used since #486, or a server that does not record use. */
 const unusedKeys = (keys: ApiKeyItem[]) => keys.filter((k) => !k.last_used_at).length;
 
-/** One line about the newest record of a group: its request and what the verifier said. */
-function latest(r: LedgerRecord): string {
-  const said = r.result.agentMessage ?? r.result.error ?? 'No message recorded';
-  return `Newest: ${r.query.split('\n')[0]} (${said}) at ${formatUtc(r.createdAt)} UTC.`;
+/**
+ * The newest record of a group: its request, what was said about it, and
+ * when. Each is on a line of its own under a label that says who wrote it:
+ * - the request and a caller's message are the caller's, isolated in a <bdi>;
+ * - a Verification Context document's message is the server's notice, not
+ *   the verifier's (only a caller-built diagnostic stores one);
+ * - an error is the dashboard's own account of why the result cannot be read.
+ */
+function latest(r: LedgerRecord): ReactNode {
+  const { agentMessage, callerMessage, error } = r.result;
+  let said: ReactNode = <span>No message from the verifier recorded</span>;
+  if (agentMessage !== null) {
+    said = (
+      <span>
+        {isServerNotice(r.result) ? 'The server’s notice' : 'The verifier said'}: {agentMessage}
+      </span>
+    );
+  }
+  return (
+    <>
+      <span>
+        Newest request: <bdi>{r.query.split('\n')[0]}</bdi>
+      </span>
+      {said}
+      {callerMessage !== null && (
+        <span>
+          The caller’s message, not the verifier’s: <bdi>{callerMessage}</bdi>
+        </span>
+      )}
+      {error !== null && <span>The dashboard notes: {error}</span>}
+      <span>Received {formatUtc(r.createdAt)} UTC</span>
+    </>
+  );
 }
 
 // Groups by what the server stored. A VERIFIED record is listed only when the
@@ -361,8 +390,12 @@ function SecurityCard() {
             {formatUtc(newest.timestamp)}
           </span>
         </div>
+        {/* The request is the caller's, the reason the server's: apart, labelled. */}
         <p className="hint" style={{ margin: 0, overflowWrap: 'anywhere' }}>
-          {newest.query} · {newest.reason}
+          Request: <bdi>{newest.query}</bdi>
+        </p>
+        <p className="hint" style={{ margin: 0, overflowWrap: 'anywhere' }}>
+          Reason: {newest.reason}
         </p>
       </div>
     );
@@ -426,7 +459,7 @@ function Items({ items }: Readonly<{ items: Attention[] }>) {
           <span className={`dot ${it.dot}`} aria-hidden="true" />
           <div className="attn-text">
             <strong>{it.title}</strong>
-            <span>{it.detail}</span>
+            {typeof it.detail === 'string' ? <span>{it.detail}</span> : it.detail}
           </div>
           <Link className="btn btn-sm" to={it.to} aria-label={`${it.action}: ${it.title}`}>
             {it.action}
