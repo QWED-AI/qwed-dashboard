@@ -32,6 +32,29 @@ Then open <http://localhost:5173>. During development, requests to `/api` go to 
 
 To look around without a server, choose **Explore with sample data** on the sign-in page. Sample data stays in your browser.
 
+### First sign-in on a new server
+
+A new QWED server has no user, and the dashboard can only sign in. Create the first owner with the server's sign-up route (`POST /auth/signup`). The example is for Bash; set `QWED_URL` to the server `QWED_API_URL` points at:
+
+```bash
+QWED_URL=http://localhost:8000   # the server QWED_API_URL points at
+python3 -c '
+import getpass, json, sys
+ask = lambda prompt: (sys.stderr.write(prompt), input())[1]
+email = ask("Owner email: ")
+org = ask("Organisation name: ")
+print(json.dumps({"email": email, "password": getpass.getpass("Owner password: "), "organization_name": org}))
+' | curl -sS -X POST "$QWED_URL/auth/signup" -H "Content-Type: application/json" --data-binary @-
+```
+
+It asks for the owner's email, the organisation's name and a password. The password is not echoed. The request body goes to `curl` on standard input, so the password stays out of your shell history and the process list. On Windows, run it in Git Bash or WSL, not in PowerShell or Command Prompt; in Git Bash, use `python` in place of `python3`.
+
+- Each sign-up creates a new organisation, with you as its owner. The email and the organisation name must not be taken already.
+- Sign in to the dashboard with that email and password, then create an API key on the **API keys** screen.
+- Send your verify requests with that key. The dashboard shows your organisation's records only, so records made with another organisation's key do not appear.
+
+`qwed init` creates an organisation of its own, with an email and password it does not show you, and hands you only an API key. Records made with that key belong to that organisation, and you cannot sign in to it here. Use a key created in the dashboard instead.
+
 ### Build
 
 ```bash
