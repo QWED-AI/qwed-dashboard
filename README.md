@@ -34,13 +34,20 @@ To look around without a server, choose **Explore with sample data** on the sign
 
 ### First sign-in on a new server
 
-A new QWED server has no user, and the dashboard can only sign in. Create the first owner with the server's sign-up route:
+A new QWED server has no user, and the dashboard can only sign in. Create the first owner with the server's sign-up route (`POST /auth/signup`). Set `QWED_URL` to the server `QWED_API_URL` points at:
 
 ```bash
-curl -X POST http://localhost:8000/auth/signup \
-  -H "Content-Type: application/json" \
-  -d '{"email": "owner@example.com", "password": "choose-a-long-password", "organization_name": "Example Org"}'
+QWED_URL=http://localhost:8000   # the server QWED_API_URL points at
+python3 -c '
+import getpass, json, sys
+ask = lambda prompt: (sys.stderr.write(prompt), input())[1]
+email = ask("Owner email: ")
+org = ask("Organisation name: ")
+print(json.dumps({"email": email, "password": getpass.getpass("Owner password: "), "organization_name": org}))
+' | curl -sS -X POST "$QWED_URL/auth/signup" -H "Content-Type: application/json" --data-binary @-
 ```
+
+It asks for the owner's email, the organisation's name and a password. The password is not echoed. The request body goes to `curl` on standard input, so the password stays out of your shell history and the process list. On Windows, use `python` in place of `python3`.
 
 - Each sign-up creates a new organisation, with you as its owner. The email and the organisation name must not be taken already.
 - Sign in to the dashboard with that email and password, then create an API key on the **API keys** screen.
