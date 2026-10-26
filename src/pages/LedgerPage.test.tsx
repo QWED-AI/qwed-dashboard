@@ -167,6 +167,16 @@ describe('LedgerPage', () => {
       expect(screen.queryByText(/the range the Overview counted/)).toBeNull();
     });
 
+    it('keeps the chosen verifier in the list when the range holds none of its records', async () => {
+      vi.spyOn(demoApi, 'listLogs').mockResolvedValue({
+        logs: [...logs, row('0', { engine_used: 'LOGIC', created_at: '2026-10-19T09:00:00' })],
+        nextBefore: null,
+      });
+      renderApp(<LedgerPage />, { route: `/?verifier=LOGIC&${range}` });
+      expect(await screen.findByText('No records match these filters.')).toBeTruthy();
+      expect((screen.getByRole('combobox', { name: 'Verifier' }) as HTMLSelectElement).value).toBe('LOGIC');
+    });
+
     it('ignores a range it cannot read', async () => {
       vi.spyOn(demoApi, 'listLogs').mockResolvedValue({ logs, nextBefore: null });
       renderApp(<LedgerPage />, { route: '/?from=yesterday&to=2026-10-21T11:00:00.000Z' });

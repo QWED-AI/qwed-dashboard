@@ -1,5 +1,5 @@
 import type { Admission, Verdict } from '../api/types';
-import { formatUtcDay, formatUtcHour, parseUtc } from './format';
+import { formatUtcDay, formatUtcHour, formatUtcTime, parseUtc } from './format';
 import type { LedgerRecord } from './result';
 
 // The overview groups what the server stored, as the ledger does: by the
@@ -123,12 +123,15 @@ export function periodParams(p: Period): string {
   return `from=${new Date(p.start).toISOString()}&to=${new Date(p.end).toISOString()}`;
 }
 
-/** The period in the ledger's address, or null when either end is missing or unreadable. */
+/**
+ * The period in the ledger's address, or null when either end is missing or
+ * unreadable. A time with no offset is read as UTC, as record times are.
+ */
 export function readPeriod(from: string | null, to: string | null): Period | null {
   if (!from || !to) return null;
-  const start = Date.parse(from);
-  const end = Date.parse(to);
-  return Number.isFinite(start) && Number.isFinite(end) && start < end ? { start, end } : null;
+  const start = parseUtc(from)?.getTime();
+  const end = parseUtc(to)?.getTime();
+  return start !== undefined && end !== undefined && start < end ? { start, end } : null;
 }
 
 /** Whether a record was received in the period. A record with no readable time is in none. */
@@ -137,9 +140,9 @@ export function inPeriod(r: LedgerRecord, p: Period): boolean {
   return t !== null && t >= p.start && t < p.end;
 }
 
-/** "19 Oct, 10:00 to 20 Oct, 10:00 UTC" */
+/** "19 Oct, 10:00 to 20 Oct, 10:00 UTC", each end as precise as it is. */
 export function periodName(p: Period): string {
-  return `${formatUtcDay(p.start)}, ${formatUtcHour(p.start)} to ${formatUtcDay(p.end)}, ${formatUtcHour(p.end)} UTC`;
+  return `${formatUtcDay(p.start)}, ${formatUtcTime(p.start)} to ${formatUtcDay(p.end)}, ${formatUtcTime(p.end)} UTC`;
 }
 
 /** The short label under a column: "09:00" or "20 Oct". */

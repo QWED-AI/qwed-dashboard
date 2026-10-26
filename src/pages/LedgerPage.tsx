@@ -76,10 +76,13 @@ export function LedgerPage() {
   // A server before #484 sends no cursor: a full page may hide older rows.
   const lastPage = logs.data?.pages.at(-1);
   const noPaging = lastPage !== undefined && lastPage.nextBefore === undefined && lastPage.logs.length >= LIMIT;
-  const domains = useMemo(
-    () => [...new Set(inRange.map((r) => r.domain))].sort((a, b) => a.localeCompare(b)),
-    [inRange],
-  );
+  // The chosen verifier stays an option when the range holds none of its
+  // records, so the select still shows the filter that empties the table.
+  const domains = useMemo(() => {
+    const known = new Set(inRange.map((r) => r.domain));
+    if (domain !== 'all') known.add(domain);
+    return [...known].sort((a, b) => a.localeCompare(b));
+  }, [inRange, domain]);
 
   const shown = inRange.filter(
     (r) =>

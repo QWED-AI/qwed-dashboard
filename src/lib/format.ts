@@ -33,6 +33,18 @@ export function formatUtcHour(ms: number): string {
   return `${pad(new Date(ms).getUTCHours())}:00`;
 }
 
+/**
+ * "10:30", the UTC time of a time in milliseconds, with its seconds
+ * ("10:30:15") or milliseconds ("10:30:15.250") only when it has them.
+ */
+export function formatUtcTime(ms: number): string {
+  const d = new Date(ms);
+  const minutes = `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
+  const millis = d.getUTCMilliseconds();
+  if (millis) return `${minutes}:${pad(d.getUTCSeconds())}.${String(millis).padStart(3, '0')}`;
+  return d.getUTCSeconds() ? `${minutes}:${pad(d.getUTCSeconds())}` : minutes;
+}
+
 /** "sha256:86a6c8a8…7c21" */
 export function shortHash(value: string, head = 15, tail = 4): string {
   return value.length > head + tail + 1 ? `${value.slice(0, head)}…${value.slice(-tail)}` : value;

@@ -62,7 +62,8 @@ function latest(r: LedgerRecord): string {
 // readable time; then it counts every loaded record.
 function needsAttention(records: LedgerRecord[], activeKeys: number | null, period: Period | null): Attention[] {
   const items: Attention[] = [];
-  const ledger = (filters: string) => `/ledger?${filters}${period ? `&${periodParams(period)}` : ''}`;
+  const range = period ? `&${periodParams(period)}` : '';
+  const ledger = (filters: string) => `/ledger?${filters}${range}`;
   const groups: { verdict: Verdict | null; facet: string; one: string; many: string }[] = [
     { verdict: 'BLOCKED', facet: 'BLOCKED', one: 'BLOCKED record', many: 'BLOCKED records' },
     { verdict: 'UNVERIFIABLE', facet: 'UNVERIFIABLE', one: 'UNVERIFIABLE record', many: 'UNVERIFIABLE records' },
