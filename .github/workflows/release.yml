@@ -27,10 +27,12 @@ jobs:
         with:
           persist-credentials: false
 
+      # No npm cache: a tag run can restore entries saved by other branches,
+      # and this job can write releases.
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
-          cache: npm
+          package-manager-cache: false
 
       # The tag names the version; package.json must say the same.
       - name: Check the tag against package.json
