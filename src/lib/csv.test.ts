@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { AuditLog } from '../api/types';
 import { csvCell, ledgerCsv } from './csv';
-import { toRecord } from './result';
+import { CALLER_SUPPLIED_NOTICE, toRecord } from './result';
 
 const log = (extra: Partial<AuditLog> = {}): AuditLog => ({
   id: '7',
@@ -66,8 +66,9 @@ describe('ledgerCsv', () => {
         'attestation_refusal',
         'attestation_verifier_verdict',
         'attestation_verifier_proof_ref',
+        'caller_message',
       ],
-      ['7', '2026-10-20T06:44:17Z', 'MATH', '(x + 1)**2 = x**2 + 2*x + 1', 'VERIFIED', 'ADMIT', '', 'The identity holds.', 'sha256:a', '6', '', '', ''],
+      ['7', '2026-10-20T06:44:17Z', 'MATH', '(x + 1)**2 = x**2 + 2*x + 1', 'VERIFIED', 'ADMIT', '', 'The identity holds.', 'sha256:a', '6', '', '', '', ''],
     ]);
   });
 
@@ -109,11 +110,39 @@ describe('ledgerCsv', () => {
       toRecord(blocked({ constraint_id: 'trust_gate.claims_query_mismatch' })),
     ]);
     // proof_ref (column 8) stays the result's own, which a BLOCKED result does not have.
-    expect(lines(csv).slice(1).map((c) => [c[8], ...c.slice(10)])).toEqual([
+    expect(lines(csv).slice(1).map((c) => [c[8], ...c.slice(10, 13)])).toEqual([
       ['', 'api.attestation.signing_error', 'VERIFIED', 'sha256:v'],
       ['', 'trust_gate.claims_status_mismatch', 'SAT', ''],
       ['', 'trust_gate.claims_proof_mismatch', '', 'sha256:r'],
       ['', 'trust_gate.claims_query_mismatch', '', ''],
+    ]);
+  });
+
+  it('writes a caller’s message in its own column, not as the verifier’s (pre-#321 server)', () => {
+    const document = (message: string, callerSupplied?: string) =>
+      log({
+        engine_used: 'math',
+        verification_result: JSON.stringify({
+          spec_version: '1.0',
+          verdict: 'UNVERIFIABLE',
+          context: {
+            evidence: {
+              evidence: {
+                agent_message: message,
+                developer_fields: callerSupplied ? { caller_supplied: { agent_message: callerSupplied } } : {},
+              },
+            },
+          },
+        }),
+      });
+    const csv = ledgerCsv([
+      toRecord(document('Verified by the QWED math engine: the total holds.')),
+      toRecord(document(CALLER_SUPPLIED_NOTICE, 'The total holds.')),
+    ]);
+    // verifier_message is column 7; caller_message is the last, 13.
+    expect(lines(csv).slice(1).map((c) => [c[7], c[13]])).toEqual([
+      ['', 'Verified by the QWED math engine: the total holds.'],
+      [CALLER_SUPPLIED_NOTICE, 'The total holds.'],
     ]);
   });
 

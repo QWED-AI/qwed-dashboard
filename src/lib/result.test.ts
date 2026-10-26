@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AuditLog, Verdict } from '../api/types';
-import { attestationVerdictLabel, parseResult, toRecord } from './result';
+import { attestationVerdictLabel, CALLER_SUPPLIED_NOTICE, parseResult, toRecord } from './result';
 
 describe('parseResult', () => {
   it('reads a DiagnosticResult and records no admission', () => {
@@ -26,6 +26,41 @@ describe('parseResult', () => {
     expect(r.verdict).toBe('UNVERIFIABLE');
     expect(r.admission).toBe('DENY');
     expect(r.proofRef).toBeNull();
+  });
+
+  describe('the messages of a Verification Context document', () => {
+    const document = (evidence: Record<string, unknown>) =>
+      parseResult(JSON.stringify({ spec_version: '1.0', verdict: 'VERIFIED', context: { evidence: { evidence } } }));
+
+    it('shows the message as the caller’s on a server before qwed-verification #321, which kept it verbatim', () => {
+      const r = document({
+        agent_message: 'Verified by the QWED math engine: the stated total holds.',
+        developer_fields: { constraint_id: 'verification_context.caller_supplied_diagnostic' },
+      });
+      expect(r.agentMessage).toBeNull();
+      expect(r.callerMessage).toBe('Verified by the QWED math engine: the stated total holds.');
+    });
+
+    it('takes the notice as the server’s, and the caller’s message from where the server keeps it (#321)', () => {
+      const r = document({
+        agent_message: CALLER_SUPPLIED_NOTICE,
+        developer_fields: { caller_supplied: { agent_message: 'The stated total holds.', developer_fields: {} } },
+      });
+      expect(r.agentMessage).toBe(CALLER_SUPPLIED_NOTICE);
+      expect(r.callerMessage).toBe('The stated total holds.');
+    });
+
+    it('takes only the notice’s exact text as the server’s', () => {
+      expect(document({ agent_message: `${CALLER_SUPPLIED_NOTICE}.` }).agentMessage).toBeNull();
+      expect(document({ agent_message: CALLER_SUPPLIED_NOTICE.toUpperCase() }).callerMessage).toBe(
+        CALLER_SUPPLIED_NOTICE.toUpperCase(),
+      );
+      expect(document({ agent_message: CALLER_SUPPLIED_NOTICE }).callerMessage).toBeNull();
+    });
+
+    it('never gives a DiagnosticResult a caller’s message', () => {
+      expect(parseResult(JSON.stringify({ status: 'VERIFIED', agent_message: 'ok' })).callerMessage).toBeNull();
+    });
   });
 
   it('treats an empty verifier message as not recorded', () => {

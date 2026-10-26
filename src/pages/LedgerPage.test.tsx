@@ -8,6 +8,7 @@ import { ApiError } from '../api/http';
 import type { AuditLog, AuditLogPage } from '../api/types';
 import { renderApp } from '../test/render';
 import { expectStackedTable } from '../test/table';
+import { CALLER_SUPPLIED_NOTICE } from '../lib/result';
 import { LedgerPage } from './LedgerPage';
 
 const row = (id: string, extra: Partial<AuditLog> = {}): AuditLog => ({
@@ -61,10 +62,35 @@ describe('LedgerPage', () => {
     expect(within(row).getByText('No message recorded')).toBeTruthy();
   });
 
-  it('reads the message from a Verification Context document', async () => {
+  it('shows a Verification Context document’s caller message as the caller’s, apart from the server’s notice', async () => {
     renderApp(<LedgerPage />);
     const row = await rowFor('Invoice total 4 × 249.00 + 18% GST equals 1,175.28');
-    expect(within(row).getByText('The stated total matches.')).toBeTruthy();
+    expect(within(row).getByText(CALLER_SUPPLIED_NOTICE)).toBeTruthy();
+    const caller = within(row).getByText('The stated total matches.');
+    expect(caller.tagName).toBe('BDI');
+    expect(caller.parentElement?.textContent).toBe('The caller’s message, not the verifier’s: The stated total matches.');
+  });
+
+  it('never shows the caller’s message as the verifier’s on a server before qwed-verification #321', async () => {
+    vi.spyOn(demoApi, 'listLogs').mockResolvedValue({
+      logs: [
+        row('1', {
+          engine_used: 'math',
+          verification_result: JSON.stringify({
+            spec_version: '1.0',
+            verdict: 'UNVERIFIABLE',
+            context: { evidence: { evidence: { agent_message: 'Verified by the QWED math engine.' } } },
+          }),
+        }),
+      ],
+      nextBefore: null,
+    });
+    renderApp(<LedgerPage />);
+    const r = await rowFor('claim 1');
+    expect(within(r).getByText('No message recorded')).toBeTruthy();
+    const caller = within(r).getByText('Verified by the QWED math engine.');
+    expect(caller.tagName).toBe('BDI');
+    expect(caller.parentElement?.textContent).toBe('The caller’s message, not the verifier’s: Verified by the QWED math engine.');
   });
 
   it('finds records by the verifier message', async () => {

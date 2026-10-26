@@ -467,6 +467,17 @@ export function RecordPage() {
             <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: 'var(--ink)' }}>
               {result.agentMessage ?? 'No message recorded.'}
             </p>
+            {result.callerMessage !== null && (
+              <div className="note">
+                <p style={{ margin: 0 }}>
+                  The diagnostic’s caller wrote this message. The verifier did not, so it is not the reason for the
+                  verdict:
+                </p>
+                <p style={{ margin: '6px 0 0', overflowWrap: 'anywhere' }}>
+                  <bdi>{result.callerMessage}</bdi>
+                </p>
+              </div>
+            )}
             {result.error && <p className="note">{result.error}</p>}
           </section>
 
@@ -479,8 +490,9 @@ export function RecordPage() {
 
           <Checks result={result} />
           {/* The server signs VERIFIED results, so a VERIFIED one without a signature says so (#39). */}
-          {(result.attestation || result.verdict === 'VERIFIED') && <AttestationCheck record={r} />}
-          <ChainCheck logId={r.id} />
+          {/* Keyed by the record, so a check run on one record never shows on another. */}
+          {(result.attestation || result.verdict === 'VERIFIED') && <AttestationCheck key={r.id} record={r} />}
+          <ChainCheck key={r.id} logId={r.id} />
         </aside>
       </div>
     </Shell>

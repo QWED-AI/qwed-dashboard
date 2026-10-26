@@ -27,7 +27,7 @@ export function RecordTable({ records }: Readonly<{ records: readonly LedgerReco
             </td>
             <td>
               <Link className="row-link" to={`/records/${encodeURIComponent(r.id)}`}>
-                {r.query.split('\n')[0]}
+                <bdi>{r.query.split('\n')[0]}</bdi>
               </Link>
               {/* VERIFIED means the check ran to a proof, not that the claim
                   holds: "Identity is false" is VERIFIED too. The message says
@@ -35,6 +35,11 @@ export function RecordTable({ records }: Readonly<{ records: readonly LedgerReco
               <span className={r.result.agentMessage === null ? 'row-note none' : 'row-note'}>
                 {r.result.agentMessage ?? 'No message recorded'}
               </span>
+              {r.result.callerMessage !== null && (
+                <span className="row-note">
+                  The caller’s message, not the verifier’s: <bdi>{r.result.callerMessage}</bdi>
+                </span>
+              )}
               {r.result.attestationBlock && (
                 <span className="row-note">
                   Blocked by the attestation check. The verifier’s verdict:{' '}

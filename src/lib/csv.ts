@@ -19,6 +19,8 @@ const COLUMNS = [
   'attestation_refusal',
   'attestation_verifier_verdict',
   'attestation_verifier_proof_ref',
+  // Last, so the columns before it keep their places.
+  'caller_message',
 ] as const;
 
 /**
@@ -48,6 +50,8 @@ function row(r: LedgerRecord): (string | null | undefined)[] {
     block ? (block.verdict ?? block.verdictStored) : null,
     // Kept apart from proof_ref: the verifier's proof_ref was not admitted.
     block?.proofRef,
+    // Kept apart from verifier_message: the verifier did not write it.
+    result.callerMessage,
   ];
 }
 

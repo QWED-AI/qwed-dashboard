@@ -33,7 +33,7 @@ interface Attention {
   id: string;
   dot: string;
   title: string;
-  detail: string;
+  detail: ReactNode;
   action: string;
   to: string;
 }
@@ -45,10 +45,22 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
 /** Keys with no use recorded: never used since #486, or a server that does not record use. */
 const unusedKeys = (keys: ApiKeyItem[]) => keys.filter((k) => !k.last_used_at).length;
 
-/** One line about the newest record of a group: its request and what the verifier said. */
-function latest(r: LedgerRecord): string {
+/**
+ * The newest record of a group: its request, what the verifier said, and when.
+ * Each on a line of its own under its label, and the request isolated in a
+ * <bdi>: the caller wrote it, so it must not read as the verifier's words.
+ */
+function latest(r: LedgerRecord): ReactNode {
   const said = r.result.agentMessage ?? r.result.error ?? 'No message recorded';
-  return `Newest: ${r.query.split('\n')[0]} (${said}) at ${formatUtc(r.createdAt)} UTC.`;
+  return (
+    <>
+      <span>
+        Newest request: <bdi>{r.query.split('\n')[0]}</bdi>
+      </span>
+      <span>The verifier said: {said}</span>
+      <span>Received {formatUtc(r.createdAt)} UTC</span>
+    </>
+  );
 }
 
 // Groups by what the server stored. A VERIFIED record is listed only when the
@@ -361,8 +373,12 @@ function SecurityCard() {
             {formatUtc(newest.timestamp)}
           </span>
         </div>
+        {/* The request is the caller's, the reason the server's: apart, labelled. */}
         <p className="hint" style={{ margin: 0, overflowWrap: 'anywhere' }}>
-          {newest.query} · {newest.reason}
+          Request: <bdi>{newest.query}</bdi>
+        </p>
+        <p className="hint" style={{ margin: 0, overflowWrap: 'anywhere' }}>
+          Reason: {newest.reason}
         </p>
       </div>
     );
@@ -426,7 +442,7 @@ function Items({ items }: Readonly<{ items: Attention[] }>) {
           <span className={`dot ${it.dot}`} aria-hidden="true" />
           <div className="attn-text">
             <strong>{it.title}</strong>
-            <span>{it.detail}</span>
+            {typeof it.detail === 'string' ? <span>{it.detail}</span> : it.detail}
           </div>
           <Link className="btn btn-sm" to={it.to} aria-label={`${it.action}: ${it.title}`}>
             {it.action}

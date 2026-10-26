@@ -17,7 +17,14 @@ export interface ParsedResult {
    * shown as stored and not as an admission.
    */
   admissionStored: string | null;
+  /** What the verifier or the server said. Never text a caller supplied. */
   agentMessage: string | null;
+  /**
+   * A message a caller supplied, which the stored result carries but the
+   * verifier did not write: the diagnostic message in a Verification Context
+   * document. Shown apart, and labelled as the caller's.
+   */
+  callerMessage: string | null;
   proofRef: string | null;
   isAuthoritative: boolean | null;
   /** Set when the trust gate or attestation signing, not the verifier, made this result BLOCKED. */
@@ -117,6 +124,7 @@ const empty = (shape: ResultShape, value: unknown, error: string | null): Parsed
   admission: null,
   admissionStored: null,
   agentMessage: null,
+  callerMessage: null,
   proofRef: null,
   isAuthoritative: null,
   attestationBlock: null,
@@ -124,6 +132,36 @@ const empty = (shape: ResultShape, value: unknown, error: string | null): Parsed
   value,
   error,
 });
+
+/**
+ * The message a qwed-verification server after #321 writes into every
+ * Verification Context document. It is the only message in such a document
+ * the server wrote. If a later server words it differently, the dashboard
+ * shows that text as the caller's, which says less, not more.
+ */
+export const CALLER_SUPPLIED_NOTICE =
+  'Built from a diagnostic the caller supplied; QWED did not produce its message or fields';
+
+/**
+ * The messages of a Verification Context document. Only
+ * POST /verification-context/from-diagnostic stores one, built from a
+ * diagnostic its caller sent. A server before qwed-verification #321 kept the
+ * caller's message as the document's message; a later one writes its own
+ * notice there and keeps the caller's under developer_fields.caller_supplied.
+ * Neither marker can be trusted to tell them apart: an older server stored
+ * the caller's developer_fields too. So only the notice's exact text counts as
+ * the server's, and any other message is the caller's.
+ */
+function contextMessages(evidence: unknown): Pick<ParsedResult, 'agentMessage' | 'callerMessage'> {
+  const message = asMessage(at(evidence, 'agent_message'));
+  if (message === CALLER_SUPPLIED_NOTICE) {
+    return {
+      agentMessage: message,
+      callerMessage: asMessage(at(evidence, 'developer_fields', 'caller_supplied', 'agent_message')),
+    };
+  }
+  return { agentMessage: null, callerMessage: message };
+}
 
 export function parseResult(raw: string): ParsedResult {
   let value: unknown;
@@ -145,7 +183,7 @@ export function parseResult(raw: string): ParsedResult {
       shape: 'verification-context',
       verdict,
       ...readAdmission(at(value, 'context', 'decision', 'admission')),
-      agentMessage: asMessage(at(value, 'context', 'evidence', 'evidence', 'agent_message')),
+      ...contextMessages(at(value, 'context', 'evidence', 'evidence')),
       proofRef: asString(at(value, 'context', 'evidence', 'proof_ref')),
       isAuthoritative: null,
       attestationBlock: readAttestationBlock(verdict, at(value, 'context', 'evidence', 'evidence', 'developer_fields')),
@@ -185,6 +223,7 @@ function fromDiagnostic(result: Obj, value: unknown): ParsedResult {
     verdict,
     ...readAdmission(result.admission),
     agentMessage: asMessage(result.agent_message),
+    callerMessage: null,
     proofRef: asString(result.proof_ref),
     isAuthoritative: typeof result.is_authoritative === 'boolean' ? result.is_authoritative : null,
     attestationBlock: readAttestationBlock(verdict, result.developer_fields),

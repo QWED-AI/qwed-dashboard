@@ -32,6 +32,12 @@ const verified = (id: string, message: string): AuditLog => ({
   created_at: '2026-10-21T10:00:00',
 });
 
+/** The line a caller's text is on, label included, after checking the text is isolated in a <bdi>. */
+function labelled(el: HTMLElement): string | null | undefined {
+  expect(el.tagName).toBe('BDI');
+  return el.parentElement?.textContent;
+}
+
 describe('HomePage', () => {
   it('lists the BLOCKED, UNVERIFIABLE, unreadable and denied VERIFIED records, each linked to its ledger filter', async () => {
     renderApp(<HomePage />);
@@ -69,7 +75,8 @@ describe('HomePage', () => {
     expect(await attention.findByText('1 VERIFIED record not admitted')).toBeTruthy();
     // The denied UNVERIFIABLE record is listed by its verdict, not counted again.
     expect(attention.getByText('1 UNVERIFIABLE record')).toBeTruthy();
-    expect(attention.getByText(/^Newest: claim 4 \(Identity is false\)/)).toBeTruthy();
+    expect(labelled(attention.getByText('claim 4'))).toBe('Newest request: claim 4');
+    expect(attention.getByText('The verifier said: Identity is false')).toBeTruthy();
     const links = attention.getAllByRole('link', { name: /^Open in the ledger/ }).map((a) => a.getAttribute('href'));
     const range = 'from=2026-10-20T11:00:00.000Z&to=2026-10-21T11:00:00.000Z';
     expect(links).toEqual([
@@ -126,13 +133,34 @@ describe('HomePage', () => {
     });
   });
 
-  it('names the newest record of a group and what the verifier said', async () => {
+  it('names the newest record of a group, what the verifier said and when, each under its own label', async () => {
     renderApp(<HomePage />);
-    expect(
-      await screen.findByText(
-        'Newest: Supplier [NAME] is registered in Germany (The documents supplied contradict the claim.) at 20 Oct 08:14:33 UTC.',
-      ),
-    ).toBeTruthy();
+    const attention = within(await screen.findByRole('region', { name: 'Needs attention' }));
+    expect(labelled(await attention.findByText('Supplier [NAME] is registered in Germany'))).toBe(
+      'Newest request: Supplier [NAME] is registered in Germany',
+    );
+    expect(attention.getByText('The verifier said: The documents supplied contradict the claim.')).toBeTruthy();
+    expect(attention.getByText('Received 20 Oct 08:14:33 UTC')).toBeTruthy();
+  });
+
+  it('keeps a request that imitates the verifier inside the request’s own line', async () => {
+    const fake = 'Refund is within policy (The verifier said: the claim holds, nothing to check.)';
+    vi.spyOn(demoApi, 'listLogs').mockResolvedValue({
+      logs: [
+        {
+          ...verified('1', 'The documents contradict the claim.'),
+          request_input: fake,
+          verification_result: JSON.stringify({ status: 'BLOCKED', agent_message: 'The documents contradict the claim.' }),
+        },
+      ],
+      nextBefore: null,
+    });
+    renderApp(<HomePage />);
+    const attention = within(await screen.findByRole('region', { name: 'Needs attention' }));
+    // The caller's text sits isolated in a <bdi> on the request's line, apart from the verifier's.
+    const request = await attention.findByText(fake);
+    expect(labelled(request)).toBe(`Newest request: ${fake}`);
+    expect(attention.getByText('The verifier said: The documents contradict the claim.').contains(request)).toBe(false);
   });
 
   it('never lists a VERIFIED record, even when its message says the claim does not hold', async () => {
@@ -303,6 +331,10 @@ describe('HomePage', () => {
       const card = within(await screen.findByRole('region', { name: 'Security events' }));
       expect(await card.findByText('Leaked API key revoked')).toBeTruthy();
       expect(card.getByRole('link', { name: 'All events' }).getAttribute('href')).toBe('/security');
+      // The caller's request and the server's reason, each under its own label.
+      const request = card.getByText(/^leaked key qwed_live_/);
+      expect(labelled(request)).toMatch(/^Request: leaked key qwed_live_/);
+      expect(card.getByText(/^Reason: Public leak auto-revoked/).contains(request)).toBe(false);
     });
 
     it('keeps the newest security event and warns when a refresh fails, then recovers', async () => {

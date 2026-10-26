@@ -16,6 +16,8 @@ An open-source web dashboard for [QWED verification](https://github.com/QWED-AI/
   - whether the attestation has expired (24 hours by default).
 
   It says so when the key is no longer among the server's keys: the key was rotated, or the server makes a key per process and has restarted. Web Crypto, which the check needs, works only on HTTPS and on localhost.
+- It shows a message a caller supplied apart from what the verifier said, and labels it as the caller's. A Verification Context record is built from a diagnostic its caller sent (`POST /verification-context/from-diagnostic`). A server with [qwed-verification #321](https://github.com/QWED-AI/qwed-verification/issues/321) stores its own notice as the message and keeps the caller's apart; an older one, 7.3.0 included, stores the caller's message as the record's. So the dashboard counts only that notice as the server's words, and shows any other message in such a record as the caller's.
+- Requests are the caller's text too. Wherever one is shown next to what the verifier said, each is under its own label.
 - It does not run or replay the actions that were verified.
 
 ## Run it
@@ -63,6 +65,22 @@ npm run build
 
 `dist/` is a static site. Serve it behind the same origin as your QWED server and route `/api` to it, or set `VITE_QWED_API_BASE` at build time to call the server directly (the server's `QWED_CORS_ORIGINS` must then allow the dashboard's origin).
 
+Have the web server or proxy that serves it send these headers with every page, so no other site can show the dashboard in a frame. In a frame, a page could lead a signed-in owner into clicks they did not mean, such as revoking an API key.
+
+```
+Content-Security-Policy: frame-ancestors 'none'
+X-Frame-Options: DENY
+```
+
+They must come from the server: a `<meta>` tag in the page cannot set `frame-ancestors`. `X-Frame-Options` covers browsers that do not read `frame-ancestors`. In nginx, for example:
+
+```nginx
+add_header Content-Security-Policy "frame-ancestors 'none'" always;
+add_header X-Frame-Options "DENY" always;
+```
+
+Check a deployment with `curl -sI https://<dashboard-host>/keys`: both headers should be in the response.
+
 ### Releases
 
 Each [release](https://github.com/QWED-AI/qwed-dashboard/releases) has the built site as `qwed-dashboard-vX.Y.Z.zip` and its SHA-256 checksum in `SHA256SUMS`. Check the download, then unpack it:
@@ -104,7 +122,7 @@ A VERIFIED verdict means the check ran to a proof, not that the claim holds, so 
 - **Needs attention:** lists the VERIFIED records the server did not admit. BLOCKED and UNVERIFIABLE records are listed by their verdict, so a denied one is not counted twice. It counts the chosen 24 hours or 7 days, as the tiles do, and opens the ledger on that range.
 - **Decision ledger:** filters by admission: ADMIT, DENY, or not recorded. Opened from Needs attention, it shows the records received in that range only; **Show all dates** shows every loaded record again.
 
-**Export CSV** on the decision ledger, for owners and admins, saves the records it shows, with the filters applied, as a CSV file built in the browser: record id, time received (UTC, marked with `Z`), verifier, request, the stored verdict and admission as the ledger shows them (and the stored admission word where it differs), the verifier's message, proof_ref, API key, and the attestation refusal where there is one, with the verdict and proof_ref the verifier reached in their own columns. It covers the loaded records only; load older ones first to include them. It does not use the server's CSV routes, which carry no stored verdict or admission yet ([qwed-verification #508](https://github.com/QWED-AI/qwed-verification/issues/508)). A cell a spreadsheet may read as a formula gets a leading apostrophe: one that starts with a tab, carriage return, line feed or NUL, or with `=`, `+`, `-` or `@` (or their full-width forms) after any leading white space. Members and viewers do not get the button. The file is built from rows the ledger already shows them, so this limits the export, not what they can read.
+**Export CSV** on the decision ledger, for owners and admins, saves the records it shows, with the filters applied, as a CSV file built in the browser: record id, time received (UTC, marked with `Z`), verifier, request, the stored verdict and admission as the ledger shows them (and the stored admission word where it differs), the verifier's message, proof_ref, API key, and the attestation refusal where there is one, with the verdict and proof_ref the verifier reached in their own columns. A message a caller supplied is in the last column, `caller_message`, apart from the verifier's. It covers the loaded records only; load older ones first to include them. It does not use the server's CSV routes, which carry no stored verdict or admission yet ([qwed-verification #508](https://github.com/QWED-AI/qwed-verification/issues/508)). A cell a spreadsheet may read as a formula gets a leading apostrophe: one that starts with a tab, carriage return, line feed or NUL, or with `=`, `+`, `-` or `@` (or their full-width forms) after any leading white space. Members and viewers do not get the button. The file is built from rows the ledger already shows them, so this limits the export, not what they can read.
 
 The session token is kept in `sessionStorage`, so closing the tab signs you out.
 

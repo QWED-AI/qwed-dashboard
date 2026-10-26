@@ -90,7 +90,7 @@ export function LedgerPage() {
       admitted(r, admission) &&
       (domain === 'all' || r.domain === domain) &&
       (!q ||
-        `${r.query} ${r.result.agentMessage ?? ''} ${r.id} ${r.result.proofRef ?? ''}`
+        `${r.query} ${r.result.agentMessage ?? ''} ${r.result.callerMessage ?? ''} ${r.id} ${r.result.proofRef ?? ''}`
           .toLowerCase()
           .includes(q.toLowerCase())),
   );
