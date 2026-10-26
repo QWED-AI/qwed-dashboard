@@ -112,6 +112,36 @@ export function overviewWindow(records: LedgerRecord[], range: Range, complete: 
   };
 }
 
+/** A span of time the ledger can be opened on: from `start`, up to but not including `end`, in ms. */
+export interface Period {
+  start: number;
+  end: number;
+}
+
+/** The ledger's address parameters for a period (#46): `from` and `to`, in UTC. */
+export function periodParams(p: Period): string {
+  return `from=${new Date(p.start).toISOString()}&to=${new Date(p.end).toISOString()}`;
+}
+
+/** The period in the ledger's address, or null when either end is missing or unreadable. */
+export function readPeriod(from: string | null, to: string | null): Period | null {
+  if (!from || !to) return null;
+  const start = Date.parse(from);
+  const end = Date.parse(to);
+  return Number.isFinite(start) && Number.isFinite(end) && start < end ? { start, end } : null;
+}
+
+/** Whether a record was received in the period. A record with no readable time is in none. */
+export function inPeriod(r: LedgerRecord, p: Period): boolean {
+  const t = timeOf(r);
+  return t !== null && t >= p.start && t < p.end;
+}
+
+/** "19 Oct, 10:00 to 20 Oct, 10:00 UTC" */
+export function periodName(p: Period): string {
+  return `${formatUtcDay(p.start)}, ${formatUtcHour(p.start)} to ${formatUtcDay(p.end)}, ${formatUtcHour(p.end)} UTC`;
+}
+
 /** The short label under a column: "09:00" or "20 Oct". */
 export function bucketLabel(b: Bucket, range: Range): string {
   return range === '24h' ? formatUtcHour(b.start) : formatUtcDay(b.start);
