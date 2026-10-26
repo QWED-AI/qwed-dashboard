@@ -51,6 +51,8 @@ describe('serverStatus', () => {
     const html = new ApiError(200, 'The server did not return JSON. Check that /api points at the QWED server.');
     expect(serverStatus(undefined, html, false)).toEqual({ kind: 'failed', reason: html.message });
     expect(serverStatus(undefined, new ApiError(404, 'Not Found'), false)).toEqual({ kind: 'failed', reason: 'Not Found' });
+    // Something thrown that is not an Error gets a fixed reason, never "[object Object]".
+    expect(serverStatus(undefined, { status: 500 }, false)).toEqual({ kind: 'failed', reason: 'The health request failed.' });
   });
 
   it('lets a failed refresh replace an earlier answer, which may no longer be what answers there', () => {

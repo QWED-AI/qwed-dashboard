@@ -57,7 +57,7 @@ export function serverStatus(health: ServerHealth | undefined, error: unknown, d
   // server said before, since an earlier version may no longer be what
   // answers at this address.
   if (error instanceof ApiError && error.unreachable) return { kind: 'unreachable' };
-  if (error) return { kind: 'failed', reason: error instanceof Error ? error.message : String(error) };
+  if (error) return { kind: 'failed', reason: error instanceof Error ? error.message : 'The health request failed.' };
   if (!health) return { kind: 'checking' };
   const version = typeof health.version === 'string' && health.version.trim() !== '' ? health.version.trim() : null;
   const order = version === null ? null : compareVersions(version, NEEDED_VERSION);
