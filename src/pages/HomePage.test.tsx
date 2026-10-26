@@ -99,6 +99,20 @@ describe('HomePage', () => {
       return [t.querySelector('.tile-value')?.textContent, t.querySelector('.tile-note')?.textContent];
     }
 
+    it('shows as many tiles while loading as once loaded, so the page does not shift', async () => {
+      let answer: (page: { logs: AuditLog[]; nextBefore: null }) => void = () => {};
+      vi.spyOn(demoApi, 'listLogs').mockReturnValue(new Promise((resolve) => (answer = resolve)));
+      const { container } = renderApp(<HomePage />);
+      const tiles = () => container.querySelectorAll('.tiles > .tile').length;
+      await waitFor(() => expect(container.querySelector('[aria-busy="true"]')).toBeTruthy());
+      const loading = tiles();
+
+      act(() => answer({ logs: [verified('1', 'ok')], nextBefore: null }));
+      await screen.findByRole('region', { name: 'Records' });
+      await screen.findByRole('region', { name: 'API keys' });
+      expect(tiles()).toBe(loading);
+    });
+
     it('counts the records in the 24 hours up to the newest one, by stored verdict', async () => {
       renderApp(<HomePage />);
       expect(await screen.findByText(/^The 24 hours up to the newest record, received 20 Oct 09:41:12 UTC/)).toBeTruthy();

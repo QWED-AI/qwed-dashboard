@@ -416,8 +416,9 @@ function HomeSkeleton() {
   return (
     <div className="overview" aria-busy="true" aria-live="polite">
       <span className="sr-only">Loading</span>
+      {/* As many as load (RecordTiles and the keys tile), so the page does not shift. */}
       <div className="tiles" aria-hidden="true">
-        {Array.from({ length: 5 }, (_, i) => (
+        {Array.from({ length: 6 }, (_, i) => (
           <div key={i} className="card tile">
             <span className="sk" style={{ width: '50%' }} />
             <span className="sk" style={{ width: '30%', height: 24 }} />
