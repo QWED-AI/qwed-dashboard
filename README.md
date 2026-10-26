@@ -28,7 +28,7 @@ cp .env.example .env
 npm run dev
 ```
 
-Then open <http://localhost:5173>. During development, requests to `/api` go to the server in `QWED_API_URL` (default `http://localhost:8000`).
+Then open <http://localhost:5173>. During development, requests to `/api` go to the server in `QWED_API_URL` (default `http://localhost:8000`). If that server is not running, the dev proxy answers 502, and the dashboard says the QWED server could not be reached. It says the same when the network fails, or when another proxy answers 502, 503 or 504 without the server's JSON body.
 
 To look around without a server, choose **Explore with sample data** on the sign-in page. Sample data stays in your browser.
 

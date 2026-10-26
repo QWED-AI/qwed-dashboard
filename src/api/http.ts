@@ -27,16 +27,30 @@ const API_BASE = trimTrailingSlashes((import.meta.env.VITE_QWED_API_BASE as stri
 export class ApiError extends Error {
   readonly status: number;
   readonly retryAfter: string | null;
+  /**
+   * The QWED server never answered (#40): the network failed, or a proxy in
+   * front of it answered 502, 503 or 504 without a JSON body. `status` keeps
+   * the proxy's code, or 0 for a network failure.
+   */
+  readonly unreachable: boolean;
 
-  constructor(status: number, message: string, retryAfter: string | null = null) {
+  constructor(status: number, message: string, retryAfter: string | null = null, unreachable = status === 0) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.retryAfter = retryAfter;
+    this.unreachable = unreachable;
   }
 }
 
-async function readDetail(res: Response): Promise<string> {
+const UNREACHABLE = 'The QWED server could not be reached.';
+
+// What a proxy, not the QWED server, answers when the server is down or slow.
+// QWED itself answers with a JSON body, so a 503 that has one is the server's.
+const GATEWAY_STATUSES = new Set([502, 503, 504]);
+
+/** The server's `detail`, or null when the body is not QWED's JSON error. */
+async function readDetail(res: Response): Promise<string | null> {
   try {
     const body: unknown = await res.json();
     if (body && typeof body === 'object' && 'detail' in body) {
@@ -44,9 +58,19 @@ async function readDetail(res: Response): Promise<string> {
       if (typeof detail === 'string') return detail;
     }
   } catch {
-    // Not JSON; fall through to the status text.
+    // Not JSON.
   }
-  return res.statusText || `HTTP ${res.status}`;
+  return null;
+}
+
+async function failure(res: Response): Promise<ApiError> {
+  const detail = await readDetail(res);
+  const retryAfter = res.headers.get('Retry-After');
+  if (detail === null && GATEWAY_STATUSES.has(res.status)) {
+    const answer = [res.status, res.statusText].filter(Boolean).join(' ');
+    return new ApiError(res.status, `${UNREACHABLE} The proxy in front of it answered ${answer}.`, retryAfter, true);
+  }
+  return new ApiError(res.status, detail ?? (res.statusText || `HTTP ${res.status}`), retryAfter);
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -57,11 +81,9 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
       headers: { Accept: 'application/json', ...init.headers },
     });
   } catch {
-    throw new ApiError(0, 'The QWED server could not be reached.');
+    throw new ApiError(0, UNREACHABLE);
   }
-  if (!res.ok) {
-    throw new ApiError(res.status, await readDetail(res), res.headers.get('Retry-After'));
-  }
+  if (!res.ok) throw await failure(res);
   // A success with no body (204, 205) has nothing to parse.
   if (res.status === 204 || res.status === 205) return undefined as T;
   try {

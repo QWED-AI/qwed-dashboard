@@ -67,13 +67,47 @@ describe('request errors', () => {
   });
 
   it('falls back to the status text when the error is not JSON', async () => {
-    stubFetch(new Response('nope', { status: 502, statusText: 'Bad Gateway' }));
-    await expect(httpApi.listKeys('tok')).rejects.toMatchObject({ status: 502, message: 'Bad Gateway' });
+    stubFetch(new Response('nope', { status: 500, statusText: 'Internal Server Error' }));
+    await expect(httpApi.listKeys('tok')).rejects.toMatchObject({
+      status: 500,
+      message: 'Internal Server Error',
+      unreachable: false,
+    });
   });
 
   it('reports an unreachable server as status 0', async () => {
     stubFetch(new TypeError('fetch failed'));
-    await expect(httpApi.listKeys('tok')).rejects.toMatchObject({ status: 0 });
+    await expect(httpApi.listKeys('tok')).rejects.toMatchObject({
+      status: 0,
+      message: 'The QWED server could not be reached.',
+      unreachable: true,
+    });
+  });
+
+  // #40: the dev proxy, or one in front of the server, answers for it.
+  it('reports a proxy answer without a JSON body as an unreachable server, keeping its status', async () => {
+    stubFetch(new Response('', { status: 502, statusText: 'Bad Gateway' }));
+    await expect(httpApi.listKeys('tok')).rejects.toMatchObject({
+      status: 502,
+      message: 'The QWED server could not be reached. The proxy in front of it answered 502 Bad Gateway.',
+      unreachable: true,
+    });
+    stubFetch(new Response('<html>timeout</html>', { status: 504, headers: { 'Content-Type': 'text/html' } }));
+    await expect(httpApi.listKeys('tok')).rejects.toMatchObject({
+      status: 504,
+      message: 'The QWED server could not be reached. The proxy in front of it answered 504.',
+      unreachable: true,
+    });
+  });
+
+  it('keeps a 503 the server answered itself, with its JSON detail', async () => {
+    stubFetch(json({ detail: 'Provider unavailable' }, 503, { 'Retry-After': '5' }));
+    await expect(httpApi.listKeys('tok')).rejects.toMatchObject({
+      status: 503,
+      message: 'Provider unavailable',
+      retryAfter: '5',
+      unreachable: false,
+    });
   });
 });
 

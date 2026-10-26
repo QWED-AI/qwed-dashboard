@@ -23,6 +23,8 @@ const row = (id: string, extra: Partial<AuditLog> = {}): AuditLog => ({
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  // restoreAllMocks does not undo stubGlobal: a failed test must not leave its fetch behind.
+  vi.unstubAllGlobals();
 });
 
 /** The table row whose request link has this text. */
@@ -269,6 +271,20 @@ describe('LedgerPage', () => {
 
     expect((await screen.findByRole('alert')).textContent).toMatch(/Older records could not be loaded/);
     expect(screen.getByRole('link', { name: 'claim 2' })).toBeTruthy();
+  });
+
+  it('says the server cannot be reached when the proxy answers for it (#40)', async () => {
+    // The dev proxy answers 502 with no body when the QWED server is down.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('', { status: 502, statusText: 'Bad Gateway' })),
+    );
+    renderApp(<LedgerPage />, { live: true });
+    expect(await screen.findByRole('heading', { name: 'The ledger could not be loaded' }, { timeout: 10_000 })).toBeTruthy();
+    expect(
+      screen.getByText('The QWED server could not be reached. The proxy in front of it answered 502 Bad Gateway.'),
+    ).toBeTruthy();
+    expect(screen.queryByText(/The server returned 502/)).toBeNull();
   });
 
   it('keeps the records and warns when a refresh fails', async () => {
