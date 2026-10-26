@@ -1,6 +1,18 @@
 import { CALLER_SUPPLIED_NOTICE, parseResult } from '../lib/result';
+import { NEEDED_VERSION } from '../lib/server';
 import { ApiError, type QwedApi } from './http';
-import type { ActivitySummary, ApiKeyCreated, ApiKeyItem, AuditLog, EntryCheck, Jwks, SecurityEvent, TrailCheck, User } from './types';
+import type {
+  ActivitySummary,
+  ApiKeyCreated,
+  ApiKeyItem,
+  AuditLog,
+  EntryCheck,
+  Jwks,
+  SecurityEvent,
+  ServerHealth,
+  TrailCheck,
+  User,
+} from './types';
 
 // Sample data for exploring the dashboard without a QWED server. Shaped like
 // the real /audit/logs rows; none of it comes from a real verification.
@@ -421,6 +433,10 @@ export const demoApi: QwedApi = {
   async getJwks(): Promise<Jwks> {
     await wait(200);
     return { keys: [] };
+  },
+  async health(): Promise<ServerHealth> {
+    await wait(100);
+    return { status: 'healthy', service: 'Sample data', version: NEEDED_VERSION };
   },
   async verifyTrail(): Promise<TrailCheck> {
     await wait(400);

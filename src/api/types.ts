@@ -160,6 +160,14 @@ export interface Jwks {
   keys: Jwk[];
 }
 
+/** GET /health (#50). The fields a server sends may vary, so each is optional. */
+export interface ServerHealth {
+  status?: string;
+  service?: string;
+  version?: string;
+  timestamp?: string;
+}
+
 /**
  * GET /admin/compliance/verify-trail (#485): the signature and hash-chain
  * check of every audit entry in a period. VERIFIED only when there are

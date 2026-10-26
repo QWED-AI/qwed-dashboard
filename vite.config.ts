@@ -1,6 +1,10 @@
 /// <reference types="vitest/config" />
+import { readFileSync } from 'node:fs';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
+
+// The footer names the dashboard's version (#52), taken from package.json at build time.
+const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string };
 
 // In development the dashboard calls /api/... and Vite forwards it to the
 // QWED server, so the browser never needs a CORS exception for localhost.
@@ -10,6 +14,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    define: { __APP_VERSION__: JSON.stringify(version) },
     // An inline PostCSS config stops Vite searching parent folders for a
     // postcss.config.js, so a config in a home or workspace folder (for
     // example one that loads Tailwind) never reaches this build.

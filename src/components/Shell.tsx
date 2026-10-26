@@ -1,9 +1,13 @@
 import { useState, type ReactNode } from 'react';
 import { Link, NavLink } from 'react-router';
+import { API_BASE } from '../api/http';
 import { useSession } from '../auth/session';
+import { NEEDED_VERSION, useServerStatus, type ServerStatus } from '../lib/server';
 import { useTheme } from '../lib/theme';
 import { Icon, type IconName } from './Icon';
 import { Mark } from './Mark';
+
+const REPO = 'https://github.com/QWED-AI/qwed-dashboard';
 
 export interface Crumb {
   label: string;
@@ -21,8 +25,44 @@ function NavItem({ to, icon, label, onPick }: Readonly<{ to: string; icon: IconN
   );
 }
 
+/** The header's word on the server (#50): its version, or why there is none. */
+function statusPill(s: ServerStatus): { cls: string; label: string } {
+  switch (s.kind) {
+    case 'demo':
+      return { cls: 'status', label: 'Sample data, no server' };
+    case 'checking':
+      return { cls: 'status', label: 'Checking the server…' };
+    case 'current':
+      return { cls: 'status ok', label: `QWED ${s.version} · connected` };
+    case 'older':
+      return { cls: 'status old', label: `QWED ${s.version} · update to ${NEEDED_VERSION}` };
+    case 'unknown':
+      return { cls: 'status', label: s.version ? `QWED ${s.version}` : 'QWED server · no version given' };
+    case 'unreachable':
+      return { cls: 'status down', label: 'Server unreachable' };
+  }
+}
+
+/** The footer's line on the server (#52). */
+function serverLine(s: ServerStatus): string {
+  switch (s.kind) {
+    case 'demo':
+      return 'Server: none, the sample data stays in this browser';
+    case 'checking':
+      return `Server: checking ${API_BASE}`;
+    case 'unreachable':
+      return `Server: not reached at ${API_BASE}`;
+    case 'unknown':
+      return `Server: ${s.version ? `QWED ${s.version}` : 'QWED, no version given'}, at ${API_BASE}`;
+    default:
+      return `Server: QWED ${s.version} at ${API_BASE}`;
+  }
+}
+
 export function Shell({ crumbs, children }: Readonly<{ crumbs: Crumb[]; children: ReactNode }>) {
   const { user, mode, signOut } = useSession();
+  const server = useServerStatus();
+  const pill = statusPill(server);
   const [theme, cycleTheme] = useTheme();
   // Below 900px the menu folds away behind a button, so the page starts at
   // the top of a phone screen. Wider screens always show it and hide the button.
@@ -112,11 +152,47 @@ export function Shell({ crumbs, children }: Readonly<{ crumbs: Crumb[]; children
             ))}
           </nav>
           <span className="spacer" />
+          <span className={pill.cls} role="status">
+            <span className="dot" aria-hidden="true" />
+            {pill.label}
+          </span>
           <a className="btn btn-sm" href="https://docs.qwedai.tech" target="_blank" rel="noreferrer">
             Docs
           </a>
         </div>
+        {/* Each screen already says what it could not load; the pill says the
+            server is down. Only an older server needs more words. */}
+        {server.kind === 'older' && (
+          <p className="server-note" role="note">
+            <strong>This server is QWED {server.version}.</strong> The stored admissions, paging, the audit checks with
+            your session and security events need {NEEDED_VERSION}, so some values here read as not recorded.
+          </p>
+        )}
         {children}
+        <footer className="foot">
+          <span>
+            QWED Dashboard <span className="mono">{__APP_VERSION__}</span>
+          </span>
+          <span aria-hidden="true">·</span>
+          <span>{serverLine(server)}</span>
+          <nav aria-label="Footer">
+            <a href="https://docs.qwedai.tech" target="_blank" rel="noreferrer">
+              Docs
+            </a>
+            <a href={REPO} target="_blank" rel="noreferrer">
+              GitHub
+            </a>
+            <a href={`${REPO}/security/policy`} target="_blank" rel="noreferrer">
+              Security policy
+            </a>
+            <a href={`${REPO}/blob/main/CHANGELOG.md`} target="_blank" rel="noreferrer">
+              Changelog
+            </a>
+            <a href={`${REPO}/blob/main/LICENSE`} target="_blank" rel="noreferrer">
+              Licence: Apache-2.0
+            </a>
+          </nav>
+        </footer>
       </main>
     </div>
   );

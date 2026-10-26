@@ -10,6 +10,7 @@ import type {
   Jwks,
   SecurityEventList,
   SecurityEventPage,
+  ServerHealth,
   SignInResponse,
   TrailCheck,
   User,
@@ -22,7 +23,8 @@ function trimTrailingSlashes(s: string): string {
   return s.slice(0, end);
 }
 
-const API_BASE = trimTrailingSlashes((import.meta.env.VITE_QWED_API_BASE as string | undefined) ?? '/api');
+/** Where the dashboard sends its requests: `/api` on its own origin, or `VITE_QWED_API_BASE`. */
+export const API_BASE = trimTrailingSlashes((import.meta.env.VITE_QWED_API_BASE as string | undefined) ?? '/api');
 
 export class ApiError extends Error {
   readonly status: number;
@@ -178,6 +180,11 @@ export const httpApi = {
   /** The server's public keys for its attestations (#39). No credential: anyone may check one. */
   getJwks(): Promise<Jwks> {
     return request('/.well-known/jwks.json');
+  },
+
+  /** The server's health and version (#50). No credential. */
+  health(): Promise<ServerHealth> {
+    return request('/health');
   },
 };
 
