@@ -33,14 +33,43 @@ const verified = (id: string, message: string): AuditLog => ({
 });
 
 describe('HomePage', () => {
-  it('lists the BLOCKED, UNVERIFIABLE and unreadable records, each linked to its ledger filter', async () => {
+  it('lists the BLOCKED, UNVERIFIABLE, unreadable and denied VERIFIED records, each linked to its ledger filter', async () => {
     renderApp(<HomePage />);
     expect(await screen.findByText('5 BLOCKED records')).toBeTruthy();
     expect(screen.getByText('6 UNVERIFIABLE records')).toBeTruthy();
     expect(screen.getByText('3 records with no readable verdict')).toBeTruthy();
 
     const links = screen.getAllByRole('link', { name: /^Open in the ledger/ }).map((a) => a.getAttribute('href'));
-    expect(links).toEqual(['/ledger?verdict=BLOCKED', '/ledger?verdict=UNVERIFIABLE', '/ledger?verdict=none']);
+    expect(links).toEqual([
+      '/ledger?verdict=BLOCKED',
+      '/ledger?verdict=UNVERIFIABLE',
+      '/ledger?verdict=none',
+      '/ledger?verdict=VERIFIED&admission=DENY',
+    ]);
+  });
+
+  it('lists a VERIFIED record the server stored as not admitted, once (#38)', async () => {
+    vi.spyOn(demoApi, 'listLogs').mockResolvedValue({
+      logs: [
+        { ...verified('4', 'Identity is false'), admission: 'BLOCKED' },
+        { ...verified('3', 'Identity is true'), admission: 'ADMIT' },
+        {
+          ...verified('2', 'Inconclusive'),
+          verification_result: JSON.stringify({ status: 'UNVERIFIABLE', agent_message: 'Inconclusive' }),
+          admission: 'BLOCKED',
+        },
+        verified('1', 'Identity is true'),
+      ],
+      nextBefore: null,
+    });
+    renderApp(<HomePage />);
+    const attention = within(await screen.findByRole('region', { name: 'Needs attention' }));
+    expect(await attention.findByText('1 VERIFIED record not admitted')).toBeTruthy();
+    // The denied UNVERIFIABLE record is listed by its verdict, not counted again.
+    expect(attention.getByText('1 UNVERIFIABLE record')).toBeTruthy();
+    expect(attention.getByText(/^Newest: claim 4 \(Identity is false\)/)).toBeTruthy();
+    const links = attention.getAllByRole('link', { name: /^Open in the ledger/ }).map((a) => a.getAttribute('href'));
+    expect(links).toEqual(['/ledger?verdict=UNVERIFIABLE', '/ledger?verdict=VERIFIED&admission=DENY']);
   });
 
   it('names the newest record of a group and what the verifier said', async () => {
@@ -70,6 +99,20 @@ describe('HomePage', () => {
       return [t.querySelector('.tile-value')?.textContent, t.querySelector('.tile-note')?.textContent];
     }
 
+    it('shows as many tiles while loading as once loaded, so the page does not shift', async () => {
+      let answer: (page: { logs: AuditLog[]; nextBefore: null }) => void = () => {};
+      vi.spyOn(demoApi, 'listLogs').mockReturnValue(new Promise((resolve) => (answer = resolve)));
+      const { container } = renderApp(<HomePage />);
+      const tiles = () => container.querySelectorAll('.tiles > .tile').length;
+      await waitFor(() => expect(container.querySelector('[aria-busy="true"]')).toBeTruthy());
+      const loading = tiles();
+
+      act(() => answer({ logs: [verified('1', 'ok')], nextBefore: null }));
+      await screen.findByRole('region', { name: 'Records' });
+      await screen.findByRole('region', { name: 'API keys' });
+      expect(tiles()).toBe(loading);
+    });
+
     it('counts the records in the 24 hours up to the newest one, by stored verdict', async () => {
       renderApp(<HomePage />);
       expect(await screen.findByText(/^The 24 hours up to the newest record, received 20 Oct 09:41:12 UTC/)).toBeTruthy();
@@ -78,6 +121,24 @@ describe('HomePage', () => {
       expect(await tile('BLOCKED')).toEqual(['3', '20.0% of these records']);
       expect(await tile('UNVERIFIABLE')).toEqual(['2', '13.3% of these records']);
       expect(await tile('No verdict recorded')).toEqual(['1', '6.7% of these records']);
+    });
+
+    it('counts the stored DENY admissions of any verdict (#38)', async () => {
+      vi.spyOn(demoApi, 'listLogs').mockResolvedValue({
+        logs: [
+          { ...verified('4', 'Identity is false'), admission: 'BLOCKED' },
+          { ...verified('3', 'Identity is true'), admission: 'ADMIT' },
+          {
+            ...verified('2', 'Inconclusive'),
+            verification_result: JSON.stringify({ status: 'UNVERIFIABLE', agent_message: 'Inconclusive' }),
+            admission: 'DENY',
+          },
+          verified('1', 'Identity is true'),
+        ],
+        nextBefore: null,
+      });
+      renderApp(<HomePage />);
+      expect(await tile('Not admitted (DENY)')).toEqual(['2', '50.0% of these records, any verdict']);
     });
 
     it('compares with the window before when the loaded records reach it', async () => {
