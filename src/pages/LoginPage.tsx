@@ -10,7 +10,7 @@ function signInError(err: unknown): string {
     if (err.status === 403) return 'This account is deactivated.';
     if (err.status === 429)
       return err.retryAfter ? `Too many attempts. Try again in ${err.retryAfter} seconds.` : 'Too many attempts. Try again shortly.';
-    if (err.status === 0) return 'The QWED server could not be reached. Check that it is running and that the dashboard points at it.';
+    if (err.unreachable) return `${err.message} Check that it is running and that the dashboard points at it.`;
     return `Sign-in failed: ${err.message}`;
   }
   return 'Sign-in failed.';

@@ -68,7 +68,8 @@ export function useSecurityEventPages(limit: number, eventType: string | null) {
 /** Turns an API error into one sentence for the page. */
 export function describeError(err: unknown): string {
   if (!(err instanceof ApiError)) return 'Something went wrong while loading this page.';
-  if (err.status === 0) return err.message;
+  // The server never answered: say so, not "The server returned 502" (#40).
+  if (err.unreachable) return err.message;
   if (err.status === 401) return 'Your session has ended. Sign in again.';
   if (err.status === 403) return `The server refused this request: ${err.message}`;
   if (err.status === 404) return 'This record does not exist, or it belongs to another organisation.';

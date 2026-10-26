@@ -16,7 +16,7 @@ class KeysUnavailable extends Error {}
 
 function keysError(err: unknown): KeysUnavailable {
   let reason = 'the request failed.';
-  if (err instanceof ApiError) reason = err.status === 0 ? err.message : `the server returned ${err.status}: ${err.message}`;
+  if (err instanceof ApiError) reason = err.unreachable ? err.message : `the server returned ${err.status}: ${err.message}`;
   return new KeysUnavailable(`The server’s public keys could not be loaded from /.well-known/jwks.json: ${reason}`);
 }
 
