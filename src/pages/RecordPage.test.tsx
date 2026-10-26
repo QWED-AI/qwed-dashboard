@@ -133,7 +133,7 @@ describe('RecordPage', () => {
         });
         renderApp(<App />, { route: '/records/1' });
         const next = await region('Built from the caller’s diagnostic');
-        expect(next.getByText(/neither says whether the claim holds/)).toBeTruthy();
+        expect(next.getByText(/No message in it is the verifier’s, so none says whether the claim holds/)).toBeTruthy();
         expect(screen.queryByRole('heading', { name: 'Read what the verifier said' })).toBeNull();
         cleanup();
       }

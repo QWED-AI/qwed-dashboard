@@ -82,7 +82,7 @@ const NEXT: Record<Verdict | 'none', { title: string; text: string }> = {
  */
 const NEXT_CALLER_DIAGNOSTIC = {
   title: 'Built from the caller’s diagnostic',
-  text: 'This record was built from a diagnostic its caller sent. Its messages are the server’s notice and the caller’s, so neither says whether the claim holds. To have QWED check the claim, send it to a verify route. A new request gets a new record; this one stays as it is.',
+  text: 'This record was built from a diagnostic its caller sent. No message in it is the verifier’s, so none says whether the claim holds. To have QWED check the claim, send it to a verify route. A new request gets a new record; this one stays as it is.',
 };
 
 /** For a BLOCKED result the attestation check made: the request itself may be fine. */
