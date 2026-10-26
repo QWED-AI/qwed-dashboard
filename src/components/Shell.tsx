@@ -1,5 +1,5 @@
-import { useState, type ReactNode } from 'react';
-import { Link, NavLink } from 'react-router';
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { Link, NavLink, useNavigate } from 'react-router';
 import { API_BASE } from '../api/http';
 import { useSession } from '../auth/session';
 import { NEEDED_VERSION, useServerStatus, type ServerStatus } from '../lib/server';
@@ -57,6 +57,62 @@ function serverLine(s: ServerStatus): string {
     default:
       return `Server: QWED ${s.version} at ${API_BASE}`;
   }
+}
+
+/** True when a key press should stay with what has focus: a field, or a key with a modifier. */
+function typing(e: KeyboardEvent): boolean {
+  if (e.ctrlKey || e.metaKey || e.altKey) return true;
+  const el = e.target;
+  if (!(el instanceof HTMLElement)) return false;
+  return el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName);
+}
+
+/**
+ * Find a record (#51). A record id opens the record; anything else, a
+ * proof_ref for one, opens the ledger with it as the search, which covers
+ * the loaded records: the server has no route that finds a record by
+ * proof_ref. "/" moves the focus here.
+ */
+function FindRecord() {
+  const navigate = useNavigate();
+  const input = useRef<HTMLInputElement>(null);
+  const [value, setValue] = useState('');
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== '/' || typing(e)) return;
+      e.preventDefault();
+      input.current?.focus();
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
+
+  function submit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const q = value.trim();
+    if (!q) return;
+    if (/^\d+$/.test(q)) navigate(`/records/${q}`);
+    else navigate(`/ledger?q=${encodeURIComponent(q)}`);
+  }
+
+  return (
+    <form role="search" className="find" onSubmit={submit}>
+      <Icon name="search" size={14} />
+      <label htmlFor="find-record" className="sr-only">
+        Find a record by id or proof_ref
+      </label>
+      <input
+        id="find-record"
+        ref={input}
+        type="search"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder="Record id or proof_ref"
+        aria-keyshortcuts="/"
+      />
+    </form>
+  );
 }
 
 export function Shell({ crumbs, children }: Readonly<{ crumbs: Crumb[]; children: ReactNode }>) {
@@ -152,6 +208,7 @@ export function Shell({ crumbs, children }: Readonly<{ crumbs: Crumb[]; children
             ))}
           </nav>
           <span className="spacer" />
+          <FindRecord />
           <span className={pill.cls} role="status">
             <span className="dot" aria-hidden="true" />
             {pill.label}

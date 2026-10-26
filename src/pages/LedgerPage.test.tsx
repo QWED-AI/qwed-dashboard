@@ -98,7 +98,7 @@ describe('LedgerPage', () => {
     const user = userEvent.setup();
     renderApp(<LedgerPage />);
     await rowFor('(x + 1)**2 = x**2 + 2*x + 1');
-    await user.type(screen.getByRole('searchbox'), 'writes outside');
+    await user.type(screen.getByRole('searchbox', { name: 'Search records' }), 'writes outside');
 
     const rows = within(screen.getByRole('table')).getAllByRole('row').slice(1);
     expect(rows.map((r) => r.textContent)).toEqual([expect.stringContaining('The code writes outside the workspace.')]);
@@ -262,7 +262,7 @@ describe('LedgerPage', () => {
       const user = userEvent.setup();
       renderApp(<LedgerPage />);
       await rowFor('(x + 1)**2 = x**2 + 2*x + 1');
-      await user.type(screen.getByRole('searchbox'), 'no record says this');
+      await user.type(screen.getByRole('searchbox', { name: 'Search records' }), 'no record says this');
       expect((screen.getByRole('button', { name: 'Export CSV' }) as HTMLButtonElement).disabled).toBe(true);
     });
 

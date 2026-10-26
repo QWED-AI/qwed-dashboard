@@ -104,7 +104,34 @@ select {
 .spacer {
   flex: 1 1 24px;
 }
-/* Header: the server's status (#50). */
+/* Header: find a record (#51) and the server's status (#50). */
+.find {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 9px;
+  background: var(--sunk);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--muted);
+  flex: 0 1 300px;
+  min-width: 180px;
+}
+.find:focus-within {
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+}
+.find input {
+  flex: 1;
+  min-width: 0;
+  height: 30px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 12.5px;
+  outline: none;
+}
 .status {
   display: inline-flex;
   align-items: center;
@@ -1499,6 +1526,9 @@ a.btn {
   .server-note {
     margin-left: 16px;
     margin-right: 16px;
+  }
+  .find {
+    flex: 1 1 100%;
   }
   .split > .aside {
     border-left: 0;

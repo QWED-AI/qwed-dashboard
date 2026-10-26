@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { useLocation } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiError, httpApi } from '../api/http';
@@ -88,5 +89,51 @@ describe('Shell: the footer (#52)', () => {
       Changelog: 'https://github.com/QWED-AI/qwed-dashboard/blob/main/CHANGELOG.md',
       'Licence: Apache-2.0': 'https://github.com/QWED-AI/qwed-dashboard/blob/main/LICENSE',
     });
+  });
+});
+
+describe('Shell: find a record (#51)', () => {
+  const box = () => screen.getByRole('searchbox', { name: 'Find a record by id or proof_ref' });
+
+  it('opens a record by its id', async () => {
+    const user = userEvent.setup();
+    renderShell();
+    await user.type(box(), ' 1042 {Enter}');
+    expect(screen.getByTestId('where').textContent).toBe('/records/1042');
+  });
+
+  it('searches the ledger for anything else, such as a proof_ref', async () => {
+    const user = userEvent.setup();
+    renderShell();
+    await user.type(box(), 'sha256:41aa3f90{Enter}');
+    expect(screen.getByTestId('where').textContent).toBe('/ledger?q=sha256%3A41aa3f90');
+  });
+
+  it('does nothing for an empty search', async () => {
+    const user = userEvent.setup();
+    renderShell();
+    await user.type(box(), '   {Enter}');
+    expect(screen.getByTestId('where').textContent).toBe('/');
+  });
+
+  it('moves the focus to the box on "/", but not while typing elsewhere', async () => {
+    const user = userEvent.setup();
+    renderApp(
+      <Shell crumbs={[{ label: 'Overview' }]}>
+        <label>
+          Other field
+          <input />
+        </label>
+      </Shell>,
+    );
+    await user.keyboard('/');
+    expect(document.activeElement).toBe(box());
+    expect((box() as HTMLInputElement).value).toBe('');
+
+    const other = screen.getByRole('textbox', { name: 'Other field' });
+    await user.click(other);
+    await user.keyboard('/');
+    expect(document.activeElement).toBe(other);
+    expect((other as HTMLInputElement).value).toBe('/');
   });
 });
