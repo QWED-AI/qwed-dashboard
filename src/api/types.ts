@@ -145,6 +145,21 @@ export interface EntryCheck {
  */
 export type ComplianceAuth = { session: string } | { apiKey: string };
 
+/** A public key from GET /.well-known/jwks.json, which checks the server's attestations. */
+export interface Jwk {
+  kid?: string;
+  kty?: string;
+  crv?: string;
+  x?: string;
+  y?: string;
+  alg?: string;
+  use?: string;
+}
+
+export interface Jwks {
+  keys: Jwk[];
+}
+
 /**
  * GET /admin/compliance/verify-trail (#485): the signature and hash-chain
  * check of every audit entry in a period. VERIFIED only when there are

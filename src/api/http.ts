@@ -7,6 +7,7 @@ import type {
   AuditLogPage,
   ComplianceAuth,
   EntryCheck,
+  Jwks,
   SecurityEventList,
   SecurityEventPage,
   SignInResponse,
@@ -150,6 +151,11 @@ export const httpApi = {
     if (eventType) query.set('event_type', eventType);
     const data = await request<SecurityEventList>(`/admin/security/events?${query}`, { headers: bearer(token) });
     return { events: data.events, nextBefore: data.next_before };
+  },
+
+  /** The server's public keys for its attestations (#39). No credential: anyone may check one. */
+  getJwks(): Promise<Jwks> {
+    return request('/.well-known/jwks.json');
   },
 };
 

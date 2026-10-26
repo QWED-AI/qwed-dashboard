@@ -22,6 +22,8 @@ export interface ParsedResult {
   isAuthoritative: boolean | null;
   /** Set when the trust gate or attestation signing, not the verifier, made this result BLOCKED. */
   attestationBlock: AttestationBlock | null;
+  /** The attestation JWT the server signed and stored with the result, if any (#39). */
+  attestation: string | null;
   /** The parsed JSON, or null when the stored text is not valid JSON. */
   value: unknown;
   error: string | null;
@@ -118,6 +120,7 @@ const empty = (shape: ResultShape, value: unknown, error: string | null): Parsed
   proofRef: null,
   isAuthoritative: null,
   attestationBlock: null,
+  attestation: null,
   value,
   error,
 });
@@ -146,6 +149,8 @@ export function parseResult(raw: string): ParsedResult {
       proofRef: asString(at(value, 'context', 'evidence', 'proof_ref')),
       isAuthoritative: null,
       attestationBlock: readAttestationBlock(verdict, at(value, 'context', 'evidence', 'evidence', 'developer_fields')),
+      // A document's own signature is not a verdict attestation (#319).
+      attestation: null,
       value,
       error: null,
     };
@@ -183,6 +188,7 @@ function fromDiagnostic(result: Obj, value: unknown): ParsedResult {
     proofRef: asString(result.proof_ref),
     isAuthoritative: typeof result.is_authoritative === 'boolean' ? result.is_authoritative : null,
     attestationBlock: readAttestationBlock(verdict, result.developer_fields),
+    attestation: asMessage(result.attestation),
     value,
     error: null,
   };
