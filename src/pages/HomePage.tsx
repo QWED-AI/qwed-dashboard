@@ -46,18 +46,35 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
 const unusedKeys = (keys: ApiKeyItem[]) => keys.filter((k) => !k.last_used_at).length;
 
 /**
- * The newest record of a group: its request, what the verifier said, and when.
- * Each on a line of its own under its label, and the request isolated in a
- * <bdi>: the caller wrote it, so it must not read as the verifier's words.
+ * The newest record of a group: its request, what was said about it, and
+ * when. Each is on a line of its own under a label that says who wrote it:
+ * - the request and a caller's message are the caller's, isolated in a <bdi>;
+ * - a Verification Context document's message is the server's notice, not
+ *   the verifier's (only a caller-built diagnostic stores one);
+ * - an error is the dashboard's own account of why the result cannot be read.
  */
 function latest(r: LedgerRecord): ReactNode {
-  const said = r.result.agentMessage ?? r.result.error ?? 'No message recorded';
+  const { agentMessage, callerMessage, error, shape } = r.result;
+  let said: ReactNode = <span>No message from the verifier recorded</span>;
+  if (agentMessage !== null) {
+    said = (
+      <span>
+        {shape === 'verification-context' ? 'The server’s notice' : 'The verifier said'}: {agentMessage}
+      </span>
+    );
+  }
   return (
     <>
       <span>
         Newest request: <bdi>{r.query.split('\n')[0]}</bdi>
       </span>
-      <span>The verifier said: {said}</span>
+      {said}
+      {callerMessage !== null && (
+        <span>
+          The caller’s message, not the verifier’s: <bdi>{callerMessage}</bdi>
+        </span>
+      )}
+      {error !== null && <span>The dashboard notes: {error}</span>}
       <span>Received {formatUtc(r.createdAt)} UTC</span>
     </>
   );

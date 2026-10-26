@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { demoApi } from '../api/demo';
 import { ApiError } from '../api/http';
 import type { AuditLog } from '../api/types';
+import { CALLER_SUPPLIED_NOTICE } from '../lib/result';
 import { renderApp } from '../test/render';
 import { HomePage } from './HomePage';
 
@@ -141,6 +142,63 @@ describe('HomePage', () => {
     );
     expect(attention.getByText('The verifier said: The documents supplied contradict the claim.')).toBeTruthy();
     expect(attention.getByText('Received 20 Oct 08:14:33 UTC')).toBeTruthy();
+  });
+
+  it('gives the dashboard’s note on an unreadable record as its own, not the verifier’s', async () => {
+    renderApp(<HomePage />);
+    const attention = within(await screen.findByRole('region', { name: 'Needs attention' }));
+    await attention.findByText('1 record with no readable verdict');
+    expect(attention.getByText('No message from the verifier recorded')).toBeTruthy();
+    expect(
+      attention.getByText(
+        'The dashboard notes: The server stored a shortened copy of this result, so its verdict cannot be read.',
+      ),
+    ).toBeTruthy();
+    expect(attention.queryByText(/^The verifier said: The server stored a shortened copy/)).toBeNull();
+  });
+
+  describe('a Verification Context record', () => {
+    const contextRecord = (evidence: Record<string, unknown>): AuditLog => ({
+      ...verified('1', 'unused'),
+      engine_used: 'verification_context',
+      verification_result: JSON.stringify({
+        spec_version: '1.0',
+        verdict: 'UNVERIFIABLE',
+        context: { evidence: { evidence } },
+      }),
+    });
+
+    it('calls the notice the server’s, and gives the caller’s message its own line (#321)', async () => {
+      vi.spyOn(demoApi, 'listLogs').mockResolvedValue({
+        logs: [
+          contextRecord({
+            agent_message: CALLER_SUPPLIED_NOTICE,
+            developer_fields: { caller_supplied: { agent_message: 'The total holds.' } },
+          }),
+        ],
+        nextBefore: null,
+      });
+      renderApp(<HomePage />);
+      const attention = within(await screen.findByRole('region', { name: 'Needs attention' }));
+      expect(await attention.findByText(`The server’s notice: ${CALLER_SUPPLIED_NOTICE}`)).toBeTruthy();
+      expect(labelled(attention.getByText('The total holds.'))).toBe(
+        'The caller’s message, not the verifier’s: The total holds.',
+      );
+      expect(attention.queryByText(/^The verifier said/)).toBeNull();
+    });
+
+    it('shows a caller’s message from a server before #321 as the caller’s', async () => {
+      vi.spyOn(demoApi, 'listLogs').mockResolvedValue({
+        logs: [contextRecord({ agent_message: 'Verified by the QWED math engine.' })],
+        nextBefore: null,
+      });
+      renderApp(<HomePage />);
+      const attention = within(await screen.findByRole('region', { name: 'Needs attention' }));
+      expect(await attention.findByText('No message from the verifier recorded')).toBeTruthy();
+      expect(labelled(attention.getByText('Verified by the QWED math engine.'))).toBe(
+        'The caller’s message, not the verifier’s: Verified by the QWED math engine.',
+      );
+    });
   });
 
   it('keeps a request that imitates the verifier inside the request’s own line', async () => {

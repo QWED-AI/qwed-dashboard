@@ -50,6 +50,16 @@ describe('parseResult', () => {
       expect(r.callerMessage).toBe('The stated total holds.');
     });
 
+    it('keeps another message as the caller’s even when caller_supplied is there too', () => {
+      // An older server stored the caller's developer_fields as sent, caller_supplied included.
+      const r = document({
+        agent_message: 'Caller-written text.',
+        developer_fields: { caller_supplied: { agent_message: 'Nested caller text.', developer_fields: {} } },
+      });
+      expect(r.agentMessage).toBeNull();
+      expect(r.callerMessage).toBe('Caller-written text.');
+    });
+
     it('takes only the notice’s exact text as the server’s', () => {
       expect(document({ agent_message: `${CALLER_SUPPLIED_NOTICE}.` }).agentMessage).toBeNull();
       expect(document({ agent_message: CALLER_SUPPLIED_NOTICE.toUpperCase() }).callerMessage).toBe(
