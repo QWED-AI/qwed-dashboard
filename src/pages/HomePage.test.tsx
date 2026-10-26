@@ -35,16 +35,18 @@ const verified = (id: string, message: string): AuditLog => ({
 describe('HomePage', () => {
   it('lists the BLOCKED, UNVERIFIABLE, unreadable and denied VERIFIED records, each linked to its ledger filter', async () => {
     renderApp(<HomePage />);
-    expect(await screen.findByText('5 BLOCKED records')).toBeTruthy();
-    expect(screen.getByText('6 UNVERIFIABLE records')).toBeTruthy();
-    expect(screen.getByText('3 records with no readable verdict')).toBeTruthy();
+    // The 24 hours from 19 Oct 10:00 up to 20 Oct 10:00, as the tiles count them.
+    expect(await screen.findByText('3 BLOCKED records')).toBeTruthy();
+    expect(screen.getByText('2 UNVERIFIABLE records')).toBeTruthy();
+    expect(screen.getByText('1 record with no readable verdict')).toBeTruthy();
 
+    const range = 'from=2026-10-19T10:00:00.000Z&to=2026-10-20T10:00:00.000Z';
     const links = screen.getAllByRole('link', { name: /^Open in the ledger/ }).map((a) => a.getAttribute('href'));
     expect(links).toEqual([
-      '/ledger?verdict=BLOCKED',
-      '/ledger?verdict=UNVERIFIABLE',
-      '/ledger?verdict=none',
-      '/ledger?verdict=VERIFIED&admission=DENY',
+      `/ledger?verdict=BLOCKED&${range}`,
+      `/ledger?verdict=UNVERIFIABLE&${range}`,
+      `/ledger?verdict=none&${range}`,
+      `/ledger?verdict=VERIFIED&admission=DENY&${range}`,
     ]);
   });
 
@@ -69,7 +71,59 @@ describe('HomePage', () => {
     expect(attention.getByText('1 UNVERIFIABLE record')).toBeTruthy();
     expect(attention.getByText(/^Newest: claim 4 \(Identity is false\)/)).toBeTruthy();
     const links = attention.getAllByRole('link', { name: /^Open in the ledger/ }).map((a) => a.getAttribute('href'));
-    expect(links).toEqual(['/ledger?verdict=UNVERIFIABLE', '/ledger?verdict=VERIFIED&admission=DENY']);
+    const range = 'from=2026-10-20T11:00:00.000Z&to=2026-10-21T11:00:00.000Z';
+    expect(links).toEqual([
+      `/ledger?verdict=UNVERIFIABLE&${range}`,
+      `/ledger?verdict=VERIFIED&admission=DENY&${range}`,
+    ]);
+  });
+
+  describe('counts the records of the chosen range, as the tiles do (#46)', () => {
+    const blocked = (id: string, at: string): AuditLog => ({
+      ...verified(id, `message ${id}`),
+      verification_result: JSON.stringify({ status: 'BLOCKED', agent_message: `message ${id}` }),
+      created_at: at,
+    });
+    // The newest record is at 21 Oct 10:00, so the 24 hours run from 20 Oct
+    // 11:00 up to 21 Oct 11:00, and the 7 days from 15 Oct 00:00 up to 22 Oct 00:00.
+    const logs = [
+      blocked('3', '2026-10-21T10:00:00'),
+      blocked('2', '2026-10-20T11:00:00'),
+      blocked('1', '2026-10-20T10:59:59'),
+    ];
+
+    it('leaves out the records before the 24 hours, and opens the ledger on them', async () => {
+      vi.spyOn(demoApi, 'listLogs').mockResolvedValue({ logs, nextBefore: null });
+      renderApp(<HomePage />);
+      const attention = within(await screen.findByRole('region', { name: 'Needs attention' }));
+      expect(await attention.findByText('2 BLOCKED records')).toBeTruthy();
+      expect(attention.getByRole('link', { name: /^Open in the ledger/ }).getAttribute('href')).toBe(
+        '/ledger?verdict=BLOCKED&from=2026-10-20T11:00:00.000Z&to=2026-10-21T11:00:00.000Z',
+      );
+    });
+
+    it('counts them all over 7 days', async () => {
+      vi.spyOn(demoApi, 'listLogs').mockResolvedValue({ logs, nextBefore: null });
+      const user = userEvent.setup();
+      renderApp(<HomePage />);
+      const attention = within(await screen.findByRole('region', { name: 'Needs attention' }));
+      await attention.findByText('2 BLOCKED records');
+      await user.click(screen.getByRole('button', { name: '7 days' }));
+      expect(await attention.findByText('3 BLOCKED records')).toBeTruthy();
+      expect(attention.getByRole('link', { name: /^Open in the ledger/ }).getAttribute('href')).toBe(
+        '/ledger?verdict=BLOCKED&from=2026-10-15T00:00:00.000Z&to=2026-10-22T00:00:00.000Z',
+      );
+    });
+
+    it('says nothing needs attention when only older records would', async () => {
+      vi.spyOn(demoApi, 'listLogs').mockResolvedValue({
+        logs: [verified('2', 'Identity is true'), blocked('1', '2026-10-19T09:00:00')],
+        nextBefore: null,
+      });
+      renderApp(<HomePage />);
+      const attention = within(await screen.findByRole('region', { name: 'Needs attention' }));
+      expect(await attention.findByText(/^Nothing needs attention in the 1 record of these 24 hours/)).toBeTruthy();
+    });
   });
 
   it('names the newest record of a group and what the verifier said', async () => {
@@ -88,7 +142,7 @@ describe('HomePage', () => {
     });
     renderApp(<HomePage />);
     const attention = within(await screen.findByRole('region', { name: 'Needs attention' }));
-    expect(await attention.findByText(/Nothing needs attention in the newest 2 records/)).toBeTruthy();
+    expect(await attention.findByText(/Nothing needs attention in the 2 records of these 24 hours/)).toBeTruthy();
     expect(attention.queryByText(/The identity is false/)).toBeNull();
   });
 
@@ -321,7 +375,7 @@ describe('HomePage', () => {
   it('still shows the records when the key list is refused', async () => {
     vi.spyOn(demoApi, 'listKeys').mockRejectedValue(new ApiError(403, 'Insufficient permissions'));
     renderApp(<HomePage />);
-    expect(await screen.findByText('5 BLOCKED records')).toBeTruthy();
+    expect(await screen.findByText('3 BLOCKED records')).toBeTruthy();
     const keys = within(screen.getByRole('region', { name: 'API keys' }));
     expect(await keys.findByText('The server refused this request: Insufficient permissions')).toBeTruthy();
     expect(screen.queryByText('No active API keys')).toBeNull();
@@ -379,7 +433,7 @@ describe('HomePage', () => {
     expect(summary().getByText('22 Jul to 20 Oct UTC, 90 days.')).toBeTruthy();
 
     await act(async () => answer());
-    expect(await screen.findByText('5 BLOCKED records')).toBeTruthy();
+    expect(await screen.findByText('3 BLOCKED records')).toBeTruthy();
     expect(summary().getByText('22 Jul to 20 Oct UTC, 90 days.')).toBeTruthy();
   });
 
@@ -392,7 +446,7 @@ describe('HomePage', () => {
       .mockImplementation(listLogs);
     vi.spyOn(demoApi, 'listKeys').mockResolvedValueOnce([]).mockRejectedValueOnce(new ApiError(403, 'Denied'));
     renderApp(<HomePage />);
-    expect(await screen.findByText('5 BLOCKED records')).toBeTruthy();
+    expect(await screen.findByText('3 BLOCKED records')).toBeTruthy();
     expect(await screen.findByRole('link', { name: '0 active keys' })).toBeTruthy();
 
     refocus();
@@ -400,7 +454,7 @@ describe('HomePage', () => {
     expect(await screen.findByText(/The records could not be refreshed/)).toBeTruthy();
     expect(await screen.findByText(/The key list could not be refreshed/)).toBeTruthy();
     // Both cards still show what loaded.
-    expect(screen.getByText('5 BLOCKED records')).toBeTruthy();
+    expect(screen.getByText('3 BLOCKED records')).toBeTruthy();
     expect(screen.getByRole('link', { name: '0 active keys' })).toBeTruthy();
     expect(screen.queryByText('The records could not be loaded')).toBeNull();
 

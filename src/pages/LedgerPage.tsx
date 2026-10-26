@@ -7,6 +7,7 @@ import { RecordTable } from '../components/RecordTable';
 import { RefreshError } from '../components/RefreshError';
 import { Shell } from '../components/Shell';
 import { downloadLedgerCsv } from '../lib/csv';
+import { inPeriod, periodName, readPeriod } from '../lib/overview';
 import { toRecord, type LedgerRecord } from '../lib/result';
 import { describeError, useLedgerPages } from '../lib/useAuthedQuery';
 
@@ -21,6 +22,8 @@ const FACETS: { id: Facet; label: string; dot: string }[] = [
 ];
 
 const LIMIT = 200;
+
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 function matches(r: LedgerRecord, facet: Facet): boolean {
   if (facet === 'all') return true;
@@ -57,6 +60,10 @@ export function LedgerPage() {
   const q = params.get('q') ?? '';
   const domain = params.get('verifier') ?? 'all';
   const admission = ADMISSIONS.find((a) => a.id === params.get('admission'))?.id ?? 'all';
+  // The Overview opens the ledger on the range it counted (#46).
+  const fromParam = params.get('from');
+  const toParam = params.get('to');
+  const period = useMemo(() => readPeriod(fromParam, toParam), [fromParam, toParam]);
 
   const { user } = useSession();
   // Export is offered to owners and admins only (#32). The file holds the rows
@@ -64,15 +71,20 @@ export function LedgerPage() {
   const canExport = user?.role === 'owner' || user?.role === 'admin';
   const logs = useLedgerPages(LIMIT);
   const records = useMemo(() => (logs.data?.pages ?? []).flatMap((p) => p.logs).map(toRecord), [logs.data]);
+  // The records the facets count and the filters narrow: those of the period, if one is set.
+  const inRange = useMemo(() => (period ? records.filter((r) => inPeriod(r, period)) : records), [records, period]);
   // A server before #484 sends no cursor: a full page may hide older rows.
   const lastPage = logs.data?.pages.at(-1);
   const noPaging = lastPage !== undefined && lastPage.nextBefore === undefined && lastPage.logs.length >= LIMIT;
-  const domains = useMemo(
-    () => [...new Set(records.map((r) => r.domain))].sort((a, b) => a.localeCompare(b)),
-    [records],
-  );
+  // The chosen verifier stays an option when the range holds none of its
+  // records, so the select still shows the filter that empties the table.
+  const domains = useMemo(() => {
+    const known = new Set(inRange.map((r) => r.domain));
+    if (domain !== 'all') known.add(domain);
+    return [...known].sort((a, b) => a.localeCompare(b));
+  }, [inRange, domain]);
 
-  const shown = records.filter(
+  const shown = inRange.filter(
     (r) =>
       matches(r, facet) &&
       admitted(r, admission) &&
@@ -87,6 +99,13 @@ export function LedgerPage() {
     const next = new URLSearchParams(params);
     if (value === empty) next.delete(key);
     else next.set(key, value);
+    setParams(next, { replace: true });
+  }
+
+  function showAllDates() {
+    const next = new URLSearchParams(params);
+    next.delete('from');
+    next.delete('to');
     setParams(next, { replace: true });
   }
 
@@ -137,6 +156,18 @@ export function LedgerPage() {
 
       {logs.data && records.length > 0 && (
         <>
+          {period && (
+            <p className="note" style={{ margin: '0 24px 12px', display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+              <span>
+                Received {periodName(period)}, the range the Overview counted:{' '}
+                {plural(inRange.length, 'record', 'records')} of the {records.length} loaded.
+              </span>
+              <button type="button" className="btn btn-sm" onClick={showAllDates}>
+                Show all dates
+              </button>
+            </p>
+          )}
+
           <fieldset className="facets">
             <legend className="sr-only">Filter by verdict</legend>
             {FACETS.map((f) => (
@@ -151,7 +182,7 @@ export function LedgerPage() {
                   {f.dot && <span className={`dot ${f.dot}`} aria-hidden="true" />}
                   {f.label}
                 </span>
-                <span className="n">{records.filter((r) => matches(r, f.id)).length}</span>
+                <span className="n">{inRange.filter((r) => matches(r, f.id)).length}</span>
               </button>
             ))}
           </fieldset>

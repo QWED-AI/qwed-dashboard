@@ -128,6 +128,64 @@ describe('LedgerPage', () => {
     });
   });
 
+  describe('the range from the Overview (#46)', () => {
+    const logs = [
+      row('3', { created_at: '2026-10-21T10:00:00' }),
+      row('2', {
+        verification_result: JSON.stringify({ status: 'BLOCKED', agent_message: 'message 2' }),
+        created_at: '2026-10-20T11:00:00',
+      }),
+      row('1', {
+        verification_result: JSON.stringify({ status: 'BLOCKED', agent_message: 'message 1' }),
+        created_at: '2026-10-20T10:59:59',
+      }),
+    ];
+    const range = 'from=2026-10-20T11:00:00.000Z&to=2026-10-21T11:00:00.000Z';
+    const facet = (name: string) => screen.getByRole('button', { name: new RegExp(`^${name}`) }).textContent;
+
+    it('shows and counts only the records received in it, from its start up to its end', async () => {
+      vi.spyOn(demoApi, 'listLogs').mockResolvedValue({ logs, nextBefore: null });
+      renderApp(<LedgerPage />, { route: `/?verdict=BLOCKED&${range}` });
+      await rowFor('claim 2');
+      expect(screen.queryByRole('link', { name: 'claim 1' })).toBeNull();
+      expect(facet('All records')).toBe('All records2');
+      expect(facet('BLOCKED')).toBe('BLOCKED1');
+      expect(
+        screen.getByText(/^Received 20 Oct, 11:00 to 21 Oct, 11:00 UTC, the range the Overview counted/).textContent,
+      ).toBe('Received 20 Oct, 11:00 to 21 Oct, 11:00 UTC, the range the Overview counted: 2 records of the 3 loaded.');
+    });
+
+    it('shows every loaded record again on Show all dates, keeping the other filters', async () => {
+      vi.spyOn(demoApi, 'listLogs').mockResolvedValue({ logs, nextBefore: null });
+      const user = userEvent.setup();
+      renderApp(<LedgerPage />, { route: `/?verdict=BLOCKED&${range}` });
+      await rowFor('claim 2');
+      await user.click(screen.getByRole('button', { name: 'Show all dates' }));
+      expect(await screen.findByRole('link', { name: 'claim 1' })).toBeTruthy();
+      expect(screen.queryByRole('link', { name: 'claim 3' })).toBeNull();
+      expect(facet('BLOCKED')).toBe('BLOCKED2');
+      expect(screen.queryByText(/the range the Overview counted/)).toBeNull();
+    });
+
+    it('keeps the chosen verifier in the list when the range holds none of its records', async () => {
+      vi.spyOn(demoApi, 'listLogs').mockResolvedValue({
+        logs: [...logs, row('0', { engine_used: 'LOGIC', created_at: '2026-10-19T09:00:00' })],
+        nextBefore: null,
+      });
+      renderApp(<LedgerPage />, { route: `/?verifier=LOGIC&${range}` });
+      expect(await screen.findByText('No records match these filters.')).toBeTruthy();
+      expect((screen.getByRole('combobox', { name: 'Verifier' }) as HTMLSelectElement).value).toBe('LOGIC');
+    });
+
+    it('ignores a range it cannot read', async () => {
+      vi.spyOn(demoApi, 'listLogs').mockResolvedValue({ logs, nextBefore: null });
+      renderApp(<LedgerPage />, { route: '/?from=yesterday&to=2026-10-21T11:00:00.000Z' });
+      await rowFor('claim 1');
+      expect(facet('All records')).toBe('All records3');
+      expect(screen.queryByText(/the range the Overview counted/)).toBeNull();
+    });
+  });
+
   describe('Export CSV', () => {
     /** Clicks Export CSV and returns the saved file's text and name. */
     async function exportCsv(user: ReturnType<typeof userEvent.setup>) {

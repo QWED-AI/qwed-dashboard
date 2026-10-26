@@ -10,7 +10,16 @@ import { Shell } from '../components/Shell';
 import { BarList, StatTile, type BarRow } from '../components/Stat';
 import { VerdictChart } from '../components/VerdictChart';
 import { formatUtc } from '../lib/format';
-import { comparedText, countBy, overviewWindow, RANGES, type OverviewWindow, type Range } from '../lib/overview';
+import {
+  comparedText,
+  countBy,
+  overviewWindow,
+  periodParams,
+  RANGES,
+  type OverviewWindow,
+  type Period,
+  type Range,
+} from '../lib/overview';
 import { toRecord, type LedgerRecord } from '../lib/result';
 import { securityEventsError, typeLabel } from '../lib/securityEvents';
 import { describeError, useAuthedQuery, useSecurityEventPages } from '../lib/useAuthedQuery';
@@ -47,8 +56,14 @@ function latest(r: LedgerRecord): string {
 // here, since whether the claim holds is the verifier's call, not one the
 // dashboard makes. BLOCKED and UNVERIFIABLE records are listed by verdict, so
 // a denied one is not counted twice.
-function needsAttention(records: LedgerRecord[], activeKeys: number | null): Attention[] {
+//
+// It counts the records of the chosen range, as the tiles do, and opens the
+// ledger on that range (#46). `period` is null only when no record has a
+// readable time; then it counts every loaded record.
+function needsAttention(records: LedgerRecord[], activeKeys: number | null, period: Period | null): Attention[] {
   const items: Attention[] = [];
+  const range = period ? `&${periodParams(period)}` : '';
+  const ledger = (filters: string) => `/ledger?${filters}${range}`;
   const groups: { verdict: Verdict | null; facet: string; one: string; many: string }[] = [
     { verdict: 'BLOCKED', facet: 'BLOCKED', one: 'BLOCKED record', many: 'BLOCKED records' },
     { verdict: 'UNVERIFIABLE', facet: 'UNVERIFIABLE', one: 'UNVERIFIABLE record', many: 'UNVERIFIABLE records' },
@@ -64,7 +79,7 @@ function needsAttention(records: LedgerRecord[], activeKeys: number | null): Att
       title: plural(hits.length, g.one, g.many),
       detail: latest(first),
       action: 'Open in the ledger',
-      to: `/ledger?verdict=${g.facet}`,
+      to: ledger(`verdict=${g.facet}`),
     });
   }
   const denied = records.filter((r) => r.result.verdict === 'VERIFIED' && r.result.admission === 'DENY');
@@ -76,7 +91,7 @@ function needsAttention(records: LedgerRecord[], activeKeys: number | null): Att
       title: plural(denied.length, 'VERIFIED record not admitted', 'VERIFIED records not admitted'),
       detail: latest(firstDenied),
       action: 'Open in the ledger',
-      to: '/ledger?verdict=VERIFIED&admission=DENY',
+      to: ledger('verdict=VERIFIED&admission=DENY'),
     });
   }
   if (activeKeys === 0) {
@@ -106,7 +121,10 @@ export function HomePage() {
   const complete = nextBefore === null || (nextBefore === undefined && records.length < LIMIT);
   const win = useMemo(() => overviewWindow(records, range, complete), [records, range, complete]);
   const activeKeys = keys.data ? keys.data.length : null;
-  const items = useMemo(() => needsAttention(records, activeKeys), [records, activeKeys]);
+  const items = useMemo(
+    () => needsAttention(win ? win.records : records, activeKeys, win),
+    [win, records, activeKeys],
+  );
   const name = RANGES[range].name;
 
   function pick(next: Range) {
@@ -190,7 +208,7 @@ export function HomePage() {
                     <h2 id="attention-title">Needs attention</h2>
                     <Link to="/ledger">Ledger</Link>
                   </div>
-                  <AttentionList items={items} total={records.length} />
+                  <AttentionList items={items} total={records.length} win={win} />
                 </section>
               </div>
             </>
@@ -373,7 +391,14 @@ function SecurityCard() {
 
 // With no records the note comes first, but the list still shows: a new
 // organisation with no key needs the "No active API keys" line most.
-function AttentionList({ items, total }: Readonly<{ items: Attention[]; total: number }>) {
+function AttentionList({
+  items,
+  total,
+  win,
+}: Readonly<{ items: Attention[]; total: number; win: OverviewWindow | null }>) {
+  const scope = win
+    ? `the ${plural(win.records.length, 'record', 'records')} of these ${RANGES[win.range].name}`
+    : `the newest ${plural(total, 'record', 'records')}`;
   return (
     <>
       {total === 0 && (
@@ -384,7 +409,7 @@ function AttentionList({ items, total }: Readonly<{ items: Attention[]; total: n
       )}
       {total > 0 && items.length === 0 && (
         <div className="note">
-          Nothing needs attention in the newest {plural(total, 'record', 'records')}: none is BLOCKED or UNVERIFIABLE,
+          Nothing needs attention in {scope}: none is BLOCKED or UNVERIFIABLE,
           no VERIFIED one was denied, and every stored result has a verdict.
         </div>
       )}

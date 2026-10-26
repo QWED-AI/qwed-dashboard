@@ -1,6 +1,17 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Verdict } from '../api/types';
-import { bucketLabel, bucketName, comparedText, countBy, niceScale, overviewWindow } from './overview';
+import {
+  bucketLabel,
+  bucketName,
+  comparedText,
+  countBy,
+  inPeriod,
+  niceScale,
+  overviewWindow,
+  periodName,
+  periodParams,
+  readPeriod,
+} from './overview';
 import { parseResult, type LedgerRecord } from './result';
 
 const rec = (createdAt: string, verdict: Verdict | null, domain = 'MATH', admission?: string): LedgerRecord => {
@@ -132,5 +143,47 @@ describe('comparedText', () => {
     expect(comparedText(4, 0, '24 hours')).toBe('None in the 24 hours before');
     expect(comparedText(0, 0, '24 hours')).toBeNull();
     expect(comparedText(4, null, '24 hours')).toBeNull();
+  });
+});
+
+describe('the ledger period (#46)', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  const start = Date.UTC(2026, 9, 20, 11);
+  const end = Date.UTC(2026, 9, 21, 11);
+
+  it('reads back the parameters it writes', () => {
+    expect(periodParams({ start, end })).toBe('from=2026-10-20T11:00:00.000Z&to=2026-10-21T11:00:00.000Z');
+    expect(readPeriod('2026-10-20T11:00:00.000Z', '2026-10-21T11:00:00.000Z')).toEqual({ start, end });
+  });
+
+  it('reads a time with no offset as UTC, as record times are, whatever the browser’s zone', () => {
+    vi.stubEnv('TZ', 'Asia/Kolkata');
+    expect(readPeriod('2026-10-20T11:00:00', '2026-10-21T11:00:00')).toEqual({ start, end });
+    expect(readPeriod('2026-10-20T16:30:00+05:30', '2026-10-21T11:00:00Z')).toEqual({ start, end });
+  });
+
+  it('is null when an end is missing or unreadable, or the range is empty', () => {
+    expect(readPeriod(null, '2026-10-21T11:00:00Z')).toBeNull();
+    expect(readPeriod('2026-10-20T11:00:00Z', '')).toBeNull();
+    expect(readPeriod('yesterday', '2026-10-21T11:00:00Z')).toBeNull();
+    expect(readPeriod('2026-10-21T11:00:00Z', '2026-10-21T11:00:00Z')).toBeNull();
+    expect(readPeriod('2026-10-21T11:00:00Z', '2026-10-20T11:00:00Z')).toBeNull();
+  });
+
+  it('holds a record from its start up to, not including, its end', () => {
+    const p = { start, end };
+    expect(inPeriod(rec('2026-10-20T11:00:00', 'VERIFIED'), p)).toBe(true);
+    expect(inPeriod(rec('2026-10-20T10:59:59', 'VERIFIED'), p)).toBe(false);
+    expect(inPeriod(rec('2026-10-21T11:00:00', 'VERIFIED'), p)).toBe(false);
+    expect(inPeriod(rec('not a time', 'VERIFIED'), p)).toBe(false);
+  });
+
+  it('names each end as precisely as it is', () => {
+    expect(periodName({ start, end })).toBe('20 Oct, 11:00 to 21 Oct, 11:00 UTC');
+    expect(periodName({ start: start + 30 * 60_000, end: end + 15_000 })).toBe('20 Oct, 11:30 to 21 Oct, 11:00:15 UTC');
+    expect(periodName({ start: start + 250, end })).toBe('20 Oct, 11:00:00.250 to 21 Oct, 11:00 UTC');
   });
 });
