@@ -25,7 +25,7 @@ export interface AttestationReport {
   items: AttestationItem[];
   kid: string | null;
   issuer: string | null;
-  /** Seconds since the epoch, as the token states them. */
+  /** Seconds since the epoch, as the token states them; null when absent or not a time a Date can hold. */
   issuedAt: number | null;
   expiresAt: number | null;
 }
@@ -42,14 +42,19 @@ export interface StoredFacts {
 type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
 const str = (v: unknown): string | null => (typeof v === 'string' ? v : null);
-const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+
+/** The largest time a Date can hold, in seconds: a larger one throws when formatted. */
+const MAX_SECONDS = 8.64e12;
+const seconds = (v: unknown): number | null =>
+  typeof v === 'number' && Number.isFinite(v) && Math.abs(v) <= MAX_SECONDS ? v : null;
 
 /** Base64url to bytes; throws on text that is not base64url. */
 function fromBase64Url(part: string): Uint8Array<ArrayBuffer> {
   if (!/^[A-Za-z0-9_-]*$/.test(part)) throw new Error('not base64url');
-  const b64 = part.replace(/-/g, '+').replace(/_/g, '/');
+  const b64 = part.replaceAll('-', '+').replaceAll('_', '/');
   const bin = atob(b64 + '='.repeat((4 - (b64.length % 4)) % 4));
-  return Uint8Array.from(bin, (c) => c.charCodeAt(0));
+  // atob gives one character per byte, each below 256.
+  return Uint8Array.from(bin, (c) => c.codePointAt(0) ?? 0);
 }
 
 function decodeJson(part: string): Obj | null {
@@ -75,6 +80,8 @@ const failed = (problem: string): AttestationReport => ({
   expiresAt: null,
 });
 
+const isoOf = (s: number) => new Date(s * 1000).toISOString().replace('.000Z', 'Z');
+
 /** One comparison of a claim with what the record stored. */
 function compare(
   id: AttestationItem['id'],
@@ -87,6 +94,83 @@ function compare(
   if (stored === null) return { id, label, state: 'unknown', detail: `The record did not store ${what}.` };
   if (claim === stored) return { id, label, state: 'pass', detail: claim };
   return { id, label, state: 'fail', detail: `The attestation says ${claim}; the record stored ${stored}.` };
+}
+
+interface Decoded {
+  header: Obj;
+  claims: Obj;
+  signingInput: string;
+  signature: string;
+}
+
+/** The token's parts, or why it cannot be checked. */
+function decode(token: string): Decoded | string {
+  const parts = token.split('.');
+  const [h, p, s] = parts;
+  if (parts.length !== 3 || h === undefined || p === undefined || s === undefined) return 'The stored attestation is not a JWT.';
+  const header = decodeJson(h);
+  const claims = decodeJson(p);
+  if (!header || !claims) return 'The stored attestation could not be read.';
+  if (header.alg !== 'ES256' || header.typ !== ATTESTATION_TYPE) {
+    return `The stored attestation is not a verdict attestation (alg ${String(header.alg)}, typ ${String(header.typ)}).`;
+  }
+  return { header, claims, signingInput: `${h}.${p}`, signature: s };
+}
+
+const SIGNATURE_LABEL = 'Signed with the server’s key';
+
+/** The ES256 signature, checked with the JWKS key named by the token's kid. */
+async function signatureItem(subtle: SubtleCrypto, key: Jwk | undefined, token: Decoded): Promise<AttestationItem> {
+  if (!key) {
+    return {
+      id: 'signature',
+      label: SIGNATURE_LABEL,
+      state: 'unknown',
+      detail:
+        'The server’s keys do not include this key. It was rotated, or the server signs with a key it makes per process and has restarted since.',
+    };
+  }
+  let valid = false;
+  try {
+    const publicKey = await subtle.importKey(
+      'jwk',
+      { kty: key.kty, crv: key.crv, x: key.x, y: key.y },
+      { name: 'ECDSA', namedCurve: 'P-256' },
+      false,
+      ['verify'],
+    );
+    const signature = fromBase64Url(token.signature);
+    valid =
+      signature.length === 64 &&
+      (await subtle.verify(
+        { name: 'ECDSA', hash: 'SHA-256' },
+        publicKey,
+        signature,
+        new TextEncoder().encode(token.signingInput),
+      ));
+  } catch {
+    valid = false;
+  }
+  return {
+    id: 'signature',
+    label: SIGNATURE_LABEL,
+    state: valid ? 'pass' : 'fail',
+    detail: valid
+      ? 'The ES256 signature matches the server’s public key.'
+      : 'The signature does not match the server’s public key: the token was changed, or another key signed it.',
+  };
+}
+
+function expiryItem(expiresAt: number | null, now: number): AttestationItem {
+  const label = 'Not expired';
+  if (expiresAt === null) return { id: 'expiry', label, state: 'unknown', detail: 'The attestation states no expiry the dashboard can read.' };
+  if (now < expiresAt) return { id: 'expiry', label, state: 'pass', detail: `Valid until ${isoOf(expiresAt)}.` };
+  return {
+    id: 'expiry',
+    label,
+    state: 'fail',
+    detail: `Expired at ${isoOf(expiresAt)}. A consumer no longer accepts it; the signature still shows what the server signed.`,
+  };
 }
 
 /**
@@ -102,94 +186,35 @@ export async function checkAttestation(
   subtle: SubtleCrypto | undefined = globalThis.crypto?.subtle,
 ): Promise<AttestationReport> {
   if (!subtle) return failed('This browser checks signatures only on HTTPS or on localhost.');
-  const parts = token.split('.');
-  const [h, p, s] = parts;
-  if (parts.length !== 3 || h === undefined || p === undefined || s === undefined) {
-    return failed('The stored attestation is not a JWT.');
-  }
-  const header = decodeJson(h);
-  const claims = decodeJson(p);
-  if (!header || !claims) return failed('The stored attestation could not be read.');
-  if (header.alg !== 'ES256' || header.typ !== ATTESTATION_TYPE) {
-    return failed(`The stored attestation is not a verdict attestation (alg ${String(header.alg)}, typ ${String(header.typ)}).`);
-  }
+  const decoded = decode(token);
+  if (typeof decoded === 'string') return failed(decoded);
 
+  const { header, claims } = decoded;
   const kid = str(header.kid);
   const issuer = str(claims.iss);
-  const issuedAt = num(claims.iat);
-  const expiresAt = num(claims.exp);
+  const expiresAt = seconds(claims.exp);
   const qwed = isObj(claims.qwed) ? claims.qwed : {};
   const result = isObj(qwed.result) ? qwed.result : {};
-
-  const items: AttestationItem[] = [];
-  const key: Jwk | undefined = kid === null ? undefined : jwks.keys.find((k) => k.kid === kid);
-  if (!key) {
-    items.push({
-      id: 'signature',
-      label: 'Signed with the server’s key',
-      state: 'unknown',
-      detail:
-        'The server’s keys do not include this key. It was rotated, or the server signs with a key it makes per process and has restarted since.',
-    });
-  } else {
-    let valid: boolean;
-    try {
-      const publicKey = await subtle.importKey(
-        'jwk',
-        { kty: key.kty, crv: key.crv, x: key.x, y: key.y },
-        { name: 'ECDSA', namedCurve: 'P-256' },
-        false,
-        ['verify'],
-      );
-      const signature = fromBase64Url(s);
-      valid =
-        signature.length === 64 &&
-        (await subtle.verify(
-          { name: 'ECDSA', hash: 'SHA-256' },
-          publicKey,
-          signature,
-          new TextEncoder().encode(`${h}.${p}`),
-        ));
-    } catch {
-      valid = false;
-    }
-    items.push({
-      id: 'signature',
-      label: 'Signed with the server’s key',
-      state: valid ? 'pass' : 'fail',
-      detail: valid
-        ? 'The ES256 signature matches the server’s public key.'
-        : 'The signature does not match the server’s public key: the token was changed, or another key signed it.',
-    });
-  }
-
+  const key = jwks.keys.find((k) => kid !== null && k.kid === kid);
   // The key ID is the issuer's DID and the key's thumbprint, "<did>#<thumbprint>".
   const keyOwner = kid?.split('#')[0] ?? null;
-  items.push(compare('issuer', 'Issued by the key’s owner', issuer, keyOwner, 'an issuer'));
-  items.push(compare('request', 'About this record’s request', str(claims.sub), await sha256Ref(subtle, stored.request), 'a request'));
-  items.push(compare('verdict', 'States the stored verdict', str(result.status), stored.verdict, 'a verdict'));
-  items.push(compare('proof', 'States the stored proof_ref', str(qwed.proof_hash), stored.proofRef, 'a proof_ref'));
-  items.push(compare('admission', 'States the stored admission', str(qwed.admission), stored.admissionWord, 'an admission'));
 
-  if (expiresAt === null) {
-    items.push({ id: 'expiry', label: 'Not expired', state: 'unknown', detail: 'The attestation states no expiry.' });
-  } else if (now < expiresAt) {
-    items.push({ id: 'expiry', label: 'Not expired', state: 'pass', detail: `Valid until ${isoOf(expiresAt)}.` });
-  } else {
-    items.push({
-      id: 'expiry',
-      label: 'Not expired',
-      state: 'fail',
-      detail: `Expired at ${isoOf(expiresAt)}. A consumer no longer accepts it; the signature still shows what the server signed.`,
-    });
-  }
-
-  return { problem: null, items, kid, issuer, issuedAt, expiresAt };
+  const items: AttestationItem[] = [
+    await signatureItem(subtle, key, decoded),
+    compare('issuer', 'Issued by the key’s owner', issuer, keyOwner, 'an issuer'),
+    compare('request', 'About this record’s request', str(claims.sub), await sha256Ref(subtle, stored.request), 'a request'),
+    compare('verdict', 'States the stored verdict', str(result.status), stored.verdict, 'a verdict'),
+    compare('proof', 'States the stored proof_ref', str(qwed.proof_hash), stored.proofRef, 'a proof_ref'),
+    compare('admission', 'States the stored admission', str(qwed.admission), stored.admissionWord, 'an admission'),
+    expiryItem(expiresAt, now),
+  ];
+  return { problem: null, items, kid, issuer, issuedAt: seconds(claims.iat), expiresAt };
 }
 
-const isoOf = (seconds: number) => `${new Date(seconds * 1000).toISOString().replace('.000Z', 'Z')}`;
-
-/** One sentence for the whole check. */
+/**
+ * One sentence for the whole check. It says "checks out" only when every
+ * check passed; a check that could not be made stays named in it.
+ */
 export function attestationHeadline(report: AttestationReport): string {
   if (report.problem) return report.problem;
   const state = (id: AttestationItem['id']) => report.items.find((i) => i.id === id)?.state;
@@ -197,7 +222,13 @@ export function attestationHeadline(report: AttestationReport): string {
   if (state('signature') === 'unknown') return 'The signature cannot be checked: the server no longer has this key.';
   const claims = report.items.filter((i) => i.id !== 'signature' && i.id !== 'expiry');
   if (claims.some((i) => i.state === 'fail')) return 'The server signed this attestation, but it does not match this record.';
-  if (state('expiry') === 'fail') return 'The server signed this attestation, and it matches this record, but it has expired.';
-  if (claims.some((i) => i.state === 'unknown')) return 'The server signed this attestation; some claims could not be compared.';
+  const partial = claims.some((i) => i.state === 'unknown');
+  if (state('expiry') === 'fail') {
+    return partial
+      ? 'The server signed this attestation, but it has expired, and some claims could not be compared.'
+      : 'The server signed this attestation, and it matches this record, but it has expired.';
+  }
+  if (partial) return 'The server signed this attestation; some claims could not be compared.';
+  if (state('expiry') === 'unknown') return 'The server signed this attestation, and it matches this record, but it states no expiry.';
   return 'The attestation checks out: the server signed it, and it matches this record.';
 }

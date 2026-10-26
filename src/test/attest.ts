@@ -8,9 +8,9 @@ const subtle = globalThis.crypto.subtle;
 export const DID = 'did:qwed:node:local';
 
 export const b64url = (bytes: Uint8Array) =>
-  btoa(String.fromCharCode(...bytes))
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
+  btoa(String.fromCodePoint(...bytes))
+    .replaceAll('+', '-')
+    .replaceAll('/', '_')
     .replace(/=+$/, '');
 
 export const part = (obj: unknown) => b64url(new TextEncoder().encode(JSON.stringify(obj)));

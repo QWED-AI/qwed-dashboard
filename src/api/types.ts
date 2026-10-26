@@ -145,11 +145,6 @@ export interface EntryCheck {
  */
 export type ComplianceAuth = { session: string } | { apiKey: string };
 
-/**
- * GET /admin/compliance/verify-trail (#485): the signature and hash-chain
- * check of every audit entry in a period. VERIFIED only when there are
- * entries and all check out, with a proof_ref over the range checked.
- */
 /** A public key from GET /.well-known/jwks.json, which checks the server's attestations. */
 export interface Jwk {
   kid?: string;
@@ -165,6 +160,11 @@ export interface Jwks {
   keys: Jwk[];
 }
 
+/**
+ * GET /admin/compliance/verify-trail (#485): the signature and hash-chain
+ * check of every audit entry in a period. VERIFIED only when there are
+ * entries and all check out, with a proof_ref over the range checked.
+ */
 export interface TrailCheck {
   status: 'VERIFIED' | 'NOT_VERIFIED' | 'NO_ENTRIES';
   proof_ref: string | null;

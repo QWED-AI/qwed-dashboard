@@ -68,6 +68,28 @@ describe('checkAttestation', () => {
     expect(attestationHeadline(r)).toBe('The server signed this attestation, and it matches this record, but it has expired.');
   });
 
+  it('never says it checks out when the attestation states no expiry', async () => {
+    const { sign, jwks } = await setup();
+    const r = await checkAttestation(await sign({ claims: { exp: undefined } }), jwks, STORED, NOW);
+    expect(states(r)).toMatchObject({ signature: 'pass', expiry: 'unknown' });
+    expect(attestationHeadline(r)).toBe('The server signed this attestation, and it matches this record, but it states no expiry.');
+  });
+
+  it('names a claim it could not compare in the headline of an expired attestation', async () => {
+    const { sign, jwks } = await setup();
+    const r = await checkAttestation(await sign({ claims: { exp: NOW - 1 }, qwed: { proof_hash: undefined } }), jwks, STORED, NOW);
+    expect(states(r)).toMatchObject({ proof: 'unknown', expiry: 'fail' });
+    expect(attestationHeadline(r)).toBe('The server signed this attestation, but it has expired, and some claims could not be compared.');
+  });
+
+  it('treats a time a Date cannot hold as not stated, so formatting it cannot throw', async () => {
+    const { sign, jwks } = await setup();
+    const r = await checkAttestation(await sign({ claims: { iat: 1e20, exp: -1e20 } }), jwks, STORED, NOW);
+    expect(r.issuedAt).toBeNull();
+    expect(r.expiresAt).toBeNull();
+    expect(states(r).expiry).toBe('unknown');
+  });
+
   it('fails each claim that does not match what the record stored', async () => {
     const { sign, jwks } = await setup();
     const r = await checkAttestation(

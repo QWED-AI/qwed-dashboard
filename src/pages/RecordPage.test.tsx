@@ -176,15 +176,27 @@ describe('RecordPage', () => {
         expect(await card.findByText('The signature cannot be checked: the server no longer has this key.')).toBeTruthy();
       });
 
-      it('says when the keys cannot be loaded', async () => {
+      it('says the keys could not be loaded, not that the record is missing', async () => {
         const { row } = await attestedRow();
         vi.spyOn(demoApi, 'getLog').mockResolvedValue(row);
-        vi.spyOn(demoApi, 'getJwks').mockRejectedValue(new ApiError(0, 'The QWED server could not be reached.'));
+        const jwks = vi.spyOn(demoApi, 'getJwks');
+        jwks.mockRejectedValueOnce(new ApiError(404, 'Not Found'));
+        jwks.mockRejectedValueOnce(new ApiError(0, 'The QWED server could not be reached.'));
         const user = userEvent.setup();
         renderApp(<App />, { route: '/records/1' });
         const card = await region('Attestation');
         await user.click(card.getByRole('button', { name: 'Check attestation' }));
-        expect(await card.findByRole('alert')).toBeTruthy();
+        expect((await card.findByRole('alert')).textContent).toBe(
+          'The server’s public keys could not be loaded from /.well-known/jwks.json: the server returned 404: Not Found',
+        );
+        expect(card.queryByText(/This record does not exist/)).toBeNull();
+
+        await user.click(card.getByRole('button', { name: 'Check attestation' }));
+        await waitFor(() =>
+          expect(card.getByRole('alert').textContent).toBe(
+            'The server’s public keys could not be loaded from /.well-known/jwks.json: The QWED server could not be reached.',
+          ),
+        );
       });
 
       it('says a VERIFIED record without an attestation has nothing to check', async () => {
@@ -192,6 +204,20 @@ describe('RecordPage', () => {
         renderApp(<App />, { route: '/records/1' });
         const card = await region('Attestation');
         expect(card.getByText(/No attestation was stored with this record/)).toBeTruthy();
+        expect(card.queryByRole('button', { name: 'Check attestation' })).toBeNull();
+      });
+
+      it('does not say a shortened stored result carried no signature', async () => {
+        // The server read VERIFIED before it shortened the copy (#484), so the card shows.
+        vi.spyOn(demoApi, 'getLog').mockResolvedValue({
+          ...olderServerRow,
+          verification_result: JSON.stringify({ truncated: true }),
+          verdict: 'VERIFIED',
+        });
+        renderApp(<App />, { route: '/records/1' });
+        const card = await region('Attestation');
+        expect(card.getByText(/shortened copy of this result.*Any attestation it carried cannot be checked\./)).toBeTruthy();
+        expect(card.queryByText(/carries no signature/)).toBeNull();
         expect(card.queryByRole('button', { name: 'Check attestation' })).toBeNull();
       });
     });

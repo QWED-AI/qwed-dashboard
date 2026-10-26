@@ -1,14 +1,24 @@
 import { useMutation } from '@tanstack/react-query';
+import { ApiError } from '../api/http';
+import type { Jwks } from '../api/types';
 import { useSession } from '../auth/session';
 import { attestationHeadline, checkAttestation, type CheckState } from '../lib/attestation';
 import { formatUtcLong } from '../lib/format';
 import type { LedgerRecord } from '../lib/result';
-import { describeError } from '../lib/useAuthedQuery';
 import { Mark } from './ChainCheck';
 import { Icon } from './Icon';
 
 const ok = (state: CheckState): boolean | undefined => (state === 'unknown' ? undefined : state === 'pass');
 const utc = (seconds: number | null) => (seconds === null ? 'not stated' : formatUtcLong(new Date(seconds * 1000).toISOString()));
+
+/** The keys failed to load: about the server's key route, not about this record. */
+class KeysUnavailable extends Error {}
+
+function keysError(err: unknown): KeysUnavailable {
+  let reason = 'the request failed.';
+  if (err instanceof ApiError) reason = err.status === 0 ? err.message : `the server returned ${err.status}: ${err.message}`;
+  return new KeysUnavailable(`The server’s public keys could not be loaded from /.well-known/jwks.json: ${reason}`);
+}
 
 /**
  * Checks the attestation the record stored (#39) with the server's public
@@ -21,7 +31,12 @@ export function AttestationCheck({ record }: Readonly<{ record: LedgerRecord }>)
   const check = useMutation({
     mutationFn: async () => {
       if (!token) throw new Error('No attestation was stored with this record.');
-      const jwks = await api.getJwks();
+      let jwks: Jwks;
+      try {
+        jwks = await api.getJwks();
+      } catch (err) {
+        throw keysError(err);
+      }
       return checkAttestation(
         token,
         jwks,
@@ -41,6 +56,11 @@ export function AttestationCheck({ record }: Readonly<{ record: LedgerRecord }>)
   if (check.isPending) label = 'Checking…';
   else if (report) label = 'Check again';
 
+  // A stored result the dashboard cannot read (shortened, or not JSON) may
+  // still have carried one; only a readable result shows there is none.
+  let missing = 'No attestation was stored with this record, so there is nothing to check. The server signs VERIFIED results; this one carries no signature.';
+  if (record.result.error) missing = `${record.result.error} Any attestation it carried cannot be checked.`;
+
   return (
     <section className="card" aria-labelledby="attestation-check-title">
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -59,14 +79,13 @@ export function AttestationCheck({ record }: Readonly<{ record: LedgerRecord }>)
         </>
       ) : (
         <p className="sub" style={{ margin: 0 }}>
-          No attestation was stored with this record, so there is nothing to check. The server signs VERIFIED
-          results; this one carries no signature.
+          {missing}
         </p>
       )}
 
       {check.isError && (
         <p className="alert" role="alert">
-          {describeError(check.error)}
+          {check.error instanceof KeysUnavailable ? check.error.message : 'The attestation could not be checked.'}
         </p>
       )}
 
