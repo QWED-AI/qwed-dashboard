@@ -47,12 +47,17 @@ describe('serverStatus', () => {
     expect(serverStatus(undefined, gateway, false)).toEqual({ kind: 'unreachable' });
   });
 
-  it('keeps the last answer when a refresh fails for another reason', () => {
+  it('says the check failed when something other than the server’s health answered', () => {
+    const html = new ApiError(200, 'The server did not return JSON. Check that /api points at the QWED server.');
+    expect(serverStatus(undefined, html, false)).toEqual({ kind: 'failed', reason: html.message });
+    expect(serverStatus(undefined, new ApiError(404, 'Not Found'), false)).toEqual({ kind: 'failed', reason: 'Not Found' });
+  });
+
+  it('lets a failed refresh replace an earlier answer, which may no longer be what answers there', () => {
     expect(serverStatus({ version: '8.0.0' }, new ApiError(500, 'Internal Server Error'), false)).toEqual({
-      kind: 'current',
-      version: '8.0.0',
+      kind: 'failed',
+      reason: 'Internal Server Error',
     });
-    expect(serverStatus(undefined, new ApiError(404, 'Not Found'), false)).toEqual({ kind: 'unknown', version: null });
   });
 
   it('is checking until the first answer, and sample data in the demo', () => {

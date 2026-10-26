@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode, type SubmitEvent } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router';
 import { API_BASE } from '../api/http';
 import { useSession } from '../auth/session';
@@ -37,9 +37,12 @@ function statusPill(s: ServerStatus): { cls: string; label: string } {
     case 'older':
       return { cls: 'status old', label: `QWED ${s.version} · update to ${NEEDED_VERSION}` };
     case 'unknown':
-      return { cls: 'status', label: s.version ? `QWED ${s.version}` : 'QWED server · no version given' };
+      // A JSON answer with no version: nothing says it is QWED's.
+      return { cls: 'status', label: s.version ? `Server ${s.version}` : 'No server version given' };
     case 'unreachable':
       return { cls: 'status down', label: 'Server unreachable' };
+    case 'failed':
+      return { cls: 'status down', label: 'Server check failed' };
   }
 }
 
@@ -52,8 +55,12 @@ function serverLine(s: ServerStatus): string {
       return `Server: checking ${API_BASE}`;
     case 'unreachable':
       return `Server: not reached at ${API_BASE}`;
-    case 'unknown':
-      return `Server: ${s.version ? `QWED ${s.version}` : 'QWED, no version given'}, at ${API_BASE}`;
+    case 'failed':
+      return `Server: the health check at ${API_BASE} failed. ${s.reason}`;
+    case 'unknown': {
+      const named = s.version ? `version ${s.version}` : 'no version given';
+      return `Server: ${named}, at ${API_BASE}`;
+    }
     default:
       return `Server: QWED ${s.version} at ${API_BASE}`;
   }
@@ -88,12 +95,13 @@ function FindRecord() {
     return () => document.removeEventListener('keydown', onKey);
   }, []);
 
-  function submit(e: FormEvent<HTMLFormElement>) {
+  function submit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
     const q = value.trim();
     if (!q) return;
-    if (/^\d+$/.test(q)) navigate(`/records/${q}`);
-    else navigate(`/ledger?q=${encodeURIComponent(q)}`);
+    // navigate() settles once the route has changed; nothing waits on it.
+    if (/^\d+$/.test(q)) void navigate(`/records/${q}`);
+    else void navigate(`/ledger?q=${encodeURIComponent(q)}`);
   }
 
   return (
@@ -209,10 +217,10 @@ export function Shell({ crumbs, children }: Readonly<{ crumbs: Crumb[]; children
           </nav>
           <span className="spacer" />
           <FindRecord />
-          <span className={pill.cls} role="status">
+          <output className={pill.cls} title={server.kind === 'failed' ? server.reason : undefined}>
             <span className="dot" aria-hidden="true" />
             {pill.label}
-          </span>
+          </output>
           <a className="btn btn-sm" href="https://docs.qwedai.tech" target="_blank" rel="noreferrer">
             Docs
           </a>
@@ -222,7 +230,8 @@ export function Shell({ crumbs, children }: Readonly<{ crumbs: Crumb[]; children
         {server.kind === 'older' && (
           <p className="server-note" role="note">
             <strong>This server is QWED {server.version}.</strong> The stored admissions, paging, the audit checks with
-            your session and security events need {NEEDED_VERSION}, so some values here read as not recorded.
+            your session, key last-used times and security events need {NEEDED_VERSION}, so some values here read as
+            not recorded.
           </p>
         )}
         {children}

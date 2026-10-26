@@ -43,15 +43,22 @@ export type ServerStatus =
   /** The server answered, with no version the dashboard can read. */
   | { kind: 'unknown'; version: string | null }
   /** The server, or the proxy in front of it, did not answer (#40). */
-  | { kind: 'unreachable' };
+  | { kind: 'unreachable' }
+  /**
+   * Something answered, but not with the server's health: an error status,
+   * or a page that is not JSON, as when /api is not routed to QWED.
+   */
+  | { kind: 'failed'; reason: string };
 
 /** What the header and footer say about the server, from the /health query. */
 export function serverStatus(health: ServerHealth | undefined, error: unknown, demo: boolean): ServerStatus {
   if (demo) return { kind: 'demo' };
-  // The server's last answer stands until it is refetched; a failed refetch
-  // that never reached it says so, whatever the server said before.
+  // The latest attempt decides: a failed refetch says so, whatever the
+  // server said before, since an earlier version may no longer be what
+  // answers at this address.
   if (error instanceof ApiError && error.unreachable) return { kind: 'unreachable' };
-  if (!health) return error ? { kind: 'unknown', version: null } : { kind: 'checking' };
+  if (error) return { kind: 'failed', reason: error instanceof Error ? error.message : String(error) };
+  if (!health) return { kind: 'checking' };
   const version = typeof health.version === 'string' && health.version.trim() !== '' ? health.version.trim() : null;
   const order = version === null ? null : compareVersions(version, NEEDED_VERSION);
   if (version === null || order === null) return { kind: 'unknown', version };
@@ -66,6 +73,8 @@ export function useServerStatus(): ServerStatus {
     queryFn: () => api.health(),
     enabled: mode !== 'demo',
     staleTime: 60_000,
+    // Asked again on focus even within the minute, so a returning reader sees the server as it is now.
+    refetchOnWindowFocus: 'always',
     refetchInterval: 60_000,
     retry: false,
   });

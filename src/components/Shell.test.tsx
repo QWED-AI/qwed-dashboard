@@ -56,11 +56,21 @@ describe('Shell: the server (#50, #52)', () => {
     expect(screen.queryByRole('note')).toBeNull();
   });
 
-  it('does not claim a version the server did not send', async () => {
+  it('does not claim a version, or QWED, when the answer gives no version', async () => {
     vi.spyOn(httpApi, 'health').mockResolvedValue({ status: 'healthy' });
     renderShell({ live: true });
-    expect(await screen.findByText('QWED server · no version given')).toBeTruthy();
-    expect(footer().getByText('Server: QWED, no version given, at /api')).toBeTruthy();
+    expect(await screen.findByText('No server version given')).toBeTruthy();
+    expect(footer().getByText('Server: no version given, at /api')).toBeTruthy();
+  });
+
+  it('says the check failed when a page that is not the server’s health answers', async () => {
+    const reason = 'The server did not return JSON. Check that /api points at the QWED server.';
+    vi.spyOn(httpApi, 'health').mockRejectedValue(new ApiError(200, reason));
+    renderShell({ live: true });
+    const pill = await screen.findByText('Server check failed');
+    expect(pill.getAttribute('title')).toBe(reason);
+    expect(footer().getByText(`Server: the health check at /api failed. ${reason}`)).toBeTruthy();
+    expect(screen.queryByText(/version given/)).toBeNull();
   });
 
   it('asks no server for sample data', async () => {
@@ -95,25 +105,15 @@ describe('Shell: the footer (#52)', () => {
 describe('Shell: find a record (#51)', () => {
   const box = () => screen.getByRole('searchbox', { name: 'Find a record by id or proof_ref' });
 
-  it('opens a record by its id', async () => {
+  it.each([
+    ['opens a record by its id', ' 1042 ', '/records/1042'],
+    ['searches the ledger for anything else, such as a proof_ref', 'sha256:41aa3f90', '/ledger?q=sha256%3A41aa3f90'],
+    ['does nothing for an empty search', '   ', '/'],
+  ])('%s', async (_name, typed, where) => {
     const user = userEvent.setup();
     renderShell();
-    await user.type(box(), ' 1042 {Enter}');
-    expect(screen.getByTestId('where').textContent).toBe('/records/1042');
-  });
-
-  it('searches the ledger for anything else, such as a proof_ref', async () => {
-    const user = userEvent.setup();
-    renderShell();
-    await user.type(box(), 'sha256:41aa3f90{Enter}');
-    expect(screen.getByTestId('where').textContent).toBe('/ledger?q=sha256%3A41aa3f90');
-  });
-
-  it('does nothing for an empty search', async () => {
-    const user = userEvent.setup();
-    renderShell();
-    await user.type(box(), '   {Enter}');
-    expect(screen.getByTestId('where').textContent).toBe('/');
+    await user.type(box(), `${typed}{Enter}`);
+    expect(screen.getByTestId('where').textContent).toBe(where);
   });
 
   it('moves the focus to the box on "/", but not while typing elsewhere', async () => {
