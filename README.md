@@ -112,6 +112,9 @@ The release workflow then checks that the tag matches `package.json`, runs the t
 | 90-day activity summary (Overview, on request) | `GET /admin/compliance/report/soc2/{org_id}` | session token of an owner or admin |
 | Security events (also the Overview card) | `GET /admin/security/events` | session token of an owner or admin |
 | Attestation check (Record) | `GET /.well-known/jwks.json` | none |
+| Server status (header) and version (footer) | `GET /health` | none |
+
+The header names the server and its version, from `GET /health`, asked again every minute and when the tab regains focus. A server older than qwed-verification 8.0.0 gets a note saying which views need 8.0.0. When the server cannot be reached, the header says so; each screen already says what it could not load. When something else answers, such as a page that is not JSON because `/api` is not routed to QWED, or an error status, the header says the check failed, and the footer gives the reason. The version only picks this wording; it never changes a verdict or an admission the dashboard shows. The footer gives the dashboard's version, the server's version and address, and the project's links.
 
 The API keys screen shows when each key was last used. qwed-verification records it from [#486](https://github.com/QWED-AI/qwed-verification/issues/486), at most once a minute per key; on an older server every key reads "No use recorded". The security events screen needs #486 too.
 
@@ -123,6 +126,8 @@ A VERIFIED verdict means the check ran to a proof, not that the claim holds, so 
 - **Decision ledger:** filters by admission: ADMIT, DENY, or not recorded. Opened from Needs attention, it shows the records received in that range only; **Show all dates** shows every loaded record again.
 
 **Export CSV** on the decision ledger, for owners and admins, saves the records it shows, with the filters applied, as a CSV file built in the browser: record id, time received (UTC, marked with `Z`), verifier, request, the stored verdict and admission as the ledger shows them (and the stored admission word where it differs), the verifier's message, proof_ref, API key, and the attestation refusal where there is one, with the verdict and proof_ref the verifier reached in their own columns. A message a caller supplied is in the last column, `caller_message`, apart from the verifier's. For a Verification Context record, `verifier_message` holds the server's notice, as the ledger labels it, and not the verifier's words. It covers the loaded records only; load older ones first to include them. It does not use the server's CSV routes, which carry no stored verdict or admission yet ([qwed-verification #508](https://github.com/QWED-AI/qwed-verification/issues/508)). A cell a spreadsheet may read as a formula gets a leading apostrophe: one that starts with a tab, carriage return, line feed or NUL, or with `=`, `+`, `-` or `@` (or their full-width forms) after any leading white space. Members and viewers do not get the button. The file is built from rows the ledger already shows them, so this limits the export, not what they can read.
+
+**Find a record** in the header, on every screen (`/` moves the focus to it): a record id opens that record; anything else, such as a proof_ref, opens the decision ledger with it as the search. The server has no route that finds a record by proof_ref, so that search covers the loaded records.
 
 The session token is kept in `sessionStorage`, so closing the tab signs you out.
 
