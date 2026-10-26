@@ -143,6 +143,12 @@ export const CALLER_SUPPLIED_NOTICE =
   'Built from a diagnostic the caller supplied; QWED did not produce its message or fields';
 
 /**
+ * Whether the result's message is the server's notice, not the verifier's
+ * words: in a Verification Context document it can only be the notice.
+ */
+export const isServerNotice = (r: ParsedResult): boolean => r.shape === 'verification-context' && r.agentMessage !== null;
+
+/**
  * The messages of a Verification Context document. Only
  * POST /verification-context/from-diagnostic stores one, built from a
  * diagnostic its caller sent. A server before qwed-verification #321 kept the

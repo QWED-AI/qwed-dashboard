@@ -1,6 +1,6 @@
 import { Link } from 'react-router';
 import { formatUtc } from '../lib/format';
-import { attestationVerdictLabel, type LedgerRecord } from '../lib/result';
+import { attestationVerdictLabel, isServerNotice, type LedgerRecord } from '../lib/result';
 import { VerdictChip } from './VerdictChip';
 
 /** Records as the ledger lists them, newest first. On a phone each row stacks (see .tbl-stack). */
@@ -33,6 +33,7 @@ export function RecordTable({ records }: Readonly<{ records: readonly LedgerReco
                   holds: "Identity is false" is VERIFIED too. The message says
                   which, so it sits next to the verdict. */}
               <span className={r.result.agentMessage === null ? 'row-note none' : 'row-note'}>
+                {isServerNotice(r.result) && 'The server’s notice: '}
                 {r.result.agentMessage ?? 'No message recorded'}
               </span>
               {r.result.callerMessage !== null && (

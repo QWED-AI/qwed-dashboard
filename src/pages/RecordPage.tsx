@@ -9,7 +9,7 @@ import { RefreshError } from '../components/RefreshError';
 import { Shell } from '../components/Shell';
 import { VerdictChip } from '../components/VerdictChip';
 import { formatUtcLong } from '../lib/format';
-import { attestationVerdictLabel, toRecord, type AttestationBlock, type ParsedResult } from '../lib/result';
+import { attestationVerdictLabel, isServerNotice, toRecord, type AttestationBlock, type ParsedResult } from '../lib/result';
 import { describeError, useAuthedQuery } from '../lib/useAuthedQuery';
 
 // Laid out as the RecordCore wireframe: what was checked and how it came
@@ -465,6 +465,7 @@ export function RecordPage() {
               Why
             </h2>
             <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: 'var(--ink)' }}>
+              {isServerNotice(result) && 'The server’s notice: '}
               {result.agentMessage ?? 'No message recorded.'}
             </p>
             {result.callerMessage !== null && (

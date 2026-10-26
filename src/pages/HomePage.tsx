@@ -20,7 +20,7 @@ import {
   type Period,
   type Range,
 } from '../lib/overview';
-import { toRecord, type LedgerRecord } from '../lib/result';
+import { isServerNotice, toRecord, type LedgerRecord } from '../lib/result';
 import { securityEventsError, typeLabel } from '../lib/securityEvents';
 import { describeError, useAuthedQuery, useSecurityEventPages } from '../lib/useAuthedQuery';
 
@@ -54,12 +54,12 @@ const unusedKeys = (keys: ApiKeyItem[]) => keys.filter((k) => !k.last_used_at).l
  * - an error is the dashboard's own account of why the result cannot be read.
  */
 function latest(r: LedgerRecord): ReactNode {
-  const { agentMessage, callerMessage, error, shape } = r.result;
+  const { agentMessage, callerMessage, error } = r.result;
   let said: ReactNode = <span>No message from the verifier recorded</span>;
   if (agentMessage !== null) {
     said = (
       <span>
-        {shape === 'verification-context' ? 'The server’s notice' : 'The verifier said'}: {agentMessage}
+        {isServerNotice(r.result) ? 'The server’s notice' : 'The verifier said'}: {agentMessage}
       </span>
     );
   }

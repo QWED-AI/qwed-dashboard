@@ -65,7 +65,7 @@ describe('LedgerPage', () => {
   it('shows a Verification Context document’s caller message as the caller’s, apart from the server’s notice', async () => {
     renderApp(<LedgerPage />);
     const row = await rowFor('Invoice total 4 × 249.00 + 18% GST equals 1,175.28');
-    expect(within(row).getByText(CALLER_SUPPLIED_NOTICE)).toBeTruthy();
+    expect(within(row).getByText(`The server’s notice: ${CALLER_SUPPLIED_NOTICE}`)).toBeTruthy();
     const caller = within(row).getByText('The stated total matches.');
     expect(caller.tagName).toBe('BDI');
     expect(caller.parentElement?.textContent).toBe('The caller’s message, not the verifier’s: The stated total matches.');
@@ -88,6 +88,7 @@ describe('LedgerPage', () => {
     renderApp(<LedgerPage />);
     const r = await rowFor('claim 1');
     expect(within(r).getByText('No message recorded')).toBeTruthy();
+    expect(within(r).queryByText(/^The server’s notice/)).toBeNull();
     const caller = within(r).getByText('Verified by the QWED math engine.');
     expect(caller.tagName).toBe('BDI');
     expect(caller.parentElement?.textContent).toBe('The caller’s message, not the verifier’s: Verified by the QWED math engine.');

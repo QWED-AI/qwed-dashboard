@@ -8,6 +8,7 @@ import { App } from '../App';
 import { demoApi } from '../api/demo';
 import { ApiError } from '../api/http';
 import type { AuditLog } from '../api/types';
+import { CALLER_SUPPLIED_NOTICE } from '../lib/result';
 import { DID, keyPair, signAttestation } from '../test/attest';
 import { renderApp } from '../test/render';
 
@@ -92,8 +93,31 @@ describe('RecordPage', () => {
       renderApp(<App />, { route: '/records/1' });
       const why = await region('Why');
       expect(await why.findByText('No message recorded.')).toBeTruthy();
+      expect(why.queryByText(/^The server’s notice/)).toBeNull();
       expect(why.getByText(/^The diagnostic’s caller wrote this message\. The verifier did not/)).toBeTruthy();
       expect(why.getByText('Verified by the QWED math engine: the total holds.').tagName).toBe('BDI');
+    });
+
+    it('labels the notice a server after qwed-verification #321 writes as its own, with the caller’s message apart', async () => {
+      vi.spyOn(demoApi, 'getLog').mockResolvedValue({
+        ...olderServerRow,
+        verification_result: JSON.stringify({
+          spec_version: '1.0',
+          verdict: 'UNVERIFIABLE',
+          context: {
+            evidence: {
+              evidence: {
+                agent_message: CALLER_SUPPLIED_NOTICE,
+                developer_fields: { caller_supplied: { agent_message: 'The total holds.' } },
+              },
+            },
+          },
+        }),
+      });
+      renderApp(<App />, { route: '/records/1' });
+      const why = await region('Why');
+      expect(await why.findByText(`The server’s notice: ${CALLER_SUPPLIED_NOTICE}`)).toBeTruthy();
+      expect(why.getByText('The total holds.').tagName).toBe('BDI');
     });
 
     it('starts the checks afresh on another record, even when the page stays open', async () => {
