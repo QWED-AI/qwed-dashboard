@@ -2,7 +2,7 @@
 
 An open-source web dashboard for [QWED verification](https://github.com/QWED-AI/qwed-verification). It shows what your QWED server verified, as the server stored it: the decision ledger, each record, and whether its audit chain entry is intact.
 
-**Status: early work in progress.** This first version covers sign-in, the decision ledger, a record view and the per-entry audit chain check.
+**Status: early, version 0.x.** It covers sign-in, API keys, an overview, the decision ledger, a record view with its attestation and audit chain checks, and security events. [CHANGELOG.md](CHANGELOG.md) lists what each version has.
 
 ## What it does and does not do
 
@@ -62,6 +62,24 @@ npm run build
 ```
 
 `dist/` is a static site. Serve it behind the same origin as your QWED server and route `/api` to it, or set `VITE_QWED_API_BASE` at build time to call the server directly (the server's `QWED_CORS_ORIGINS` must then allow the dashboard's origin).
+
+### Releases
+
+Each [release](https://github.com/QWED-AI/qwed-dashboard/releases) has the built site as `qwed-dashboard-vX.Y.Z.zip` and its SHA-256 checksum in `SHA256SUMS`. Check the download, then unpack it:
+
+```bash
+sha256sum -c SHA256SUMS
+unzip qwed-dashboard-vX.Y.Z.zip
+```
+
+The zip holds one folder with the built site. It was built without `VITE_QWED_API_BASE`, so it calls `/api` on its own origin: serve it with `/api` routed to your QWED server, as above. To call the server directly instead, build from source with `VITE_QWED_API_BASE` set.
+
+To make a release, a maintainer:
+1. sets the new version in `package.json` and `package-lock.json` (`npm version X.Y.Z --no-git-tag-version`), and adds a `## [X.Y.Z]` section to `CHANGELOG.md`;
+2. merges that change;
+3. tags the merge commit `vX.Y.Z` and pushes the tag.
+
+The release workflow then checks that the tag matches `package.json`, runs the tests, the build and `npm audit`, and publishes the release with the zip, the checksum and the version's notes from the changelog.
 
 ## How it talks to the server
 
