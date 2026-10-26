@@ -1,6 +1,6 @@
 import { parseResult } from '../lib/result';
 import { ApiError, type QwedApi } from './http';
-import type { ActivitySummary, ApiKeyCreated, ApiKeyItem, AuditLog, EntryCheck, SecurityEvent, TrailCheck, User } from './types';
+import type { ActivitySummary, ApiKeyCreated, ApiKeyItem, AuditLog, EntryCheck, Jwks, SecurityEvent, TrailCheck, User } from './types';
 
 // Sample data for exploring the dashboard without a QWED server. Shaped like
 // the real /audit/logs rows; none of it comes from a real verification.
@@ -407,6 +407,11 @@ export const demoApi: QwedApi = {
       };
     }
     return { valid: true, checks: { hash_valid: true, signature_valid: true, chain_valid: true }, errors: [], log_id: Number(id) };
+  },
+  // The sample rows carry no attestation, so there is no key to publish.
+  async getJwks(): Promise<Jwks> {
+    await wait(200);
+    return { keys: [] };
   },
   async verifyTrail(): Promise<TrailCheck> {
     await wait(400);

@@ -7,6 +7,7 @@ import { App } from '../App';
 import { demoApi } from '../api/demo';
 import { ApiError } from '../api/http';
 import type { AuditLog } from '../api/types';
+import { DID, keyPair, signAttestation } from '../test/attest';
 import { renderApp } from '../test/render';
 
 afterEach(() => {
@@ -119,12 +120,80 @@ describe('RecordPage', () => {
       expect(card.getByText('VERIFIED')).toBeTruthy();
       expect(card.getByText('sha256:sample-5f12-c08e')).toBeTruthy();
       expect(card.getByText('api.attestation.signing_error')).toBeTruthy();
-      expect(card.getByText(/does not store the attestation token/)).toBeTruthy();
+      expect(card.getByText(/only when the server stored one with the result/)).toBeTruthy();
+      // It stored none, and the verdict is BLOCKED, so there is no attestation to check.
+      expect(screen.queryByRole('region', { name: 'Attestation' })).toBeNull();
       // The next step points at the server, and the record stays BLOCKED.
       expect(await screen.findByRole('heading', { name: 'Look at the server’s attestation' })).toBeTruthy();
       expect(screen.queryByRole('heading', { name: 'Send a new request' })).toBeNull();
       expect(screen.getAllByText('BLOCKED').length).toBeGreaterThan(0);
       expect((await region('Checks')).getByText('No proof_ref')).toBeTruthy();
+    });
+
+    describe('the attestation check (#39)', () => {
+      const KID = `${DID}#thumb`;
+      const REQUEST = '2 + 2 = 5';
+
+      async function attestedRow() {
+        const { privateKey, jwk } = await keyPair(KID);
+        const token = await signAttestation(privateKey, { kid: KID, request: REQUEST, now: Date.now() / 1000 });
+        const row: AuditLog = {
+          ...olderServerRow,
+          request_input: REQUEST,
+          verification_result: JSON.stringify({
+            status: 'VERIFIED',
+            agent_message: 'Identity is false',
+            proof_ref: 'sha256:7fa3',
+            attestation: token,
+          }),
+          admission: 'BLOCKED',
+        };
+        return { row, jwk };
+      }
+
+      it('checks the stored attestation with the server’s keys', async () => {
+        const { row, jwk } = await attestedRow();
+        vi.spyOn(demoApi, 'getLog').mockResolvedValue(row);
+        const jwks = vi.spyOn(demoApi, 'getJwks').mockResolvedValue({ keys: [jwk] });
+        const user = userEvent.setup();
+        renderApp(<App />, { route: '/records/1' });
+        const card = await region('Attestation');
+        await user.click(card.getByRole('button', { name: 'Check attestation' }));
+        expect(await card.findByText('The attestation checks out: the server signed it, and it matches this record.')).toBeTruthy();
+        expect(jwks).toHaveBeenCalledTimes(1);
+        expect(card.getByText(KID)).toBeTruthy();
+        expect(card.getByRole('button', { name: 'Check again' })).toBeTruthy();
+      });
+
+      it('says when the server no longer has the key', async () => {
+        const { row } = await attestedRow();
+        vi.spyOn(demoApi, 'getLog').mockResolvedValue(row);
+        vi.spyOn(demoApi, 'getJwks').mockResolvedValue({ keys: [] });
+        const user = userEvent.setup();
+        renderApp(<App />, { route: '/records/1' });
+        const card = await region('Attestation');
+        await user.click(card.getByRole('button', { name: 'Check attestation' }));
+        expect(await card.findByText('The signature cannot be checked: the server no longer has this key.')).toBeTruthy();
+      });
+
+      it('says when the keys cannot be loaded', async () => {
+        const { row } = await attestedRow();
+        vi.spyOn(demoApi, 'getLog').mockResolvedValue(row);
+        vi.spyOn(demoApi, 'getJwks').mockRejectedValue(new ApiError(0, 'The QWED server could not be reached.'));
+        const user = userEvent.setup();
+        renderApp(<App />, { route: '/records/1' });
+        const card = await region('Attestation');
+        await user.click(card.getByRole('button', { name: 'Check attestation' }));
+        expect(await card.findByRole('alert')).toBeTruthy();
+      });
+
+      it('says a VERIFIED record without an attestation has nothing to check', async () => {
+        vi.spyOn(demoApi, 'getLog').mockResolvedValue(olderServerRow);
+        renderApp(<App />, { route: '/records/1' });
+        const card = await region('Attestation');
+        expect(card.getByText(/No attestation was stored with this record/)).toBeTruthy();
+        expect(card.queryByRole('button', { name: 'Check attestation' })).toBeNull();
+      });
     });
 
     it('shows no attestation note when the verifier itself blocked the result', async () => {

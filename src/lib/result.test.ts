@@ -74,6 +74,17 @@ describe('parseResult', () => {
     expect(parseResult('null').shape).toBe('unknown');
   });
 
+  it('reads the attestation a result stored, and none from a Verification Context document (#39)', () => {
+    expect(parseResult(JSON.stringify({ status: 'VERIFIED', attestation: 'h.p.s' })).attestation).toBe('h.p.s');
+    expect(parseResult(JSON.stringify({ status: 'VERIFIED', attestation: '' })).attestation).toBeNull();
+    expect(parseResult(JSON.stringify({ status: 'VERIFIED' })).attestation).toBeNull();
+    expect(
+      parseResult(JSON.stringify({ spec_version: '1.0', verdict: 'VERIFIED', attestation: 'h.p.s', context: {} })).attestation,
+    ).toBeNull();
+    const batch = JSON.stringify({ batch_job_id: 'j', details: { result: { status: 'VERIFIED', attestation: 'h.p.s' } } });
+    expect(parseResult(batch).attestation).toBe('h.p.s');
+  });
+
   // The row /verify/batch writes for each item (#477).
   const batchRow = (details: unknown) =>
     JSON.stringify({ batch_job_id: 'j', batch_item_id: 'j-0', batch_item_type: 'code', item_status: 'completed', details });

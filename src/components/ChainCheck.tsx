@@ -15,7 +15,7 @@ const CHECKS: { key: keyof EntryCheck['checks']; label: string }[] = [
 const isAuthRefusal = (err: unknown): err is ApiError =>
   err instanceof ApiError && (err.status === 401 || err.status === 403);
 
-function Mark({ ok }: Readonly<{ ok: boolean | undefined }>) {
+export function Mark({ ok }: Readonly<{ ok: boolean | undefined }>) {
   if (ok === true)
     return (
       <span className="mark pass">

@@ -1,6 +1,7 @@
 import { useRef, useState, type KeyboardEvent } from 'react';
 import { Link, useParams } from 'react-router';
 import type { ApiKeyItem, AuditLog, Verdict } from '../api/types';
+import { AttestationCheck } from '../components/AttestationCheck';
 import { ChainCheck } from '../components/ChainCheck';
 import { Icon } from '../components/Icon';
 import { JsonView } from '../components/JsonView';
@@ -105,7 +106,7 @@ function AttestationCard({ block }: Readonly<{ block: AttestationBlock }>) {
         </dd>
       </dl>
       <p className="hint" style={{ margin: 0 }}>
-        The server does not store the attestation token, so the dashboard cannot check an attestation again later.
+        The dashboard can check an attestation only when the server stored one with the result.
       </p>
     </section>
   );
@@ -477,6 +478,8 @@ export function RecordPage() {
           </section>
 
           <Checks result={result} />
+          {/* The server signs VERIFIED results, so a VERIFIED one without a signature says so (#39). */}
+          {(result.attestation || result.verdict === 'VERIFIED') && <AttestationCheck record={r} />}
           <ChainCheck logId={r.id} />
         </aside>
       </div>

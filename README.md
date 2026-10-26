@@ -9,7 +9,13 @@ An open-source web dashboard for [QWED verification](https://github.com/QWED-AI/
 - It reads verdicts and admissions from what the server stored. It never works out a verdict or an admission itself; the QWED verifier is the only authority for both.
 - When the server did not store a value, the dashboard says "not recorded" instead of filling it in.
 - The admission is the one the server stored with the record ([qwed-verification #307](https://github.com/QWED-AI/qwed-verification/issues/307)). The verify routes store `BLOCKED` for the decision a Verification Context calls `DENY` ([#324](https://github.com/QWED-AI/qwed-verification/issues/324)), so the dashboard shows it as DENY and says it was stored as BLOCKED. Routes that decide no admission (logic, stats, fact, image, RAG, process, consensus), and records from before the server stored one, show it as not recorded, unless the stored result holds one itself: a Verification Context document keeps its admission, and the dashboard shows that.
-- When the server's attestation check, not the verifier, made a result BLOCKED ([qwed-verification #320](https://github.com/QWED-AI/qwed-verification/issues/320)), the record says so and shows, where the server kept them, the verdict the verifier reached and its proof_ref, as not admitted. It recognises these by the `trust_gate.` and `api.attestation.` prefixes of the stored `constraint_id`. The server does not store the attestation token, so the dashboard cannot check an attestation again later.
+- When the server's attestation check, not the verifier, made a result BLOCKED ([qwed-verification #320](https://github.com/QWED-AI/qwed-verification/issues/320)), the record says so and shows, where the server kept them, the verdict the verifier reached and its proof_ref, as not admitted. It recognises these by the `trust_gate.` and `api.attestation.` prefixes of the stored `constraint_id`.
+- **Check attestation.** The server stores the attestation it signed with a VERIFIED result, and the record page can check it. The check runs in your browser with the server's public keys (`GET /.well-known/jwks.json`), and it reports:
+  - whether the ES256 signature matches the server's key, and whether the issuer is the key's owner;
+  - whether the claims match what the record stored: the request (its SHA-256), the verdict, the proof_ref and the admission;
+  - whether the attestation has expired (24 hours by default).
+
+  It says so when the key is no longer among the server's keys: the key was rotated, or the server makes a key per process and has restarted. Web Crypto, which the check needs, works only on HTTPS and on localhost.
 - It does not run or replay the actions that were verified.
 
 ## Run it
@@ -46,6 +52,7 @@ npm run build
 | Whole-chain check (Overview) | `GET /admin/compliance/verify-trail` | session token of an owner or admin |
 | 90-day activity summary (Overview, on request) | `GET /admin/compliance/report/soc2/{org_id}` | session token of an owner or admin |
 | Security events (also the Overview card) | `GET /admin/security/events` | session token of an owner or admin |
+| Attestation check (Record) | `GET /.well-known/jwks.json` | none |
 
 The API keys screen shows when each key was last used. qwed-verification records it from [#486](https://github.com/QWED-AI/qwed-verification/issues/486), at most once a minute per key; on an older server every key reads "No use recorded". The security events screen needs #486 too.
 
