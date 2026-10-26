@@ -28,6 +28,24 @@ function matches(r: LedgerRecord, facet: Facet): boolean {
   return r.result.verdict === facet;
 }
 
+// The admission the server stored (#38), read as the chips read it: a stored
+// BLOCKED counts as DENY. "Not recorded" includes a stored word the dashboard
+// does not know, since that is not an admission.
+type AdmissionFilter = 'all' | 'ADMIT' | 'DENY' | 'none';
+
+const ADMISSIONS: { id: AdmissionFilter; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'ADMIT', label: 'ADMIT' },
+  { id: 'DENY', label: 'DENY' },
+  { id: 'none', label: 'Not recorded' },
+];
+
+function admitted(r: LedgerRecord, filter: AdmissionFilter): boolean {
+  if (filter === 'all') return true;
+  if (filter === 'none') return r.result.admission === null;
+  return r.result.admission === filter;
+}
+
 const FIRST_REQUEST = String.raw`curl -X POST https://[YOUR QWED SERVER]/verify/math \
   -H "x-api-key: qwed_live_[YOUR KEY]" \
   -H "Content-Type: application/json" \
@@ -38,6 +56,7 @@ export function LedgerPage() {
   const facet = (FACETS.find((f) => f.id === params.get('verdict'))?.id ?? 'all') as Facet;
   const q = params.get('q') ?? '';
   const domain = params.get('verifier') ?? 'all';
+  const admission = ADMISSIONS.find((a) => a.id === params.get('admission'))?.id ?? 'all';
 
   const { user } = useSession();
   // Export is offered to owners and admins only (#32). The file holds the rows
@@ -56,6 +75,7 @@ export function LedgerPage() {
   const shown = records.filter(
     (r) =>
       matches(r, facet) &&
+      admitted(r, admission) &&
       (domain === 'all' || r.domain === domain) &&
       (!q ||
         `${r.query} ${r.result.agentMessage ?? ''} ${r.id} ${r.result.proofRef ?? ''}`
@@ -154,6 +174,16 @@ export function LedgerPage() {
                 {domains.map((d) => (
                   <option key={d} value={d}>
                     {d.toLowerCase()}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="pill">
+              <span>Admission</span>
+              <select value={admission} onChange={(e) => set('admission', e.target.value, 'all')}>
+                {ADMISSIONS.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.label}
                   </option>
                 ))}
               </select>

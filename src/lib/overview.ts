@@ -1,11 +1,11 @@
-import type { Verdict } from '../api/types';
+import type { Admission, Verdict } from '../api/types';
 import { formatUtcDay, formatUtcHour, parseUtc } from './format';
 import type { LedgerRecord } from './result';
 
 // The overview groups what the server stored, as the ledger does: by the
-// stored verdict, the verifier and the caller. It never works out a verdict.
-// It counts only the records the dashboard has loaded, so every view says
-// how far back those reach.
+// stored verdict and admission, the verifier and the caller. It never works
+// out a verdict or an admission. It counts only the records the dashboard has
+// loaded, so every view says how far back those reach.
 
 export type Range = '24h' | '7d';
 
@@ -22,6 +22,11 @@ export interface VerdictCounts {
   unverifiable: number;
   blocked: number;
   none: number;
+  /**
+   * Records whose stored admission is DENY, a stored BLOCKED included (#38).
+   * It cuts across the verdicts: a VERIFIED record can be denied.
+   */
+  denied: number;
   total: number;
 }
 
@@ -44,13 +49,14 @@ export interface OverviewWindow {
   reachesBackTo: number | null;
 }
 
-const zero = (): VerdictCounts => ({ verified: 0, unverifiable: 0, blocked: 0, none: 0, total: 0 });
+const zero = (): VerdictCounts => ({ verified: 0, unverifiable: 0, blocked: 0, none: 0, denied: 0, total: 0 });
 
-function add(counts: VerdictCounts, verdict: Verdict | null) {
+function add(counts: VerdictCounts, verdict: Verdict | null, admission: Admission | null) {
   if (verdict === 'VERIFIED') counts.verified += 1;
   else if (verdict === 'UNVERIFIABLE') counts.unverifiable += 1;
   else if (verdict === 'BLOCKED') counts.blocked += 1;
   else counts.none += 1;
+  if (admission === 'DENY') counts.denied += 1;
   counts.total += 1;
 }
 
@@ -84,8 +90,8 @@ export function overviewWindow(records: LedgerRecord[], range: Range, complete: 
     if (t === null || t === undefined) return;
     if (t >= start && t < end) {
       const bucket = buckets[Math.floor((t - start) / size)];
-      if (bucket) add(bucket, r.result.verdict);
-      add(totals, r.result.verdict);
+      if (bucket) add(bucket, r.result.verdict, r.result.admission);
+      add(totals, r.result.verdict, r.result.admission);
       inWindow.push(r);
     } else if (t >= start - span && t < start) {
       previous += 1;

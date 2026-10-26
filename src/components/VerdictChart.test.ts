@@ -6,6 +6,7 @@ const counts = (verified: number, unverifiable: number, blocked: number, none: n
   unverifiable,
   blocked,
   none,
+  denied: 0,
   total: verified + unverifiable + blocked + none,
 });
 

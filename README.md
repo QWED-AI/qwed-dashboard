@@ -49,7 +49,12 @@ npm run build
 
 The API keys screen shows when each key was last used. qwed-verification records it from [#486](https://github.com/QWED-AI/qwed-verification/issues/486), at most once a minute per key; on an older server every key reads "No use recorded". The security events screen needs #486 too.
 
-The Overview counts the newest 200 records the server returns, over the 24 hours or 7 days up to the newest record. When older records in that range are not loaded, it says how far back the counts reach. It groups the stored verdicts; it never works one out.
+The Overview counts the newest 200 records the server returns, over the 24 hours or 7 days up to the newest record. When older records in that range are not loaded, it says how far back the counts reach. It groups the stored verdicts and admissions; it never works either out.
+
+A VERIFIED verdict means the check ran to a proof, not that the claim holds, so the stored admission is counted beside it:
+- **Not admitted (DENY):** counts the records the server stored DENY for, a stored BLOCKED included, whatever their verdict.
+- **Needs attention:** lists the VERIFIED records the server did not admit. BLOCKED and UNVERIFIABLE records are listed by their verdict, so a denied one is not counted twice.
+- **Decision ledger:** filters by admission: ADMIT, DENY, or not recorded.
 
 **Export CSV** on the decision ledger, for owners and admins, saves the records it shows, with the filters applied, as a CSV file built in the browser: record id, time received (UTC, marked with `Z`), verifier, request, the stored verdict and admission as the ledger shows them (and the stored admission word where it differs), the verifier's message, proof_ref, API key, and the attestation refusal where there is one, with the verdict and proof_ref the verifier reached in their own columns. It covers the loaded records only; load older ones first to include them. It does not use the server's CSV routes, which carry no stored verdict or admission yet ([qwed-verification #508](https://github.com/QWED-AI/qwed-verification/issues/508)). A cell a spreadsheet may read as a formula gets a leading apostrophe: one that starts with a tab, carriage return, line feed or NUL, or with `=`, `+`, `-` or `@` (or their full-width forms) after any leading white space. Members and viewers do not get the button. The file is built from rows the ledger already shows them, so this limits the export, not what they can read.
 

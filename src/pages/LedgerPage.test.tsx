@@ -86,6 +86,46 @@ describe('LedgerPage', () => {
     for (const r of rows) expect(within(r).getByText('logic')).toBeTruthy();
   });
 
+  describe('the admission filter (#38)', () => {
+    const logs = [
+      row('4', { admission: 'BLOCKED' }),
+      row('3', { admission: 'ADMIT' }),
+      row('2'),
+      row('1', {
+        verification_result: JSON.stringify({ status: 'UNVERIFIABLE', agent_message: 'message 1' }),
+        admission: 'DENY',
+      }),
+    ];
+    const shownClaims = () =>
+      within(screen.getByRole('table'))
+        .getAllByRole('row')
+        .slice(1)
+        .map((r) => within(r).getByRole('link').textContent);
+
+    it('filters by the stored admission, a stored BLOCKED as DENY', async () => {
+      vi.spyOn(demoApi, 'listLogs').mockResolvedValue({ logs, nextBefore: null });
+      const user = userEvent.setup();
+      renderApp(<LedgerPage />);
+      await rowFor('claim 4');
+      const select = screen.getByRole('combobox', { name: 'Admission' });
+
+      await user.selectOptions(select, 'DENY');
+      expect(shownClaims()).toEqual(['claim 4', 'claim 1']);
+      await user.selectOptions(select, 'ADMIT');
+      expect(shownClaims()).toEqual(['claim 3']);
+      await user.selectOptions(select, 'none');
+      expect(shownClaims()).toEqual(['claim 2']);
+    });
+
+    it('opens on the denied VERIFIED records from the address', async () => {
+      vi.spyOn(demoApi, 'listLogs').mockResolvedValue({ logs, nextBefore: null });
+      renderApp(<LedgerPage />, { route: '/?verdict=VERIFIED&admission=DENY' });
+      await rowFor('claim 4');
+      expect((screen.getByRole('combobox', { name: 'Admission' }) as HTMLSelectElement).value).toBe('DENY');
+      expect(shownClaims()).toEqual(['claim 4']);
+    });
+  });
+
   describe('Export CSV', () => {
     /** Clicks Export CSV and returns the saved file's text and name. */
     async function exportCsv(user: ReturnType<typeof userEvent.setup>) {

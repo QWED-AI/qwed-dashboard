@@ -479,6 +479,11 @@ a.btn {
   box-shadow: inset 0 0 0 1.5px var(--muted);
   border-radius: 1px;
 }
+/* An admission, not a verdict: hollow, so it does not read as BLOCKED. */
+.d-DENY {
+  box-shadow: inset 0 0 0 1.5px var(--bad);
+  border-radius: 1.5px;
+}
 .d-mute {
   background: var(--muted);
 }

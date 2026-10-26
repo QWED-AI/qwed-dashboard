@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { bucketLabel, bucketName, niceScale, RANGES, type Bucket, type OverviewWindow, type VerdictCounts } from '../lib/overview';
 
-type Key = Exclude<keyof VerdictCounts, 'total'>;
+// The stacks are the verdicts. DENY cuts across them, so it is not one.
+type Key = Exclude<keyof VerdictCounts, 'total' | 'denied'>;
 
 // Bottom to top in each column. The legend repeats the dot shapes the
 // verdict chips use, so a verdict never depends on its colour alone.

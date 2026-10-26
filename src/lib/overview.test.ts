@@ -3,8 +3,8 @@ import type { Verdict } from '../api/types';
 import { bucketLabel, bucketName, comparedText, countBy, niceScale, overviewWindow } from './overview';
 import { parseResult, type LedgerRecord } from './result';
 
-const rec = (createdAt: string, verdict: Verdict | null, domain = 'MATH'): LedgerRecord => {
-  const result = parseResult(JSON.stringify({ status: verdict ?? 'SAT' }));
+const rec = (createdAt: string, verdict: Verdict | null, domain = 'MATH', admission?: string): LedgerRecord => {
+  const result = parseResult(JSON.stringify({ status: verdict ?? 'SAT', ...(admission ? { admission } : {}) }));
   return { id: createdAt, query: 'q', domain, createdAt, apiKeyId: null, result, raw: '' };
 };
 
@@ -22,7 +22,23 @@ describe('overviewWindow', () => {
     const nine = w.buckets.at(-1);
     expect(nine && { blocked: nine.blocked, verified: nine.verified, total: nine.total }).toEqual({ blocked: 1, verified: 1, total: 2 });
     expect(w.buckets.at(-3)?.none).toBe(1);
-    expect(w.totals).toEqual({ verified: 1, unverifiable: 0, blocked: 1, none: 1, total: 3 });
+    expect(w.totals).toEqual({ verified: 1, unverifiable: 0, blocked: 1, none: 1, denied: 0, total: 3 });
+  });
+
+  it('counts the stored DENY admissions across verdicts, a stored BLOCKED included (#38)', () => {
+    const w = overviewWindow(
+      [
+        rec('2026-10-20T09:41:12', 'VERIFIED', 'MATH', 'BLOCKED'),
+        rec('2026-10-20T09:30:00', 'UNVERIFIABLE', 'MATH', 'DENY'),
+        rec('2026-10-20T09:20:00', 'VERIFIED', 'MATH', 'ADMIT'),
+        rec('2026-10-20T09:10:00', 'VERIFIED'),
+      ],
+      '24h',
+      true,
+    );
+    if (!w) throw new Error('no window');
+    expect(w.totals).toEqual({ verified: 3, unverifiable: 1, blocked: 0, none: 0, denied: 2, total: 4 });
+    expect(w.buckets.at(-1)?.denied).toBe(2);
   });
 
   it('ends with the day of the newest record for seven days', () => {
@@ -80,7 +96,7 @@ describe('overviewWindow', () => {
 
 describe('bucket names', () => {
   it('names an hour and a day in UTC', () => {
-    const hour = { start: Date.UTC(2026, 9, 20, 9), end: Date.UTC(2026, 9, 20, 10), verified: 0, unverifiable: 0, blocked: 0, none: 0, total: 0 };
+    const hour = { start: Date.UTC(2026, 9, 20, 9), end: Date.UTC(2026, 9, 20, 10), verified: 0, unverifiable: 0, blocked: 0, none: 0, denied: 0, total: 0 };
     expect(bucketLabel(hour, '24h')).toBe('09:00');
     expect(bucketName(hour, '24h')).toBe('20 Oct, 09:00 to 10:00 UTC');
     expect(bucketLabel(hour, '7d')).toBe('20 Oct');

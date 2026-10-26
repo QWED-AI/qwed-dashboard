@@ -42,9 +42,11 @@ function latest(r: LedgerRecord): string {
   return `Newest: ${r.query.split('\n')[0]} (${said}) at ${formatUtc(r.createdAt)} UTC.`;
 }
 
-// Groups by the stored verdict only. A VERIFIED record is never listed here,
-// even when its message says the claim does not hold: that is the verifier's
-// call, shown in the ledger, not one the dashboard makes.
+// Groups by what the server stored. A VERIFIED record is listed only when the
+// server stored DENY as its admission (#38): its message alone never puts it
+// here, since whether the claim holds is the verifier's call, not one the
+// dashboard makes. BLOCKED and UNVERIFIABLE records are listed by verdict, so
+// a denied one is not counted twice.
 function needsAttention(records: LedgerRecord[], activeKeys: number | null): Attention[] {
   const items: Attention[] = [];
   const groups: { verdict: Verdict | null; facet: string; one: string; many: string }[] = [
@@ -63,6 +65,18 @@ function needsAttention(records: LedgerRecord[], activeKeys: number | null): Att
       detail: latest(first),
       action: 'Open in the ledger',
       to: `/ledger?verdict=${g.facet}`,
+    });
+  }
+  const denied = records.filter((r) => r.result.verdict === 'VERIFIED' && r.result.admission === 'DENY');
+  const [firstDenied] = denied;
+  if (firstDenied) {
+    items.push({
+      id: 'denied',
+      dot: 'd-DENY',
+      title: plural(denied.length, 'VERIFIED record not admitted', 'VERIFIED records not admitted'),
+      detail: latest(firstDenied),
+      action: 'Open in the ledger',
+      to: '/ledger?verdict=VERIFIED&admission=DENY',
     });
   }
   if (activeKeys === 0) {
@@ -207,11 +221,14 @@ export function HomePage() {
 function RecordTiles({ win }: Readonly<{ win: OverviewWindow }>) {
   const t = win.totals;
   const name = RANGES[win.range].name;
-  const series = (key: 'total' | 'blocked' | 'unverifiable' | 'none') => win.buckets.map((b) => b[key]);
+  const series = (key: 'total' | 'blocked' | 'unverifiable' | 'none' | 'denied') => win.buckets.map((b) => b[key]);
   return (
     <>
       <StatTile label="Records" value={t.total} trend={series('total')}>
         {comparedText(t.total, win.previousTotal, name) ?? `In the ${name} up to the newest record.`}
+      </StatTile>
+      <StatTile label="Not admitted (DENY)" dot="d-DENY" value={t.denied} trend={series('denied')}>
+        {shareOf(t.denied, t.total)}, any verdict
       </StatTile>
       <StatTile label="BLOCKED" dot="d-BLOCKED" value={t.blocked} trend={series('blocked')}>
         {shareOf(t.blocked, t.total)}
@@ -368,7 +385,7 @@ function AttentionList({ items, total }: Readonly<{ items: Attention[]; total: n
       {total > 0 && items.length === 0 && (
         <div className="note">
           Nothing needs attention in the newest {plural(total, 'record', 'records')}: none is BLOCKED or UNVERIFIABLE,
-          and every stored result has a verdict.
+          no VERIFIED one was denied, and every stored result has a verdict.
         </div>
       )}
       {items.length > 0 && <Items items={items} />}
