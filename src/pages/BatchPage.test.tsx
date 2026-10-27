@@ -173,6 +173,29 @@ describe('BatchPage', () => {
     expect(screen.getByText(/3 items of this job among the newest 6 records/)).toBeTruthy();
   });
 
+  it('says so when older records cannot be loaded, and keeps what it has', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(demoApi, 'listLogs')
+      .mockResolvedValueOnce({ logs: jobRows, nextBefore: '10' })
+      .mockRejectedValueOnce(new ApiError(500, 'Server error'));
+    renderJob('job-a');
+    await screen.findByRole('link', { name: 'claim 14' });
+    await user.click(screen.getByRole('button', { name: 'Load 200 older records' }));
+    expect((await screen.findByRole('alert')).textContent).toMatch(/^Older records could not be loaded\./);
+    expect(tile('Items')).toBe('3');
+  });
+
+  it('says so when older records cannot be loaded for a job it has not found yet', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(demoApi, 'listLogs')
+      .mockResolvedValueOnce({ logs: [single('30')], nextBefore: '30' })
+      .mockRejectedValueOnce(new ApiError(500, 'Server error'));
+    renderJob('job-a');
+    await user.click(await screen.findByRole('button', { name: 'Load 200 older records' }));
+    expect((await screen.findByRole('alert')).textContent).toMatch(/^Older records could not be loaded\./);
+    expect(screen.getByText('No item of this job is among the loaded records')).toBeTruthy();
+  });
+
   it('says why when the records cannot be loaded', async () => {
     vi.spyOn(demoApi, 'listLogs').mockRejectedValue(new ApiError(500, 'Server error'));
     renderJob('job-a');

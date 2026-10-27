@@ -174,6 +174,15 @@ describe('parseResult', () => {
     expect(parseResult(batchRow({ truncated: true })).batch).toEqual(job);
   });
 
+  it('keeps a failed item’s status, and no item field that is not text', () => {
+    const failed = JSON.stringify({ batch_job_id: 'j', batch_item_id: 'j-2', batch_item_type: 'sql', item_status: 'failed', details: { result: null, error: 'x' } });
+    expect(parseResult(failed).batch?.itemStatus).toBe('failed');
+    for (const bad of [7, '', '   ', null, {}]) {
+      const r = parseResult(JSON.stringify({ batch_job_id: 'j', batch_item_id: bad, batch_item_type: bad, item_status: bad, details: {} }));
+      expect(r.batch).toEqual({ jobId: 'j', itemId: null, itemType: null, itemStatus: null });
+    }
+  });
+
   it('reads a batch item with only its job id, and no job from an empty one', () => {
     const bare = parseResult(JSON.stringify({ batch_job_id: 'j', details: {} }));
     expect(bare.batch).toEqual({ jobId: 'j', itemId: null, itemType: null, itemStatus: null });

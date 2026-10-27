@@ -119,21 +119,21 @@ export function BatchPage() {
             </div>
             <div className="card tile">
               <span className="tile-label">
-                <span className="dot d-ADMIT" aria-hidden="true" />
+                <span className="dot d-ADMIT" aria-hidden="true" />{' '}
                 ADMIT
               </span>
               <span className="tile-value num">{admitted}</span>
             </div>
             <div className="card tile">
               <span className="tile-label">
-                <span className="dot d-DENY" aria-hidden="true" />
+                <span className="dot d-DENY" aria-hidden="true" />{' '}
                 Not admitted (DENY)
               </span>
               <span className="tile-value num">{denied}</span>
             </div>
             <div className="card tile">
               <span className="tile-label">
-                <span className="dot d-none" aria-hidden="true" />
+                <span className="dot d-none" aria-hidden="true" />{' '}
                 Admission not recorded
               </span>
               <span className="tile-value num">{items.length - admitted - denied}</span>
@@ -157,7 +157,7 @@ export function BatchPage() {
             )}
             <span className="spacer" />
             <label className="toggle">
-              <input type="checkbox" checked={onlyDenied} onChange={toggleDenied} />
+              <input type="checkbox" checked={onlyDenied} onChange={toggleDenied} />{' '}
               Show only the items not admitted
             </label>
             {canExport && (
@@ -182,6 +182,12 @@ export function BatchPage() {
             </div>
           </section>
         </div>
+      )}
+
+      {logs.isFetchNextPageError && (
+        <p className="note" role="alert" style={{ margin: '0 24px 16px' }}>
+          Older records could not be loaded. {describeError(logs.error)}
+        </p>
       )}
     </Shell>
   );
