@@ -65,14 +65,14 @@ describe('ServerPage (#55)', () => {
     serve('7.3.0', []);
     renderApp(<ServerPage />, { live: true });
     const supports = await region('What this server supports');
-    expect((await supports.findAllByText('Needs 8.0.0')).length).toBe(supports.getAllByRole('row').length - 1);
+    expect(await supports.findAllByText('Needs 8.0.0')).toHaveLength(supports.getAllByRole('row').length - 1);
     expect((await region('Connection')).getByText('Connected, to a version older than 8.0.0.')).toBeTruthy();
     cleanup();
 
     serve('8.0.0', []);
     renderApp(<ServerPage />, { live: true });
     const current = await region('What this server supports');
-    expect((await current.findAllByText('Supported')).length).toBe(current.getAllByRole('row').length - 1);
+    expect(await current.findAllByText('Supported')).toHaveLength(current.getAllByRole('row').length - 1);
   });
 
   it('says why when the keys cannot be loaded, or the server publishes none', async () => {
@@ -95,6 +95,62 @@ describe('ServerPage (#55)', () => {
     ).toBeTruthy();
     expect(health).not.toHaveBeenCalled();
     expect((await region('What this server supports')).getAllByText('Sample data').length).toBeGreaterThan(0);
+  });
+
+  it('leaves a live server’s key history alone when sample data is opened (live, demo, live)', async () => {
+    const stored = { keys: { 'did:qwed:node:local#k1': '2026-10-26T10:21:00.000Z' }, gone: [] };
+    localStorage.setItem('qwed-dashboard.signing-keys', JSON.stringify(stored));
+    renderApp(<ServerPage />);
+    expect(await (await region('Signing keys')).findByText('The server publishes no signing keys.')).toBeTruthy();
+    expect(screen.queryByRole('note')).toBeNull();
+    expect(JSON.parse(localStorage.getItem('qwed-dashboard.signing-keys') ?? '{}')).toEqual(stored);
+    cleanup();
+
+    serve('8.0.0', ['did:qwed:node:local#k1']);
+    renderApp(<ServerPage />, { live: true });
+    const keys = await region('Signing keys');
+    expect(await keys.findByText('26 Oct 10:21:00 UTC')).toBeTruthy();
+    expect(keys.queryByRole('note')).toBeNull();
+  });
+
+  it('keeps a saved notice while the keys cannot be loaded', async () => {
+    localStorage.setItem(
+      'qwed-dashboard.signing-keys',
+      JSON.stringify({
+        keys: {},
+        gone: [{ kid: 'did:qwed:node:local#old', firstSeen: '2026-10-26T10:21:00.000Z', goneBy: '2026-10-26T11:00:00.000Z' }],
+      }),
+    );
+    vi.spyOn(httpApi, 'health').mockResolvedValue({ version: '8.0.0' });
+    vi.spyOn(httpApi, 'getJwks').mockRejectedValue(new ApiError(0, 'The QWED server could not be reached.'));
+    renderApp(<ServerPage />, { live: true });
+    const keys = await region('Signing keys');
+    expect(await keys.findByText(/could not be reached/)).toBeTruthy();
+    expect(within(keys.getByRole('note')).getByText('did:qwed:node:local#old')).toBeTruthy();
+  });
+
+  it('says when a refresh of the keys fails, and that the list is from the last check that worked', async () => {
+    vi.spyOn(httpApi, 'health').mockResolvedValue({ version: '8.0.0' });
+    vi.spyOn(httpApi, 'getJwks')
+      .mockResolvedValueOnce({ keys: [key('did:qwed:node:local#k1')] })
+      .mockRejectedValue(new ApiError(0, 'The QWED server could not be reached.'));
+    const user = userEvent.setup();
+    renderApp(<ServerPage />, { live: true });
+    const keys = await region('Signing keys');
+    await keys.findByText('did:qwed:node:local#k1');
+    await user.click(screen.getByRole('button', { name: 'Check again' }));
+    const alert = await keys.findByRole('alert');
+    expect(alert.textContent).toMatch(/^The latest check failed: .*could not be reached.* The keys below are from the last check that worked, at .* UTC\.$/);
+    expect(keys.getByText('did:qwed:node:local#k1')).toBeTruthy();
+  });
+
+  it('does not break on a version that is not a string', async () => {
+    vi.spyOn(httpApi, 'health').mockResolvedValue({ version: 8 } as unknown as { version: string });
+    vi.spyOn(httpApi, 'getJwks').mockResolvedValue({ keys: [] });
+    renderApp(<ServerPage />, { live: true });
+    const connection = await region('Connection');
+    expect(await connection.findByText('An answer came back, with no version the dashboard can read.')).toBeTruthy();
+    expect(connection.getByText('not given')).toBeTruthy();
   });
 
   it('is in the menu under Settings', async () => {

@@ -39,7 +39,9 @@ const apiBase = API_BASE === '/api' ? '/api, on this dashboard’s own origin' :
 function Connection() {
   const status = useServerStatus();
   const health = useServerHealth();
-  const version = health.data?.version?.trim();
+  // The server's JSON may hold anything here; only a string is a version.
+  const sent = health.data?.version;
+  const version = typeof sent === 'string' ? sent.trim() : '';
   return (
     <section className="card" aria-labelledby="connection-title">
       <div className="card-head">
@@ -91,15 +93,18 @@ function Dashboard() {
 function SigningKeys() {
   const { api, mode } = useSession();
   const jwks = useQuery({ queryKey: [mode, 'jwks'], queryFn: () => api.getJwks(), retry: false });
-  const [seen, setSeen] = useState<SeenKeys | null>(null);
+  // The history is a live server's: sample data neither reads nor changes it.
+  const live = mode !== 'demo';
+  // Read at once, so a saved notice shows even while the keys cannot be loaded.
+  const [seen, setSeen] = useState<SeenKeys | null>(() => (live ? readSeenKeys() : null));
 
   // Each load is compared with the keys this browser saw before (#55).
   useEffect(() => {
-    if (!jwks.data) return;
+    if (!live || !jwks.data) return;
     const next = compareKeys(readSeenKeys(), jwks.data.keys, new Date().toISOString());
     writeSeenKeys(next);
     setSeen(next);
-  }, [jwks.data, jwks.dataUpdatedAt]);
+  }, [live, jwks.data, jwks.dataUpdatedAt]);
 
   function dismiss() {
     if (!seen) return;
@@ -110,6 +115,7 @@ function SigningKeys() {
 
   const keys = jwks.data?.keys ?? [];
   const gone = seen?.gone ?? [];
+  const lastLoaded = jwks.dataUpdatedAt ? `${formatUtc(new Date(jwks.dataUpdatedAt).toISOString())} UTC` : null;
   return (
     <section className="card flush" aria-labelledby="keys-title">
       <div className="card-head">
@@ -148,6 +154,13 @@ function SigningKeys() {
       )}
       {jwks.isPending && <p className="sub card-text">Loading the keys…</p>}
       {jwks.isError && !jwks.data && <p className="sub card-text">{describeError(jwks.error)}</p>}
+      {/* A failed refresh keeps the last keys: say they are not from this check. */}
+      {jwks.isRefetchError && (
+        <p className="sub card-text" role="alert">
+          The latest check failed: {describeError(jwks.error)} The keys below are from the last check that worked
+          {lastLoaded ? `, at ${lastLoaded}` : ''}.
+        </p>
+      )}
       {jwks.data && keys.length === 0 && <p className="sub card-text">The server publishes no signing keys.</p>}
       {keys.length > 0 && (
         <div className="table-wrap" style={{ borderTop: '1px solid var(--line)' }}>
@@ -171,7 +184,9 @@ function SigningKeys() {
                   <td className="mono">{k.crv ?? 'not given'}</td>
                   <td>{k.use === 'sig' ? 'Signing' : (k.use ?? 'not given')}</td>
                   <td className="muted">
-                    {k.kid && seen?.keys[k.kid] ? `${formatUtc(seen.keys[k.kid] as string)} UTC` : 'not recorded'}
+                    {k.kid && seen && Object.hasOwn(seen.keys, k.kid)
+                      ? `${formatUtc(seen.keys[k.kid] as string)} UTC`
+                      : 'not recorded'}
                   </td>
                 </tr>
               ))}

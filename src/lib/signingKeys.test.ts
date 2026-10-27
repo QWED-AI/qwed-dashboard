@@ -30,6 +30,12 @@ describe('compareKeys (#55)', () => {
     expect(back.keys).toEqual({ a: t1, b: t2 });
   });
 
+  it('reports a gone key whose id is also a name on every object, such as toString', () => {
+    const before = compareKeys(NONE, [{ kid: 'toString' }], t1);
+    expect(compareKeys(before, [], t2).gone).toEqual([{ kid: 'toString', firstSeen: t1, goneBy: t2 }]);
+    expect(compareKeys(NONE, [{ kid: 'constructor' }], t1).keys).toEqual({ constructor: t1 });
+  });
+
   it('ignores a key with no id, which cannot be told apart from others', () => {
     expect(compareKeys(NONE, [{ kty: 'EC' }, { kid: '' }], t1)).toEqual(NONE);
   });

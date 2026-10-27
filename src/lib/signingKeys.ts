@@ -32,16 +32,20 @@ const kidOf = (k: Jwk): string | null => (typeof k.kid === 'string' && k.kid !==
 
 /** What this browser knows after a load that found `keys` published, at `now`. */
 export function compareKeys(seen: SeenKeys, keys: readonly Jwk[], now: string): SeenKeys {
+  // Own keys only: a key id such as "toString" must not match Object's own members.
+  const has = (o: Record<string, string>, kid: string) => Object.hasOwn(o, kid);
   const current: Record<string, string> = {};
   for (const k of keys) {
     const kid = kidOf(k);
-    if (kid) current[kid] = seen.keys[kid] ?? seen.gone.find((g) => g.kid === kid)?.firstSeen ?? now;
+    if (!kid) continue;
+    const before = has(seen.keys, kid) ? seen.keys[kid] : seen.gone.find((g) => g.kid === kid)?.firstSeen;
+    current[kid] = before ?? now;
   }
   const newlyGone = Object.entries(seen.keys)
-    .filter(([kid]) => !(kid in current))
+    .filter(([kid]) => !has(current, kid))
     .map(([kid, firstSeen]) => ({ kid, firstSeen, goneBy: now }));
   // A key published again is not gone.
-  const gone = [...seen.gone.filter((g) => !(g.kid in current) && !(g.kid in seen.keys)), ...newlyGone];
+  const gone = [...seen.gone.filter((g) => !has(current, g.kid) && !has(seen.keys, g.kid)), ...newlyGone];
   return { keys: current, gone };
 }
 
