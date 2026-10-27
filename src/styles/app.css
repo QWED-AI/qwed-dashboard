@@ -599,6 +599,18 @@ a.btn {
   box-shadow: inset 0 0 0 1.5px var(--bad);
   border-radius: 1.5px;
 }
+.d-ADMIT {
+  background: var(--ok);
+}
+/* A checkbox with its label, in a row of filters. */
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  font-size: 12.5px;
+  color: var(--text);
+}
 .d-mute {
   background: var(--muted);
 }

@@ -104,7 +104,7 @@ The release workflow then checks that the tag matches `package.json`, runs the t
 | Screen | Server route | Credential |
 |---|---|---|
 | Sign in | `POST /auth/signin` | email and password |
-| Overview, Decision ledger | `GET /audit/logs` | session token |
+| Overview, Decision ledger, Batch job | `GET /audit/logs` | session token |
 | Record | `GET /audit/logs/{id}` | session token |
 | API keys | `GET`, `POST /auth/api-keys`, `DELETE /auth/api-keys/{id}` | session token |
 | Audit chain entry check | `GET /admin/compliance/verify/{id}` | session token of an owner or admin |
@@ -135,6 +135,8 @@ A VERIFIED verdict means the check ran to a proof, not that the claim holds, so 
 - **Decision ledger:** filters by admission (ADMIT, DENY, or not recorded) and by API key (each key, named from the key list where it is there, or not recorded). Opened from the Overview, it shows the records received in that range only; **Show all dates** shows every loaded record again.
 
 **Export CSV** on the decision ledger, for owners and admins, saves the records it shows, with the filters applied, as a CSV file built in the browser: record id, time received (UTC, marked with `Z`), verifier, request, the stored verdict and admission as the ledger shows them (and the stored admission word where it differs), the verifier's message, proof_ref, API key, and the attestation refusal where there is one, with the verdict and proof_ref the verifier reached in their own columns. A message a caller supplied is in the last column, `caller_message`, apart from the verifier's. For a Verification Context record, `verifier_message` holds the server's notice, as the ledger labels it, and not the verifier's words. It covers the loaded records only; load older ones first to include them. It does not use the server's CSV routes, which carry no stored verdict or admission yet ([qwed-verification #508](https://github.com/QWED-AI/qwed-verification/issues/508)). A cell a spreadsheet may read as a formula gets a leading apostrophe: one that starts with a tab, carriage return, line feed or NUL, or with `=`, `+`, `-` or `@` (or their full-width forms) after any leading white space. Members and viewers do not get the button. The file is built from rows the ledger already shows them, so this limits the export, not what they can read.
+
+**Batch job** (`/batches/{job id}`) lists the records of one `POST /verify/batch` job together. The server writes one record per item, with the job's id beside the item's result, and the ledger row and record view of an item link its job. It shows how many items the loaded records hold, how many were stored with ADMIT or DENY or with no admission, and when they were received; **Show only the items not admitted** keeps the DENY ones. Each item keeps its own verdict and admission: the job has none of its own, and the dashboard works none out. An item that failed shows the error the server stored for it, here and on the ledger. It covers the loaded records only, so an older job's items may need **Load 200 older records**. It names the API key that sent the job, from the key each item's record stores, and opens the ledger on that key's records. Owners and admins can export the items shown as CSV, as on the ledger.
 
 **Find a record** in the header, on every screen (`/` moves the focus to it): a record id opens that record; anything else, such as a proof_ref, opens the decision ledger with it as the search. The server has no route that finds a record by proof_ref, so that search covers the loaded records.
 

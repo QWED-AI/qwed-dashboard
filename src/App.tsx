@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link, Navigate, Route, Routes, useLocation } from 'react-router';
 import { useSession } from './auth/session';
+import { BatchPage } from './pages/BatchPage';
 import { HomePage } from './pages/HomePage';
 import { KeysPage } from './pages/KeysPage';
 import { LedgerPage } from './pages/LedgerPage';
@@ -54,6 +55,14 @@ export function App() {
         element={
           <RequireSession>
             <RecordPage />
+          </RequireSession>
+        }
+      />
+      <Route
+        path="/batches/:jobId"
+        element={
+          <RequireSession>
+            <BatchPage />
           </RequireSession>
         }
       />

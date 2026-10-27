@@ -166,6 +166,35 @@ describe('parseResult', () => {
       expect(r.error).toBe('This batch item stored no result.');
     }
   });
+
+  it('keeps the job a batch item belongs to, whatever its result (#57)', () => {
+    const job = { jobId: 'j', itemId: 'j-0', itemType: 'code', itemStatus: 'completed' };
+    expect(parseResult(batchRow({ result: { status: 'VERIFIED' }, error: null })).batch).toEqual(job);
+    expect(parseResult(batchRow({ result: null, error: 'audit persistence failed' })).batch).toEqual(job);
+    expect(parseResult(batchRow({ truncated: true })).batch).toEqual(job);
+  });
+
+  it('keeps a failed item’s status, and no item field that is not text', () => {
+    const failed = JSON.stringify({ batch_job_id: 'j', batch_item_id: 'j-2', batch_item_type: 'sql', item_status: 'failed', details: { result: null, error: 'x' } });
+    expect(parseResult(failed).batch?.itemStatus).toBe('failed');
+    for (const bad of [7, '', '   ', null, {}]) {
+      const r = parseResult(JSON.stringify({ batch_job_id: 'j', batch_item_id: bad, batch_item_type: bad, item_status: bad, details: {} }));
+      expect(r.batch).toEqual({ jobId: 'j', itemId: null, itemType: null, itemStatus: null });
+    }
+  });
+
+  it('reads a batch item with only its job id, and no job from an empty one', () => {
+    const bare = parseResult(JSON.stringify({ batch_job_id: 'j', details: {} }));
+    expect(bare.batch).toEqual({ jobId: 'j', itemId: null, itemType: null, itemStatus: null });
+    expect(parseResult(JSON.stringify({ batch_job_id: '', details: {} })).batch).toBeNull();
+    expect(parseResult(JSON.stringify({ batch_job_id: 7, details: {} })).batch).toBeNull();
+  });
+
+  it('gives a record from any other route no job', () => {
+    expect(parseResult(JSON.stringify({ status: 'VERIFIED' })).batch).toBeNull();
+    expect(parseResult(JSON.stringify({ spec_version: '1.0', verdict: 'VERIFIED', context: {} })).batch).toBeNull();
+    expect(parseResult('not json').batch).toBeNull();
+  });
 });
 
 describe('toRecord', () => {

@@ -31,9 +31,21 @@ export interface ParsedResult {
   attestationBlock: AttestationBlock | null;
   /** The attestation JWT the server signed and stored with the result, if any (#39). */
   attestation: string | null;
+  /** The /verify/batch job this record is an item of, or null (#57). */
+  batch: BatchRef | null;
   /** The parsed JSON, or null when the stored text is not valid JSON. */
   value: unknown;
   error: string | null;
+}
+
+/** A /verify/batch item's job and place in it, as the server stored them (#477, #57). */
+export interface BatchRef {
+  jobId: string;
+  itemId: string | null;
+  /** The item's verification type, such as "code". */
+  itemType: string | null;
+  /** The item's status, such as "completed" or "failed". */
+  itemStatus: string | null;
 }
 
 /**
@@ -129,6 +141,7 @@ const empty = (shape: ResultShape, value: unknown, error: string | null): Parsed
   isAuthoritative: null,
   attestationBlock: null,
   attestation: null,
+  batch: null,
   value,
   error,
 });
@@ -195,6 +208,7 @@ export function parseResult(raw: string): ParsedResult {
       attestationBlock: readAttestationBlock(verdict, at(value, 'context', 'evidence', 'evidence', 'developer_fields')),
       // A document's own signature is not a verdict attestation (#319).
       attestation: null,
+      batch: null,
       value,
       error: null,
     };
@@ -209,17 +223,36 @@ export function parseResult(raw: string): ParsedResult {
   return empty('unknown', value, 'The stored result has no verdict field.');
 }
 
+/** The job a /verify/batch item row belongs to (#57), from the identifiers the server writes outside its capped details. */
+function batchRef(value: Obj): BatchRef | null {
+  const jobId = asMessage(value.batch_job_id);
+  if (!jobId) return null;
+  return {
+    jobId,
+    itemId: asMessage(value.batch_item_id),
+    itemType: asMessage(value.batch_item_type),
+    itemStatus: asMessage(value.item_status),
+  };
+}
+
 /** A /verify/batch item row (#477): the item's own result sits under
  * details.result, read as the server reads it (#484). */
 function fromBatchItem(value: Obj): ParsedResult {
+  const batch = batchRef(value);
   const details = isObj(value.details) ? value.details : null;
   if (details?.truncated === true) {
-    return empty('truncated', value, 'The server stored a shortened copy of this batch item, so its verdict cannot be read.');
+    return {
+      ...empty('truncated', value, 'The server stored a shortened copy of this batch item, so its verdict cannot be read.'),
+      batch,
+    };
   }
   const inner = details?.result;
-  if (isObj(inner)) return { ...fromDiagnostic(inner, value), shape: 'batch-item' };
+  if (isObj(inner)) return { ...fromDiagnostic(inner, value), shape: 'batch-item', batch };
   const failure = asMessage(details?.error);
-  return empty('batch-item', value, failure ? `This batch item failed: ${failure}` : 'This batch item stored no result.');
+  return {
+    ...empty('batch-item', value, failure ? `This batch item failed: ${failure}` : 'This batch item stored no result.'),
+    batch,
+  };
 }
 
 function fromDiagnostic(result: Obj, value: unknown): ParsedResult {
@@ -234,6 +267,7 @@ function fromDiagnostic(result: Obj, value: unknown): ParsedResult {
     isAuthoritative: typeof result.is_authoritative === 'boolean' ? result.is_authoritative : null,
     attestationBlock: readAttestationBlock(verdict, result.developer_fields),
     attestation: asMessage(result.attestation),
+    batch: null,
     value,
     error: null,
   };

@@ -444,6 +444,14 @@ export function RecordPage() {
               <dt className="k">Stored as</dt>
               <dd className="v">{SHAPE_LABEL[result.shape]}</dd>
             </div>
+            {result.batch && (
+              <div className="meta">
+                <dt className="k">Batch job</dt>
+                <dd className="v mono" style={{ fontSize: 12 }}>
+                  <Link to={`/batches/${encodeURIComponent(result.batch.jobId)}`}>{result.batch.jobId}</Link>
+                </dd>
+              </div>
+            )}
           </dl>
           {noKey && (
             <p className="hint" style={{ margin: '10px 0 0' }}>

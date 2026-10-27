@@ -3,8 +3,15 @@ import { formatUtc } from '../lib/format';
 import { attestationVerdictLabel, isServerNotice, type LedgerRecord } from '../lib/result';
 import { VerdictChip } from './VerdictChip';
 
-/** Records as the ledger lists them, newest first. On a phone each row stacks (see .tbl-stack). */
-export function RecordTable({ records }: Readonly<{ records: readonly LedgerRecord[] }>) {
+/**
+ * Records as the ledger lists them, newest first. On a phone each row stacks
+ * (see .tbl-stack). A batch item's row links its job (#57), unless the table
+ * is that job's own list.
+ */
+export function RecordTable({
+  records,
+  batchLinks = true,
+}: Readonly<{ records: readonly LedgerRecord[]; batchLinks?: boolean }>) {
   return (
     <table className="tbl tbl-stack">
       <thead>
@@ -45,6 +52,19 @@ export function RecordTable({ records }: Readonly<{ records: readonly LedgerReco
                 <span className="row-note">
                   Blocked by the attestation check. The verifier’s verdict:{' '}
                   {attestationVerdictLabel(r.result.attestationBlock)}.
+                </span>
+              )}
+              {/* A failed or shortened batch item stores no message, so its
+                  row says why it has no verdict, as the Overview does. */}
+              {r.result.batch && r.result.error !== null && (
+                <span className="row-note">The dashboard notes: {r.result.error}</span>
+              )}
+              {batchLinks && r.result.batch && (
+                <span className="row-note">
+                  An item of batch job{' '}
+                  <Link className="mono" to={`/batches/${encodeURIComponent(r.result.batch.jobId)}`}>
+                    {r.result.batch.jobId}
+                  </Link>
                 </span>
               )}
             </td>
