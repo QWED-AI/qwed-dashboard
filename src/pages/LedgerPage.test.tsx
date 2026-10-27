@@ -155,6 +155,52 @@ describe('LedgerPage', () => {
     });
   });
 
+  describe('the API key filter (#53)', () => {
+    const logs = [row('3', { api_key_id: '7' }), row('2', { api_key_id: '8' }), row('1', { api_key_id: null })];
+    const keys = [
+      { id: '7', name: 'payments agent', key_preview: 'qwed_live_****x7Qa', created_at: '2026-10-01T10:00:00', last_used_at: null, is_revoked: false },
+    ];
+    const shownClaims = () =>
+      within(screen.getByRole('table'))
+        .getAllByRole('row')
+        .slice(1)
+        .map((r) => within(r).getByRole('link').textContent);
+    const select = () => screen.getByRole('combobox', { name: 'API key' }) as HTMLSelectElement;
+
+    it('names each key from the key list, and filters by it or by no key', async () => {
+      vi.spyOn(demoApi, 'listLogs').mockResolvedValue({ logs, nextBefore: null });
+      vi.spyOn(demoApi, 'listKeys').mockResolvedValue(keys);
+      const user = userEvent.setup();
+      renderApp(<LedgerPage />);
+      await rowFor('claim 3');
+      await waitFor(() =>
+        expect([...select().options].map((o) => o.textContent)).toEqual(['All', 'Key 8', 'payments agent', 'Not recorded']),
+      );
+      await user.selectOptions(select(), '7');
+      expect(shownClaims()).toEqual(['claim 3']);
+      await user.selectOptions(select(), 'none');
+      expect(shownClaims()).toEqual(['claim 1']);
+    });
+
+    it('opens on a key and DENY from the address, as the Overview links it', async () => {
+      vi.spyOn(demoApi, 'listLogs').mockResolvedValue({
+        logs: [row('3', { api_key_id: '7', admission: 'BLOCKED' }), row('2', { api_key_id: '7', admission: 'ADMIT' })],
+        nextBefore: null,
+      });
+      renderApp(<LedgerPage />, { route: '/?key=7&admission=DENY' });
+      await rowFor('claim 3');
+      expect(select().value).toBe('7');
+      expect(shownClaims()).toEqual(['claim 3']);
+    });
+
+    it('keeps the chosen key as an option when no loaded record has it', async () => {
+      vi.spyOn(demoApi, 'listLogs').mockResolvedValue({ logs, nextBefore: null });
+      renderApp(<LedgerPage />, { route: '/?key=99' });
+      expect(await screen.findByText('No records match these filters.')).toBeTruthy();
+      expect(select().value).toBe('99');
+    });
+  });
+
   describe('the range from the Overview (#46)', () => {
     const logs = [
       row('3', { created_at: '2026-10-21T10:00:00' }),

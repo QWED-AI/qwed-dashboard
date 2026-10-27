@@ -974,6 +974,11 @@ a.btn {
   border-radius: 1px;
   box-shadow: inset 0 0 0 1.5px var(--v-none);
 }
+/* DENY, as its chip and the tile draw it: a ring, apart from BLOCKED's square. */
+.sw-deny {
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 2.5px var(--v-bad);
+}
 .vc-plot {
   display: grid;
   grid-template-columns: 28px minmax(0, 1fr);

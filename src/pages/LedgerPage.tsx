@@ -9,7 +9,7 @@ import { Shell } from '../components/Shell';
 import { downloadLedgerCsv } from '../lib/csv';
 import { inPeriod, periodName, readPeriod } from '../lib/overview';
 import { toRecord, type LedgerRecord } from '../lib/result';
-import { describeError, useLedgerPages } from '../lib/useAuthedQuery';
+import { describeError, useAuthedQuery, useLedgerPages } from '../lib/useAuthedQuery';
 
 type Facet = 'all' | Verdict | 'none';
 
@@ -43,6 +43,13 @@ const ADMISSIONS: { id: AdmissionFilter; label: string }[] = [
   { id: 'none', label: 'Not recorded' },
 ];
 
+/** The API key filter (#53): a key id, "none" for records with no caller kept, or "all". */
+function byCaller(r: LedgerRecord, filter: string): boolean {
+  if (filter === 'all') return true;
+  if (filter === 'none') return typeof r.apiKeyId !== 'string';
+  return r.apiKeyId === filter;
+}
+
 function admitted(r: LedgerRecord, filter: AdmissionFilter): boolean {
   if (filter === 'all') return true;
   if (filter === 'none') return r.result.admission === null;
@@ -59,6 +66,8 @@ export function LedgerPage() {
   const facet = (FACETS.find((f) => f.id === params.get('verdict'))?.id ?? 'all') as Facet;
   const q = params.get('q') ?? '';
   const domain = params.get('verifier') ?? 'all';
+  // "none": records no key made, or whose caller the server did not keep (before #484).
+  const keyFilter = params.get('key') ?? 'all';
   const admission = ADMISSIONS.find((a) => a.id === params.get('admission'))?.id ?? 'all';
   // The Overview opens the ledger on the range it counted (#46).
   const fromParam = params.get('from');
@@ -83,12 +92,22 @@ export function LedgerPage() {
     if (domain !== 'all') known.add(domain);
     return [...known].sort((a, b) => a.localeCompare(b));
   }, [inRange, domain]);
+  // The API keys of the loaded records (#53), named from the key list when it
+  // has them. The chosen one stays an option, as the verifier does.
+  const keyList = useAuthedQuery(['keys'], (api, token) => api.listKeys(token));
+  const callers = useMemo(() => {
+    const known = new Set(inRange.map((r) => r.apiKeyId).filter((k): k is string => typeof k === 'string'));
+    if (keyFilter !== 'all' && keyFilter !== 'none') known.add(keyFilter);
+    const name = (id: string) => keyList.data?.find((k) => k.id === id)?.name ?? `Key ${id}`;
+    return [...known].map((id) => ({ id, label: name(id) })).sort((a, b) => a.label.localeCompare(b.label));
+  }, [inRange, keyFilter, keyList.data]);
 
   const shown = inRange.filter(
     (r) =>
       matches(r, facet) &&
       admitted(r, admission) &&
       (domain === 'all' || r.domain === domain) &&
+      byCaller(r, keyFilter) &&
       (!q ||
         `${r.query} ${r.result.agentMessage ?? ''} ${r.result.callerMessage ?? ''} ${r.id} ${r.result.proofRef ?? ''}`
           .toLowerCase()
@@ -207,6 +226,18 @@ export function LedgerPage() {
                     {d.toLowerCase()}
                   </option>
                 ))}
+              </select>
+            </label>
+            <label className="pill">
+              <span>API key</span>
+              <select value={keyFilter} onChange={(e) => set('key', e.target.value, 'all')}>
+                <option value="all">All</option>
+                {callers.map((k) => (
+                  <option key={k.id} value={k.id}>
+                    {k.label}
+                  </option>
+                ))}
+                <option value="none">Not recorded</option>
               </select>
             </label>
             <label className="pill">

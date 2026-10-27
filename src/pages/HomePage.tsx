@@ -13,6 +13,7 @@ import { formatUtc } from '../lib/format';
 import {
   comparedText,
   countBy,
+  deniedBy,
   overviewWindow,
   periodParams,
   RANGES,
@@ -357,6 +358,72 @@ function Breakdowns({ win, keys }: Readonly<{ win: OverviewWindow; keys: KeysQue
           <Link to="/keys">API keys</Link>
         </div>
         <BarList rows={callers} />
+      </section>
+      <DeniedCards win={win} keys={keys} />
+    </>
+  );
+}
+
+/** "45% of 31 records" */
+const shareOfGroup = (denied: number, of: number) =>
+  `${Math.round((denied / of) * 100)}% of ${plural(of, 'record', 'records')}`;
+
+/**
+ * Where the denials come from (#53): the records stored with DENY, by
+ * verifier and by API key, each opening the ledger on them. DENY includes a
+ * stored BLOCKED, as the tiles read it.
+ */
+function DeniedCards({ win, keys }: Readonly<{ win: OverviewWindow; keys: KeysQuery }>) {
+  const range = periodParams(win);
+  const name = RANGES[win.range].name;
+  const byVerifier = deniedBy(win.records, (r) => r.domain).map(
+    ({ key, denied, of }): BarRow => ({
+      key,
+      label: (
+        <Link className="mono" to={`/ledger?verifier=${encodeURIComponent(key)}&admission=DENY&${range}`}>
+          {key.toLowerCase()}
+        </Link>
+      ),
+      n: denied,
+      note: shareOfGroup(denied, of),
+    }),
+  );
+  const byKey = deniedBy(win.records, (r) => r.apiKeyId ?? '').map(({ key, denied, of }): BarRow => {
+    const row = keyRow(key, denied, keys.data);
+    const filter = key === '' ? 'none' : encodeURIComponent(key);
+    return {
+      ...row,
+      label: <Link to={`/ledger?key=${filter}&admission=DENY&${range}`}>{row.label}</Link>,
+      note: (
+        <>
+          {shareOfGroup(denied, of)}
+          {row.note ? <>. {row.note}</> : null}
+        </>
+      ),
+    };
+  });
+  // When older records in the range are not loaded, none denied among the
+  // loaded ones is not an all-clear for the range.
+  const none = (
+    <p className="sub" style={{ margin: 0 }}>
+      {win.reachesBackTo === null
+        ? `No record in these ${name} was stored with DENY.`
+        : `No loaded record in these ${name} was stored with DENY. Older records in the range are not loaded.`}
+    </p>
+  );
+  return (
+    <>
+      <section className="card" aria-labelledby="denied-verifier-title">
+        <div className="card-head">
+          <h2 id="denied-verifier-title">Not admitted, by verifier</h2>
+        </div>
+        {byVerifier.length > 0 ? <BarList rows={byVerifier} /> : none}
+      </section>
+      <section className="card" aria-labelledby="denied-key-title">
+        <div className="card-head">
+          <h2 id="denied-key-title">Not admitted, by API key</h2>
+        </div>
+        {byKey.length > 0 ? <BarList rows={byKey} /> : none}
       </section>
     </>
   );

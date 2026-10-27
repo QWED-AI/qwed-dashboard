@@ -232,6 +232,79 @@ describe('HomePage', () => {
     expect(attention.queryByText(/The identity is false/)).toBeNull();
   });
 
+  describe('where the denials come from (#53)', () => {
+    const row = (id: string, engine: string, admission: string | null, extra: Partial<AuditLog> = {}): AuditLog => ({
+      ...verified(id, `message ${id}`),
+      engine_used: engine,
+      admission,
+      api_key_id: null,
+      ...extra,
+    });
+    // The 24 hours run from 20 Oct 11:00 up to 21 Oct 11:00 UTC.
+    const range = 'from=2026-10-20T11:00:00.000Z&to=2026-10-21T11:00:00.000Z';
+    const logs = [
+      row('5', 'SQL', 'BLOCKED', { api_key_id: '7' }),
+      row('4', 'SQL', 'DENY', { api_key_id: '7' }),
+      row('3', 'SQL', 'ADMIT', { api_key_id: '8' }),
+      row('2', 'MATH', 'DENY'),
+      row('1', 'MATH', null),
+    ];
+    const keys = [
+      { id: '7', name: 'payments agent', key_preview: 'qwed_live_****x7Qa', created_at: '2026-10-01T10:00:00', last_used_at: null, is_revoked: false },
+    ];
+
+    it('switches the chart between verdicts and admissions', async () => {
+      vi.spyOn(demoApi, 'listLogs').mockResolvedValue({ logs, nextBefore: null });
+      const user = userEvent.setup();
+      renderApp(<HomePage />);
+      const chart = within(await screen.findByRole('region', { name: 'Records by verdict' }));
+      await user.click(chart.getByRole('button', { name: 'Admission' }));
+      const byAdmission = within(screen.getByRole('region', { name: 'Records by admission' }));
+      const legend = byAdmission.getAllByRole('listitem').map((li) => li.textContent);
+      expect(legend).toEqual(['ADMIT 1', 'DENY 3', 'Admission not recorded 1']);
+      expect(byAdmission.getByRole('button', { name: /^21 Oct, 10:00 to 11:00 UTC, 5 records: 1 ADMIT, 3 DENY, 1 Admission not recorded$/ })).toBeTruthy();
+    });
+
+    it('lists the denials by verifier and by API key, each opening the ledger on them', async () => {
+      vi.spyOn(demoApi, 'listLogs').mockResolvedValue({ logs, nextBefore: null });
+      vi.spyOn(demoApi, 'listKeys').mockResolvedValue(keys);
+      renderApp(<HomePage />);
+      const verifiers = within(await screen.findByRole('region', { name: 'Not admitted, by verifier' }));
+      const sql = verifiers.getByRole('link', { name: 'sql' });
+      expect(sql.getAttribute('href')).toBe(`/ledger?verifier=SQL&admission=DENY&${range}`);
+      expect(sql.closest('li')?.textContent).toBe('sql267% of 3 records');
+      expect(verifiers.getByRole('link', { name: 'math' }).closest('li')?.textContent).toBe('math150% of 2 records');
+
+      const callers = within(screen.getByRole('region', { name: 'Not admitted, by API key' }));
+      const agent = await callers.findByRole('link', { name: 'payments agent' });
+      expect(agent.getAttribute('href')).toBe(`/ledger?key=7&admission=DENY&${range}`);
+      expect(callers.getByRole('link', { name: 'Not recorded' }).getAttribute('href')).toBe(
+        `/ledger?key=none&admission=DENY&${range}`,
+      );
+      // A key with no denied record is not listed.
+      expect(callers.queryByText(/Key 8/)).toBeNull();
+    });
+
+    it('says so when nothing in the range was denied', async () => {
+      vi.spyOn(demoApi, 'listLogs').mockResolvedValue({ logs: [row('1', 'MATH', 'ADMIT')], nextBefore: null });
+      renderApp(<HomePage />);
+      const verifiers = within(await screen.findByRole('region', { name: 'Not admitted, by verifier' }));
+      expect(verifiers.getByText('No record in these 24 hours was stored with DENY.')).toBeTruthy();
+    });
+
+    it('gives no all-clear for the range when older records in it are not loaded', async () => {
+      // A cursor means the server has older records the page has not loaded.
+      vi.spyOn(demoApi, 'listLogs').mockResolvedValue({ logs: [row('1', 'MATH', 'ADMIT')], nextBefore: '1' });
+      renderApp(<HomePage />);
+      const verifiers = within(await screen.findByRole('region', { name: 'Not admitted, by verifier' }));
+      expect(
+        verifiers.getByText(
+          'No loaded record in these 24 hours was stored with DENY. Older records in the range are not loaded.',
+        ),
+      ).toBeTruthy();
+    });
+  });
+
   describe('the overview', () => {
     /** A tile's number and its line of context. */
     async function tile(name: string) {

@@ -1,30 +1,48 @@
 import { useState } from 'react';
 import { bucketLabel, bucketName, niceScale, RANGES, type Bucket, type OverviewWindow, type VerdictCounts } from '../lib/overview';
 
-// The stacks are the verdicts. DENY cuts across them, so it is not one.
-type Key = Exclude<keyof VerdictCounts, 'total' | 'denied'>;
+// A column stacks either the stored verdicts or the stored admissions (#53).
+// DENY cuts across the verdicts, so the two never share a stack.
+type Key = Exclude<keyof VerdictCounts, 'total'>;
+export type Grouping = 'verdict' | 'admission';
+
+interface Series {
+  key: Key;
+  label: string;
+  swatch: string;
+}
 
 // Bottom to top in each column. The legend repeats the dot shapes the
-// verdict chips use, so a verdict never depends on its colour alone.
-const SERIES: readonly { key: Key; label: string; swatch: string }[] = [
-  { key: 'verified', label: 'VERIFIED', swatch: 'sw-ok' },
-  { key: 'unverifiable', label: 'UNVERIFIABLE', swatch: 'sw-un' },
-  { key: 'blocked', label: 'BLOCKED', swatch: 'sw-bad' },
-  { key: 'none', label: 'No verdict recorded', swatch: 'sw-none' },
-];
+// chips use, so a verdict or an admission never depends on its colour alone.
+const SERIES: Readonly<Record<Grouping, readonly Series[]>> = {
+  verdict: [
+    { key: 'verified', label: 'VERIFIED', swatch: 'sw-ok' },
+    { key: 'unverifiable', label: 'UNVERIFIABLE', swatch: 'sw-un' },
+    { key: 'blocked', label: 'BLOCKED', swatch: 'sw-bad' },
+    { key: 'none', label: 'No verdict recorded', swatch: 'sw-none' },
+  ],
+  admission: [
+    { key: 'admitted', label: 'ADMIT', swatch: 'sw-ok' },
+    { key: 'denied', label: 'DENY', swatch: 'sw-deny' },
+    { key: 'noAdmission', label: 'Admission not recorded', swatch: 'sw-none' },
+  ],
+};
 
 const FILL: Record<Key, string> = {
   verified: 'var(--v-ok)',
   unverifiable: 'var(--v-un)',
   blocked: 'var(--v-bad)',
   none: 'var(--v-none)',
+  admitted: 'var(--v-ok)',
+  denied: 'var(--v-bad)',
+  noAdmission: 'var(--v-none)',
 };
 
 const PLOT = 200;
 const GAP = 2;
 
-function describe(c: VerdictCounts): string {
-  const parts = SERIES.map((s) => `${c[s.key]} ${s.label}`).join(', ');
+function describe(c: VerdictCounts, series: readonly Series[]): string {
+  const parts = series.map((s) => `${c[s.key]} ${s.label}`).join(', ');
   const records = c.total === 1 ? 'record' : 'records';
   return `${c.total} ${records}: ${parts}`;
 }
@@ -35,8 +53,12 @@ function describe(c: VerdictCounts): string {
  * gaps between segments fit inside it, and drop out of a column too short
  * to hold them.
  */
-export function columnSegments(c: VerdictCounts, top: number): { gap: number; segs: { key: Key; h: number }[] } {
-  const parts = [...SERIES].reverse().filter((s) => c[s.key] > 0);
+export function columnSegments(
+  c: VerdictCounts,
+  top: number,
+  grouping: Grouping = 'verdict',
+): { gap: number; segs: { key: Key; h: number }[] } {
+  const parts = [...SERIES[grouping]].reverse().filter((s) => c[s.key] > 0);
   const height = (c.total / top) * PLOT;
   const gap = parts.length > 1 && height >= parts.length * 4 ? GAP : 0;
   const room = height - gap * (parts.length - 1);
@@ -44,12 +66,14 @@ export function columnSegments(c: VerdictCounts, top: number): { gap: number; se
 }
 
 /**
- * Records per hour or day in the window, stacked by stored verdict. Hovering
- * or focusing a column shows its counts above the chart; the table view
- * holds the same numbers.
+ * Records per hour or day in the window, stacked by stored verdict or by
+ * stored admission. Hovering or focusing a column shows its counts above the
+ * chart; the table view holds the same numbers.
  */
 export function VerdictChart({ win }: Readonly<{ win: OverviewWindow }>) {
   const [view, setView] = useState<'chart' | 'table'>('chart');
+  const [grouping, setGrouping] = useState<Grouping>('verdict');
+  const series = SERIES[grouping];
   // Columns are known by their start time, which a refresh does not move,
   // and pointer and keyboard are kept apart: the pointer leaving a column
   // does not clear the one that has focus.
@@ -73,11 +97,20 @@ export function VerdictChart({ win }: Readonly<{ win: OverviewWindow }>) {
     <section className="card" aria-labelledby="by-verdict-title">
       <div className="card-head">
         <div style={{ flex: '1 1 200px', minWidth: 0 }}>
-          <h2 id="by-verdict-title">Records by verdict</h2>
+          <h2 id="by-verdict-title">{grouping === 'verdict' ? 'Records by verdict' : 'Records by admission'}</h2>
           <p className="hint" style={{ margin: 0 }}>
             {win.range === '24h' ? 'Per hour, UTC.' : 'Per day, UTC.'} Hover or focus a column for its counts.
           </p>
         </div>
+        <fieldset className="seg">
+          <legend className="sr-only">Group the records by</legend>
+          <button type="button" aria-pressed={grouping === 'verdict'} onClick={() => setGrouping('verdict')}>
+            Verdict
+          </button>
+          <button type="button" aria-pressed={grouping === 'admission'} onClick={() => setGrouping('admission')}>
+            Admission
+          </button>
+        </fieldset>
         <fieldset className="seg">
           <legend className="sr-only">Show the counts as</legend>
           <button type="button" aria-pressed={view === 'chart'} onClick={() => setView('chart')}>
@@ -95,7 +128,7 @@ export function VerdictChart({ win }: Readonly<{ win: OverviewWindow }>) {
           {shown.total} {shown.total === 1 ? 'record' : 'records'}
         </span>
         <ul className="vc-legend">
-          {SERIES.map((s) => (
+          {series.map((s) => (
             <li key={s.key}>
               <span className={`sw ${s.swatch}`} aria-hidden="true" />
               {s.label} <b>{shown[s.key]}</b>
@@ -119,13 +152,13 @@ export function VerdictChart({ win }: Readonly<{ win: OverviewWindow }>) {
             ))}
             <div className="vc-cols">
               {win.buckets.map((b) => {
-                const { gap, segs } = columnSegments(b, top);
+                const { gap, segs } = columnSegments(b, top, grouping);
                 return (
                   <button
                     key={b.start}
                     type="button"
                     className="vc-col"
-                    aria-label={`${bucketName(b, win.range)}, ${describe(b)}`}
+                    aria-label={`${bucketName(b, win.range)}, ${describe(b, series)}`}
                     style={{ gap, opacity: focused && focused.start !== b.start ? 0.45 : 1 }}
                     onMouseEnter={() => setHovered(b.start)}
                     onMouseLeave={() => setHovered(null)}
@@ -156,7 +189,7 @@ export function VerdictChart({ win }: Readonly<{ win: OverviewWindow }>) {
             <thead>
               <tr>
                 <th scope="col">{win.range === '24h' ? 'Hour (UTC)' : 'Day (UTC)'}</th>
-                {SERIES.map((s) => (
+                {series.map((s) => (
                   <th key={s.key} scope="col">
                     {s.label}
                   </th>
@@ -170,7 +203,7 @@ export function VerdictChart({ win }: Readonly<{ win: OverviewWindow }>) {
                   <th scope="row" className="mono" style={{ fontWeight: 400 }}>
                     {bucketName(b, win.range).replace(' UTC', '')}
                   </th>
-                  {SERIES.map((s) => (
+                  {series.map((s) => (
                     <td key={s.key} className="num">
                       {b[s.key]}
                     </td>
