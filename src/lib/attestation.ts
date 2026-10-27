@@ -13,7 +13,8 @@ export const ATTESTATION_TYPE = 'qwed-attestation+jwt';
 export type CheckState = 'pass' | 'fail' | 'unknown';
 
 export interface AttestationItem {
-  id: 'signature' | 'issuer' | 'request' | 'verdict' | 'proof' | 'admission' | 'expiry';
+  /** `document` is a Verification Context document's signature only (#54). */
+  id: 'signature' | 'issuer' | 'request' | 'document' | 'verdict' | 'proof' | 'admission' | 'expiry';
   label: string;
   state: CheckState;
   detail: string;
@@ -40,12 +41,12 @@ export interface StoredFacts {
 }
 
 type Obj = Record<string, unknown>;
-const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
-const str = (v: unknown): string | null => (typeof v === 'string' ? v : null);
+export const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
+export const str = (v: unknown): string | null => (typeof v === 'string' ? v : null);
 
 /** The largest time a Date can hold, in seconds: a larger one throws when formatted. */
 const MAX_SECONDS = 8.64e12;
-const seconds = (v: unknown): number | null =>
+export const seconds = (v: unknown): number | null =>
   typeof v === 'number' && Number.isFinite(v) && Math.abs(v) <= MAX_SECONDS ? v : null;
 
 /** Base64url to bytes; throws on text that is not base64url. */
@@ -66,12 +67,12 @@ function decodeJson(part: string): Obj | null {
   }
 }
 
-async function sha256Ref(subtle: SubtleCrypto, text: string): Promise<string> {
+export async function sha256Ref(subtle: SubtleCrypto, text: string): Promise<string> {
   const digest = new Uint8Array(await subtle.digest('SHA-256', new TextEncoder().encode(text)));
   return `sha256:${Array.from(digest, (b) => b.toString(16).padStart(2, '0')).join('')}`;
 }
 
-const failed = (problem: string): AttestationReport => ({
+export const failed = (problem: string): AttestationReport => ({
   problem,
   items: [],
   kid: null,
@@ -83,7 +84,7 @@ const failed = (problem: string): AttestationReport => ({
 const isoOf = (s: number) => new Date(s * 1000).toISOString().replace('.000Z', 'Z');
 
 /** One comparison of a claim with what the record stored. */
-function compare(
+export function compare(
   id: AttestationItem['id'],
   label: string,
   claim: string | null,
@@ -96,23 +97,23 @@ function compare(
   return { id, label, state: 'fail', detail: `The attestation says ${claim}; the record stored ${stored}.` };
 }
 
-interface Decoded {
+export interface Decoded {
   header: Obj;
   claims: Obj;
   signingInput: string;
   signature: string;
 }
 
-/** The token's parts, or why it cannot be checked. */
-function decode(token: string): Decoded | string {
+/** The token's parts, or why it cannot be checked: `type` is the header typ it must have, `kind` names it. */
+export function decode(token: string, type = ATTESTATION_TYPE, kind = 'a verdict attestation'): Decoded | string {
   const parts = token.split('.');
   const [h, p, s] = parts;
   if (parts.length !== 3 || h === undefined || p === undefined || s === undefined) return 'The stored attestation is not a JWT.';
   const header = decodeJson(h);
   const claims = decodeJson(p);
   if (!header || !claims) return 'The stored attestation could not be read.';
-  if (header.alg !== 'ES256' || header.typ !== ATTESTATION_TYPE) {
-    return `The stored attestation is not a verdict attestation (alg ${String(header.alg)}, typ ${String(header.typ)}).`;
+  if (header.alg !== 'ES256' || header.typ !== type) {
+    return `The stored attestation is not ${kind} (alg ${String(header.alg)}, typ ${String(header.typ)}).`;
   }
   return { header, claims, signingInput: `${h}.${p}`, signature: s };
 }
@@ -120,7 +121,7 @@ function decode(token: string): Decoded | string {
 const SIGNATURE_LABEL = 'Signed with the server’s key';
 
 /** The ES256 signature, checked with the JWKS key named by the token's kid. */
-async function signatureItem(subtle: SubtleCrypto, key: Jwk | undefined, token: Decoded): Promise<AttestationItem> {
+export async function signatureItem(subtle: SubtleCrypto, key: Jwk | undefined, token: Decoded): Promise<AttestationItem> {
   if (!key) {
     return {
       id: 'signature',
@@ -161,7 +162,7 @@ async function signatureItem(subtle: SubtleCrypto, key: Jwk | undefined, token: 
   };
 }
 
-function expiryItem(expiresAt: number | null, now: number): AttestationItem {
+export function expiryItem(expiresAt: number | null, now: number): AttestationItem {
   const label = 'Not expired';
   if (expiresAt === null) return { id: 'expiry', label, state: 'unknown', detail: 'The attestation states no expiry the dashboard can read.' };
   if (now < expiresAt) return { id: 'expiry', label, state: 'pass', detail: `Valid until ${isoOf(expiresAt)}.` };
@@ -171,6 +172,12 @@ function expiryItem(expiresAt: number | null, now: number): AttestationItem {
     state: 'fail',
     detail: `Expired at ${isoOf(expiresAt)}. A consumer no longer accepts it; the signature still shows what the server signed.`,
   };
+}
+
+/** The JWKS key a token's kid names, and the DID that owns it. */
+export function keyOf(jwks: Jwks, kid: string | null): { key: Jwk | undefined; keyOwner: string | null } {
+  // The key ID is the issuer's DID and the key's thumbprint, "<did>#<thumbprint>".
+  return { key: jwks.keys.find((k) => kid !== null && k.kid === kid), keyOwner: kid?.split('#')[0] ?? null };
 }
 
 /**
@@ -195,9 +202,7 @@ export async function checkAttestation(
   const expiresAt = seconds(claims.exp);
   const qwed = isObj(claims.qwed) ? claims.qwed : {};
   const result = isObj(qwed.result) ? qwed.result : {};
-  const key = jwks.keys.find((k) => kid !== null && k.kid === kid);
-  // The key ID is the issuer's DID and the key's thumbprint, "<did>#<thumbprint>".
-  const keyOwner = kid?.split('#')[0] ?? null;
+  const { key, keyOwner } = keyOf(jwks, kid);
 
   const items: AttestationItem[] = [
     await signatureItem(subtle, key, decoded),

@@ -1,24 +1,10 @@
 import { useMutation } from '@tanstack/react-query';
-import { ApiError } from '../api/http';
 import type { Jwks } from '../api/types';
 import { useSession } from '../auth/session';
-import { attestationHeadline, checkAttestation, type CheckState } from '../lib/attestation';
-import { formatUtcLong } from '../lib/format';
+import { attestationHeadline, checkAttestation } from '../lib/attestation';
 import type { LedgerRecord } from '../lib/result';
-import { Mark } from './ChainCheck';
 import { Icon } from './Icon';
-
-const ok = (state: CheckState): boolean | undefined => (state === 'unknown' ? undefined : state === 'pass');
-const utc = (seconds: number | null) => (seconds === null ? 'not stated' : formatUtcLong(new Date(seconds * 1000).toISOString()));
-
-/** The keys failed to load: about the server's key route, not about this record. */
-class KeysUnavailable extends Error {}
-
-function keysError(err: unknown): KeysUnavailable {
-  let reason = 'the request failed.';
-  if (err instanceof ApiError) reason = err.unreachable ? err.message : `the server returned ${err.status}: ${err.message}`;
-  return new KeysUnavailable(`The server’s public keys could not be loaded from /.well-known/jwks.json: ${reason}`);
-}
+import { KeysUnavailable, keysError, SignatureReport } from './SignatureReport';
 
 /**
  * Checks the attestation the record stored (#39) with the server's public
@@ -89,36 +75,7 @@ export function AttestationCheck({ record }: Readonly<{ record: LedgerRecord }>)
         </p>
       )}
 
-      {report && (
-        <div aria-live="polite">
-          <p className="sub" style={{ color: 'var(--ink)', fontWeight: 600, marginBottom: 6 }}>
-            {attestationHeadline(report)}
-          </p>
-          {report.items.map((item) => (
-            <div className="check" key={item.id}>
-              <Mark ok={ok(item.state)} />
-              <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-                <span>{item.label}</span>
-                <span className="muted" style={{ fontSize: 11.5, overflowWrap: 'anywhere' }}>
-                  {item.detail}
-                </span>
-              </span>
-            </div>
-          ))}
-          {!report.problem && (
-            <dl className="kv" style={{ marginTop: 10 }}>
-              <dt>Key</dt>
-              <dd className="mono" style={{ fontSize: 12, overflowWrap: 'anywhere' }}>
-                {report.kid ?? 'not stated'}
-              </dd>
-              <dt>Issued</dt>
-              <dd>{utc(report.issuedAt)}</dd>
-              <dt>Expires</dt>
-              <dd>{utc(report.expiresAt)}</dd>
-            </dl>
-          )}
-        </div>
-      )}
+      {report && <SignatureReport report={report} headline={attestationHeadline(report)} />}
     </section>
   );
 }
