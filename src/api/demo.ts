@@ -259,10 +259,42 @@ const ADMISSION: Record<string, string | null> = {
   '1037': 'BLOCKED', '1036': 'BLOCKED', '1035': 'BLOCKED', '1034': null, '1033': 'ADMIT',
 };
 
+// Four of the 17 Oct rows came from one /verify/batch job (#477, #57): the
+// server stores each item's result under details.result, with the job's id
+// beside it, and writes the items within seconds of each other. One request
+// sent them, so they share its key. Their verdicts and admissions are the
+// ones the rows already had.
+const SAMPLE_BATCH_JOB = 'sample-batch-1017';
+const BATCH_ITEMS: Record<string, { item: number; at: string }> = {
+  '1013': { item: 0, at: '2026-10-17T08:42:05' },
+  '1014': { item: 1, at: '2026-10-17T08:42:06' },
+  '1015': { item: 2, at: '2026-10-17T08:42:06' },
+  '1016': { item: 3, at: '2026-10-17T08:42:07' },
+};
+
+function asBatchItem(log: AuditLog): AuditLog {
+  const place = BATCH_ITEMS[log.id];
+  if (!place) return log;
+  const result = JSON.parse(log.verification_result) as { status?: string };
+  return {
+    ...log,
+    created_at: place.at,
+    api_key_id: '7',
+    verification_result: JSON.stringify({
+      batch_job_id: SAMPLE_BATCH_JOB,
+      batch_item_id: `item-${place.item}`,
+      batch_item_type: log.engine_used.toLowerCase(),
+      item_status: 'completed',
+      verdict: result.status ?? null,
+      details: { result, error: null },
+    }),
+  };
+}
+
 // The fields a server after #484 and #307 adds: the stored verdict (read the
 // same way the dashboard reads it), the chain entry, the caller and the
 // admission.
-const chain = [...baseLogs, ...history];
+const chain = [...baseLogs, ...history.map(asBatchItem)];
 const logs: AuditLog[] = chain.map((log, i) => {
   const older = chain[i + 1];
   const keyId = log.id in CALLER ? (CALLER[log.id] ?? null) : (log.api_key_id ?? null);

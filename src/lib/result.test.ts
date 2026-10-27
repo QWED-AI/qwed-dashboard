@@ -166,6 +166,26 @@ describe('parseResult', () => {
       expect(r.error).toBe('This batch item stored no result.');
     }
   });
+
+  it('keeps the job a batch item belongs to, whatever its result (#57)', () => {
+    const job = { jobId: 'j', itemId: 'j-0', itemType: 'code', itemStatus: 'completed' };
+    expect(parseResult(batchRow({ result: { status: 'VERIFIED' }, error: null })).batch).toEqual(job);
+    expect(parseResult(batchRow({ result: null, error: 'audit persistence failed' })).batch).toEqual(job);
+    expect(parseResult(batchRow({ truncated: true })).batch).toEqual(job);
+  });
+
+  it('reads a batch item with only its job id, and no job from an empty one', () => {
+    const bare = parseResult(JSON.stringify({ batch_job_id: 'j', details: {} }));
+    expect(bare.batch).toEqual({ jobId: 'j', itemId: null, itemType: null, itemStatus: null });
+    expect(parseResult(JSON.stringify({ batch_job_id: '', details: {} })).batch).toBeNull();
+    expect(parseResult(JSON.stringify({ batch_job_id: 7, details: {} })).batch).toBeNull();
+  });
+
+  it('gives a record from any other route no job', () => {
+    expect(parseResult(JSON.stringify({ status: 'VERIFIED' })).batch).toBeNull();
+    expect(parseResult(JSON.stringify({ spec_version: '1.0', verdict: 'VERIFIED', context: {} })).batch).toBeNull();
+    expect(parseResult('not json').batch).toBeNull();
+  });
 });
 
 describe('toRecord', () => {
