@@ -291,6 +291,18 @@ describe('HomePage', () => {
       const verifiers = within(await screen.findByRole('region', { name: 'Not admitted, by verifier' }));
       expect(verifiers.getByText('No record in these 24 hours was stored with DENY.')).toBeTruthy();
     });
+
+    it('gives no all-clear for the range when older records in it are not loaded', async () => {
+      // A cursor means the server has older records the page has not loaded.
+      vi.spyOn(demoApi, 'listLogs').mockResolvedValue({ logs: [row('1', 'MATH', 'ADMIT')], nextBefore: '1' });
+      renderApp(<HomePage />);
+      const verifiers = within(await screen.findByRole('region', { name: 'Not admitted, by verifier' }));
+      expect(
+        verifiers.getByText(
+          'No loaded record in these 24 hours was stored with DENY. Older records in the range are not loaded.',
+        ),
+      ).toBeTruthy();
+    });
   });
 
   describe('the overview', () => {

@@ -402,7 +402,15 @@ function DeniedCards({ win, keys }: Readonly<{ win: OverviewWindow; keys: KeysQu
       ),
     };
   });
-  const none = <p className="sub" style={{ margin: 0 }}>No record in these {name} was stored with DENY.</p>;
+  // When older records in the range are not loaded, none denied among the
+  // loaded ones is not an all-clear for the range.
+  const none = (
+    <p className="sub" style={{ margin: 0 }}>
+      {win.reachesBackTo === null
+        ? `No record in these ${name} was stored with DENY.`
+        : `No loaded record in these ${name} was stored with DENY. Older records in the range are not loaded.`}
+    </p>
+  );
   return (
     <>
       <section className="card" aria-labelledby="denied-verifier-title">
