@@ -7,6 +7,8 @@ const counts = (verified: number, unverifiable: number, blocked: number, none: n
   blocked,
   none,
   denied: 0,
+  admitted: 0,
+  noAdmission: verified + unverifiable + blocked + none,
   total: verified + unverifiable + blocked + none,
 });
 

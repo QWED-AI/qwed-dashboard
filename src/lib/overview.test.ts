@@ -5,6 +5,7 @@ import {
   bucketName,
   comparedText,
   countBy,
+  deniedBy,
   inPeriod,
   niceScale,
   overviewWindow,
@@ -33,10 +34,19 @@ describe('overviewWindow', () => {
     const nine = w.buckets.at(-1);
     expect(nine && { blocked: nine.blocked, verified: nine.verified, total: nine.total }).toEqual({ blocked: 1, verified: 1, total: 2 });
     expect(w.buckets.at(-3)?.none).toBe(1);
-    expect(w.totals).toEqual({ verified: 1, unverifiable: 0, blocked: 1, none: 1, denied: 0, total: 3 });
+    expect(w.totals).toEqual({
+      verified: 1,
+      unverifiable: 0,
+      blocked: 1,
+      none: 1,
+      denied: 0,
+      admitted: 0,
+      noAdmission: 3,
+      total: 3,
+    });
   });
 
-  it('counts the stored DENY admissions across verdicts, a stored BLOCKED included (#38)', () => {
+  it('counts the stored admissions across verdicts, a stored BLOCKED as DENY (#38, #53)', () => {
     const w = overviewWindow(
       [
         rec('2026-10-20T09:41:12', 'VERIFIED', 'MATH', 'BLOCKED'),
@@ -48,8 +58,27 @@ describe('overviewWindow', () => {
       true,
     );
     if (!w) throw new Error('no window');
-    expect(w.totals).toEqual({ verified: 3, unverifiable: 1, blocked: 0, none: 0, denied: 2, total: 4 });
+    expect(w.totals).toEqual({
+      verified: 3,
+      unverifiable: 1,
+      blocked: 0,
+      none: 0,
+      denied: 2,
+      admitted: 1,
+      noAdmission: 1,
+      total: 4,
+    });
     expect(w.buckets.at(-1)?.denied).toBe(2);
+    expect(w.buckets.at(-1)?.admitted).toBe(1);
+  });
+
+  it('counts an admission word it does not know as not recorded, not as a decision', () => {
+    const w = overviewWindow([rec('2026-10-20T09:41:12', 'VERIFIED', 'MATH', 'MAYBE')], '24h', true);
+    expect(w && { admitted: w.totals.admitted, denied: w.totals.denied, noAdmission: w.totals.noAdmission }).toEqual({
+      admitted: 0,
+      denied: 0,
+      noAdmission: 1,
+    });
   });
 
   it('ends with the day of the newest record for seven days', () => {
@@ -107,7 +136,7 @@ describe('overviewWindow', () => {
 
 describe('bucket names', () => {
   it('names an hour and a day in UTC', () => {
-    const hour = { start: Date.UTC(2026, 9, 20, 9), end: Date.UTC(2026, 9, 20, 10), verified: 0, unverifiable: 0, blocked: 0, none: 0, denied: 0, total: 0 };
+    const hour = { start: Date.UTC(2026, 9, 20, 9), end: Date.UTC(2026, 9, 20, 10), verified: 0, unverifiable: 0, blocked: 0, none: 0, denied: 0, admitted: 0, noAdmission: 0, total: 0 };
     expect(bucketLabel(hour, '24h')).toBe('09:00');
     expect(bucketName(hour, '24h')).toBe('20 Oct, 09:00 to 10:00 UTC');
     expect(bucketLabel(hour, '7d')).toBe('20 Oct');
@@ -185,5 +214,23 @@ describe('the ledger period (#46)', () => {
     expect(periodName({ start, end })).toBe('20 Oct, 11:00 to 21 Oct, 11:00 UTC');
     expect(periodName({ start: start + 30 * 60_000, end: end + 15_000 })).toBe('20 Oct, 11:30 to 21 Oct, 11:00:15 UTC');
     expect(periodName({ start: start + 250, end })).toBe('20 Oct, 11:00:00.250 to 21 Oct, 11:00 UTC');
+  });
+});
+
+describe('denials by group (#53)', () => {
+  const at = '2026-10-20T09:00:00';
+
+  it('groups the records stored with DENY, a stored BLOCKED included, with each group’s total', () => {
+    const records = [
+      rec(at, 'VERIFIED', 'SQL', 'BLOCKED'),
+      rec(at, 'VERIFIED', 'SQL', 'ADMIT'),
+      rec(at, 'VERIFIED', 'SQL', 'DENY'),
+      rec(at, 'UNVERIFIABLE', 'MATH', 'DENY'),
+      rec(at, 'VERIFIED', 'CODE', 'ADMIT'),
+    ];
+    expect(deniedBy(records, (r) => r.domain)).toEqual([
+      { key: 'SQL', denied: 2, of: 3 },
+      { key: 'MATH', denied: 1, of: 1 },
+    ]);
   });
 });

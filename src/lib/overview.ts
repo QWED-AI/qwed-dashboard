@@ -27,6 +27,10 @@ export interface VerdictCounts {
    * It cuts across the verdicts: a VERIFIED record can be denied.
    */
   denied: number;
+  /** Records whose stored admission is ADMIT (#53). */
+  admitted: number;
+  /** Records with no admission the dashboard can read: none stored, or a word it does not know (#53). */
+  noAdmission: number;
   total: number;
 }
 
@@ -49,7 +53,16 @@ export interface OverviewWindow {
   reachesBackTo: number | null;
 }
 
-const zero = (): VerdictCounts => ({ verified: 0, unverifiable: 0, blocked: 0, none: 0, denied: 0, total: 0 });
+const zero = (): VerdictCounts => ({
+  verified: 0,
+  unverifiable: 0,
+  blocked: 0,
+  none: 0,
+  denied: 0,
+  admitted: 0,
+  noAdmission: 0,
+  total: 0,
+});
 
 function add(counts: VerdictCounts, verdict: Verdict | null, admission: Admission | null) {
   if (verdict === 'VERIFIED') counts.verified += 1;
@@ -57,6 +70,8 @@ function add(counts: VerdictCounts, verdict: Verdict | null, admission: Admissio
   else if (verdict === 'BLOCKED') counts.blocked += 1;
   else counts.none += 1;
   if (admission === 'DENY') counts.denied += 1;
+  else if (admission === 'ADMIT') counts.admitted += 1;
+  else counts.noAdmission += 1;
   counts.total += 1;
 }
 
@@ -166,6 +181,29 @@ export function countBy<T>(items: readonly T[], key: (item: T) => string): { key
   return [...counts]
     .map(([k, n]) => ({ key: k, n }))
     .sort((a, b) => b.n - a.n || a.key.localeCompare(b.key));
+}
+
+/**
+ * The records stored with DENY, grouped by `key`, with how many records each
+ * group has in all (#53). Groups with none denied are left out; most denied
+ * first, then by key.
+ */
+export function deniedBy(
+  records: readonly LedgerRecord[],
+  key: (r: LedgerRecord) => string,
+): { key: string; denied: number; of: number }[] {
+  const groups = new Map<string, { denied: number; of: number }>();
+  for (const r of records) {
+    const k = key(r);
+    const g = groups.get(k) ?? { denied: 0, of: 0 };
+    g.of += 1;
+    if (r.result.admission === 'DENY') g.denied += 1;
+    groups.set(k, g);
+  }
+  return [...groups]
+    .map(([k, g]) => ({ key: k, ...g }))
+    .filter((g) => g.denied > 0)
+    .sort((a, b) => b.denied - a.denied || a.key.localeCompare(b.key));
 }
 
 /** A round axis top for counts up to `max`, with at most four steps: 34 → 40 by 10. */
