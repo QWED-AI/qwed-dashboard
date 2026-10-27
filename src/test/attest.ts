@@ -60,3 +60,31 @@ export async function signAttestation(
   );
   return `${h}.${p}.${b64url(sig)}`;
 }
+
+/** A Verification Context document's token (#54) for `documentHash`, with any header, claim or qwed claim overridden. */
+export async function signContextToken(
+  privateKey: CryptoKey,
+  {
+    kid,
+    documentHash,
+    now,
+    header = {},
+    claims = {},
+    qwed = {},
+  }: { kid: string; documentHash: string; now: number; header?: object; claims?: object; qwed?: object },
+) {
+  const h = part({ alg: 'ES256', kid, typ: 'qwed-context+jwt', ...header });
+  const p = part({
+    iss: DID,
+    sub: documentHash,
+    iat: now - 60,
+    exp: now + 86_400,
+    jti: 'att_ctx',
+    qwed: { version: '1.1', document_hash: documentHash, verdict: 'UNVERIFIABLE', admission: 'DENY', proof_ref: null, ...qwed },
+    ...claims,
+  });
+  const sig = new Uint8Array(
+    await subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, privateKey, new TextEncoder().encode(`${h}.${p}`)),
+  );
+  return `${h}.${p}.${b64url(sig)}`;
+}

@@ -2,6 +2,7 @@ import { useRef, useState, type KeyboardEvent } from 'react';
 import { Link, useParams } from 'react-router';
 import type { ApiKeyItem, AuditLog, Verdict } from '../api/types';
 import { AttestationCheck } from '../components/AttestationCheck';
+import { DocumentSignatureCheck } from '../components/DocumentSignatureCheck';
 import { ChainCheck } from '../components/ChainCheck';
 import { Icon } from '../components/Icon';
 import { JsonView } from '../components/JsonView';
@@ -510,9 +511,14 @@ export function RecordPage() {
           </section>
 
           <Checks result={result} />
-          {/* The server signs VERIFIED results, so a VERIFIED one without a signature says so (#39). */}
+          {/* The server signs VERIFIED results, so a VERIFIED one without a signature says so (#39). A
+              Verification Context document carries its own signature instead (#54). */}
           {/* Keyed by the record, so a check run on one record never shows on another. */}
-          {(result.attestation || result.verdict === 'VERIFIED') && <AttestationCheck key={r.id} record={r} />}
+          {result.shape === 'verification-context' ? (
+            <DocumentSignatureCheck key={r.id} record={r} />
+          ) : (
+            (result.attestation || result.verdict === 'VERIFIED') && <AttestationCheck key={r.id} record={r} />
+          )}
           <ChainCheck key={r.id} logId={r.id} />
         </aside>
       </div>

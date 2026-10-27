@@ -16,6 +16,13 @@ An open-source web dashboard for [QWED verification](https://github.com/QWED-AI/
   - whether the attestation has expired (24 hours by default).
 
   It says so when the key is no longer among the server's keys: the key was rotated, or the server makes a key per process and has restarted. Web Crypto, which the check needs, works only on HTTPS and on localhost.
+- **Check signature** on a Verification Context record. qwed-verification 8.0.0 signs each document it issues (spec 1.1): its `attestation` is an ES256 token, of type `qwed-context+jwt`, over the hash of every other field of the document, with its verdict, admission and proof_ref. The record page checks it as the SDK's `verify_document_attestation` does, in your browser, with the same keys. It reports:
+  - whether the signature matches the server's key, and whether the issuer is the key's owner;
+  - whether it covers this document: the SHA-256 of the document's canonical JSON, without the `attestation`, matches the hash the token signs. The browser encodes it as qwed-verification does, and the tests check that against documents and hashes a server produced;
+  - whether it states the document's verdict, admission and proof_ref;
+  - whether it has expired.
+
+  The signature shows the server issued the document as stored. It adds nothing to the verdict or the admission. A spec 1.0 document carries no signature, and the card says so. The server replaces personal data, such as an email address, with a marker like `[EMAIL_REDACTED]` in the copy it stores, after it signed the document. Such a copy is not the document the server signed, so its hash cannot match ([qwed-verification #532](https://github.com/QWED-AI/qwed-verification/issues/532)). When a copy that does not match holds such markers, the card names redaction as the likely reason. A document with a signature is checked whatever spec version it names, so a signed 1.1 document relabelled 1.0 fails the check rather than reading as unsigned.
 - It shows a message a caller supplied apart from what the verifier said, and labels it as the caller's. A Verification Context record is built from a diagnostic its caller sent (`POST /verification-context/from-diagnostic`). A server with [qwed-verification #321](https://github.com/QWED-AI/qwed-verification/issues/321) stores its own notice as the message and keeps the caller's apart; an older one, 7.3.0 included, stores the caller's message as the record's. So the dashboard counts only that notice as the server's words, and shows any other message in such a record as the caller's.
 - Requests are the caller's text too. Wherever one is shown next to what the verifier said, each is under its own label.
 - It does not run or replay the actions that were verified.
@@ -111,7 +118,7 @@ The release workflow then checks that the tag matches `package.json`, runs the t
 | Whole-chain check (Overview) | `GET /admin/compliance/verify-trail` | session token of an owner or admin |
 | 90-day activity summary (Overview, on request) | `GET /admin/compliance/report/soc2/{org_id}` | session token of an owner or admin |
 | Security events (also the Overview card) | `GET /admin/security/events` | session token of an owner or admin |
-| Attestation check (Record) | `GET /.well-known/jwks.json` | none |
+| Attestation check, document signature check (Record) | `GET /.well-known/jwks.json` | none |
 | Server status (header) and version (footer) | `GET /health` | none |
 | Server screen (Settings) | `GET /health`, `GET /.well-known/jwks.json` | none |
 
