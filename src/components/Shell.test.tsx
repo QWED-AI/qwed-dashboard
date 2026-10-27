@@ -33,10 +33,12 @@ function renderShell(options: Parameters<typeof renderApp>[1] = {}) {
 const footer = () => within(screen.getByRole('contentinfo'));
 
 describe('Shell: the server (#50, #52)', () => {
-  it('names a current server in the header and the footer', async () => {
+  it('names a current server in the header and the footer, and the pill opens the Server screen (#55)', async () => {
     vi.spyOn(httpApi, 'health').mockResolvedValue({ status: 'healthy', service: 'QWED Platform', version: '8.0.0' });
     renderShell({ live: true });
-    expect(await screen.findByText('QWED 8.0.0 · connected')).toBeTruthy();
+    const pill = await screen.findByText('QWED 8.0.0 · connected');
+    expect(pill.closest('a')?.getAttribute('href')).toBe('/server');
+    expect(pill.tagName).toBe('OUTPUT');
     expect(footer().getByText('Server: QWED 8.0.0 at /api')).toBeTruthy();
     expect(screen.queryByRole('note')).toBeNull();
   });
@@ -68,7 +70,7 @@ describe('Shell: the server (#50, #52)', () => {
     vi.spyOn(httpApi, 'health').mockRejectedValue(new ApiError(200, reason));
     renderShell({ live: true });
     const pill = await screen.findByText('Server check failed');
-    expect(pill.getAttribute('title')).toBe(reason);
+    expect(pill.closest('a')?.getAttribute('title')).toBe(reason);
     expect(footer().getByText(`Server: the health check at /api failed. ${reason}`)).toBeTruthy();
     expect(screen.queryByText(/version given/)).toBeNull();
   });
