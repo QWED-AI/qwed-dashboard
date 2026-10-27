@@ -113,6 +113,122 @@ describe('KeysPage', () => {
     expect((await screen.findByRole('alert')).textContent).toBe('Your role cannot do this.');
   });
 
+  describe('Rotate (#56)', () => {
+    async function askToRotate(user: ReturnType<typeof userEvent.setup>, name: string) {
+      await user.click(await screen.findByRole('button', { name: `Rotate ${name}` }));
+      expect(
+        screen.getByText(
+          'The server revokes this key and makes a new one in its place. Callers still sending the old key are refused until they have the new one.',
+        ),
+      ).toBeTruthy();
+    }
+
+    it('rotates a key after confirming, shows the new key once, and lists it in the old one’s place', async () => {
+      const user = userEvent.setup();
+      renderApp(<KeysPage />);
+      await screen.findByText('payments-agent prod');
+      await createKey(user, 'nightly');
+      await user.click(screen.getByRole('button', { name: 'I have saved it' }));
+
+      await askToRotate(user, 'nightly');
+      await user.click(screen.getByRole('button', { name: 'Rotate' }));
+
+      expect(await screen.findByText('nightly was rotated. The old key no longer works.')).toBeTruthy();
+      expect(screen.getByText(/^qwed_test_[A-Za-z0-9]{36}$/)).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Copy' })).toBeTruthy();
+      expect(await screen.findByRole('cell', { name: 'nightly (Rotated)' })).toBeTruthy();
+      await waitFor(() => expect(screen.queryByRole('cell', { name: 'nightly' })).toBeNull());
+    });
+
+    it('drops a key it showed when that key is rotated', async () => {
+      const user = userEvent.setup();
+      renderApp(<KeysPage />);
+      await screen.findByText('payments-agent prod');
+      await createKey(user, 'shown');
+      const first = screen.getByText(/^qwed_test_[A-Za-z0-9]{36}$/).textContent;
+
+      await askToRotate(user, 'shown');
+      await user.click(screen.getByRole('button', { name: 'Rotate' }));
+
+      await screen.findByText('shown was rotated. The old key no longer works.');
+      expect(screen.queryByText('shown is ready.')).toBeNull();
+      expect(screen.getByText(/^qwed_test_[A-Za-z0-9]{36}$/).textContent).not.toBe(first);
+    });
+
+    it('keeps the key when the rotation is cancelled', async () => {
+      const user = userEvent.setup();
+      const rotate = vi.spyOn(demoApi, 'rotateKey');
+      renderApp(<KeysPage />);
+      await askToRotate(user, 'invoice pipeline');
+      await user.click(screen.getByRole('button', { name: 'Cancel' }));
+      expect(screen.queryByText(/The server revokes this key/)).toBeNull();
+      expect(screen.getByRole('button', { name: 'Rotate invoice pipeline' })).toBeTruthy();
+      expect(rotate).not.toHaveBeenCalled();
+    });
+
+    it('shows the server’s reason when it refuses a key of a higher role', async () => {
+      const user = userEvent.setup();
+      vi.spyOn(demoApi, 'rotateKey').mockRejectedValue(new ApiError(403, 'Cannot rotate a key owned by a higher-privileged user'));
+      renderApp(<KeysPage />, { role: 'admin' });
+      await askToRotate(user, 'invoice pipeline');
+      await user.click(screen.getByRole('button', { name: 'Rotate' }));
+      expect((await screen.findByRole('alert')).textContent).toBe(
+        'The server refused: Cannot rotate a key owned by a higher-privileged user.',
+      );
+      expect(screen.getByRole('cell', { name: 'invoice pipeline' })).toBeTruthy();
+    });
+
+    it('says a key already gone was revoked or rotated, and refreshes the list', async () => {
+      const user = userEvent.setup();
+      vi.spyOn(demoApi, 'rotateKey').mockRejectedValue(new ApiError(404, 'Key not found'));
+      const list = vi.spyOn(demoApi, 'listKeys');
+      renderApp(<KeysPage />);
+      await askToRotate(user, 'invoice pipeline');
+      const before = list.mock.calls.length;
+      await user.click(screen.getByRole('button', { name: 'Rotate' }));
+      expect((await screen.findByRole('alert')).textContent).toBe(
+        'The server no longer has this key: it was revoked or rotated already.',
+      );
+      await waitFor(() => expect(list.mock.calls.length).toBeGreaterThan(before));
+    });
+
+    it('says an older server rotates only with an API key, and keeps the session', async () => {
+      const user = userEvent.setup();
+      vi.spyOn(demoApi, 'rotateKey').mockRejectedValue(new ApiError(401, 'Missing x-api-key header'));
+      renderApp(<KeysPage />);
+      await askToRotate(user, 'invoice pipeline');
+      await user.click(screen.getByRole('button', { name: 'Rotate' }));
+      expect((await screen.findByRole('alert')).textContent).toBe(
+        'This server rotates a key only with an API key, not a signed-in session. Rotating from the dashboard needs a qwed-verification release with #505.',
+      );
+      expect(sessionStorage.getItem(SESSION_KEY)).not.toBeNull();
+    });
+
+    it('signs out when the session has ended', async () => {
+      const user = userEvent.setup();
+      vi.spyOn(demoApi, 'rotateKey').mockRejectedValue(new ApiError(401, 'Not authenticated'));
+      renderApp(<KeysPage />);
+      await askToRotate(user, 'invoice pipeline');
+      await user.click(screen.getByRole('button', { name: 'Rotate' }));
+      await waitFor(() => expect(sessionStorage.getItem(SESSION_KEY)).toBeNull());
+    });
+
+    it('is not offered to a viewer, who may still revoke', async () => {
+      renderApp(<KeysPage />, { role: 'viewer' });
+      expect(await screen.findByRole('button', { name: 'Revoke invoice pipeline' })).toBeTruthy();
+      expect(screen.queryByRole('button', { name: 'Rotate invoice pipeline' })).toBeNull();
+    });
+
+    it('offers one confirmation at a time', async () => {
+      const user = userEvent.setup();
+      renderApp(<KeysPage />);
+      await askToRotate(user, 'invoice pipeline');
+      await user.click(screen.getByRole('button', { name: 'Revoke payments-agent prod' }));
+      expect(screen.queryByText(/The server revokes this key/)).toBeNull();
+      expect(screen.getByText('Calls with this key will fail.')).toBeTruthy();
+    });
+  });
+
   it('tells a user without the role that they cannot create keys', async () => {
     const user = userEvent.setup();
     vi.spyOn(demoApi, 'createKey').mockRejectedValue(new ApiError(403, 'Insufficient permissions'));

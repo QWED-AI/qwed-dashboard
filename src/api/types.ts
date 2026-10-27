@@ -125,6 +125,14 @@ export interface ApiKeyCreated {
   created_at: string;
 }
 
+/** POST /admin/keys/rotate (#56): the key that replaced the rotated one, its secret shown once. */
+export interface ApiKeyRotated {
+  oldKeyId: string;
+  newKeyId: string;
+  newKeyPreview: string;
+  newKey: string;
+}
+
 /** GET /admin/compliance/verify/{log_id} (needs an owner or admin API key). */
 export interface EntryCheck {
   valid: boolean;

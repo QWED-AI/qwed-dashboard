@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { useState, type SubmitEvent } from 'react';
-import { ApiError } from '../api/http';
-import type { ApiKeyCreated } from '../api/types';
+import { ApiError, sessionNotAccepted } from '../api/http';
+import type { ApiKeyItem } from '../api/types';
 import { useSession } from '../auth/session';
 import { Icon } from '../components/Icon';
 import { Shell } from '../components/Shell';
@@ -15,26 +15,53 @@ function actionError(err: unknown): string {
   return describeError(err);
 }
 
+/** Why a rotation failed. The server's 403 says which of its rules refused it, so it is shown as the server wrote it. */
+function rotateError(err: unknown): string {
+  if (sessionNotAccepted(err)) {
+    return 'This server rotates a key only with an API key, not a signed-in session. Rotating from the dashboard needs a qwed-verification release with #505.';
+  }
+  if (err instanceof ApiError && err.status === 403) return `The server refused: ${err.message}.`;
+  if (err instanceof ApiError && err.status === 404) return 'The server no longer has this key: it was revoked or rotated already.';
+  return describeError(err);
+}
+
+/** A full key, shown once: one just created, or the replacement of one just rotated. */
+interface OneTimeKey {
+  id: string;
+  heading: string;
+  key: string;
+}
+
+type Confirm = { id: string; action: 'revoke' | 'rotate' };
+
 export function KeysPage() {
-  const { api, token, signOut } = useSession();
+  const { api, token, user, signOut } = useSession();
+  // The server lets a viewer revoke its own key but not rotate one.
+  const canRotate = user?.role !== 'viewer';
   const keys = useAuthedQuery(['keys'], (a, t) => a.listKeys(t));
   const [name, setName] = useState('');
   // The full key exists only here, until it is dismissed or the page is left.
-  const [created, setCreated] = useState<ApiKeyCreated | null>(null);
+  const [created, setCreated] = useState<OneTimeKey | null>(null);
   const [copied, setCopied] = useState(false);
   const [copyFailed, setCopyFailed] = useState(false);
-  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [confirm, setConfirm] = useState<Confirm | null>(null);
 
+  // A server before #505 refuses the session for rotation with a 401: that is
+  // not the end of the session.
   const onAuthError = (err: unknown) => {
-    if (err instanceof ApiError && err.status === 401) signOut();
+    if (err instanceof ApiError && err.status === 401 && !sessionNotAccepted(err)) signOut();
   };
+
+  function showOnce(key: OneTimeKey) {
+    setCreated(key);
+    setCopied(false);
+    setCopyFailed(false);
+  }
 
   const create = useMutation({
     mutationFn: (keyName: string) => api.createKey(token as string, keyName),
     onSuccess: (res) => {
-      setCreated(res);
-      setCopied(false);
-      setCopyFailed(false);
+      showOnce({ id: res.id, heading: `${res.name} is ready.`, key: res.key });
       setName('');
       void keys.refetch();
     },
@@ -44,13 +71,34 @@ export function KeysPage() {
   const revoke = useMutation({
     mutationFn: (id: string) => api.revokeKey(token as string, id),
     onSuccess: (_res, id) => {
-      setConfirmId(null);
+      setConfirm(null);
       // Do not keep showing a key that no longer works.
       setCreated((c) => (c?.id === id ? null : c));
       void keys.refetch();
     },
     onError: onAuthError,
   });
+
+  const rotate = useMutation({
+    mutationFn: (key: ApiKeyItem) => api.rotateKey(token as string, key.id),
+    onSuccess: (res, key) => {
+      setConfirm(null);
+      // The old key no longer works, so its replacement takes its place here too.
+      showOnce({ id: res.newKeyId, heading: `${key.name} was rotated. The old key no longer works.`, key: res.newKey });
+      void keys.refetch();
+    },
+    onError: (err) => {
+      onAuthError(err);
+      // A key already gone drops off the list.
+      if (err instanceof ApiError && err.status === 404) void keys.refetch();
+    },
+  });
+
+  function ask(id: string, action: Confirm['action']) {
+    revoke.reset();
+    rotate.reset();
+    setConfirm({ id, action });
+  }
 
   function submit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -108,7 +156,7 @@ export function KeysPage() {
       {created && (
         <output className="note" style={{ margin: '0 24px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
           <span>
-            <strong>{created.name} is ready.</strong> Copy the key now. It will not be shown again, and the server
+            <strong>{created.heading}</strong> Copy the key now. It will not be shown again, and the server
             cannot show it to you later.
           </span>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -183,7 +231,7 @@ export function KeysPage() {
                     {k.last_used_at ? formatUtcLong(k.last_used_at) : 'No use recorded'}
                   </td>
                   <td className="cell-end">
-                    {confirmId === k.id ? (
+                    {confirm?.id === k.id && confirm.action === 'revoke' && (
                       <span style={{ display: 'inline-flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
                         <span style={{ fontSize: 12.5, color: 'var(--ink)' }}>Calls with this key will fail.</span>
                         <button
@@ -194,22 +242,41 @@ export function KeysPage() {
                         >
                           {revoke.isPending ? 'Revoking…' : 'Revoke'}
                         </button>
-                        <button type="button" className="btn btn-sm" onClick={() => setConfirmId(null)}>
+                        <button type="button" className="btn btn-sm" onClick={() => setConfirm(null)}>
                           Cancel
                         </button>
                       </span>
-                    ) : (
-                      <button
-                        type="button"
-                        className="btn btn-sm"
-                        aria-label={`Revoke ${k.name}`}
-                        onClick={() => {
-                          revoke.reset();
-                          setConfirmId(k.id);
-                        }}
-                      >
-                        Revoke
-                      </button>
+                    )}
+                    {confirm?.id === k.id && confirm.action === 'rotate' && (
+                      <span style={{ display: 'inline-flex', flexWrap: 'wrap', gap: 6, alignItems: 'center', justifyContent: 'flex-end' }}>
+                        <span style={{ fontSize: 12.5, color: 'var(--ink)', maxWidth: 360 }}>
+                          The server revokes this key and makes a new one in its place. Callers still sending the old key
+                          are refused until they have the new one.
+                        </span>
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-primary"
+                          disabled={rotate.isPending}
+                          onClick={() => rotate.mutate(k)}
+                        >
+                          {rotate.isPending ? 'Rotating…' : 'Rotate'}
+                        </button>
+                        <button type="button" className="btn btn-sm" onClick={() => setConfirm(null)}>
+                          Cancel
+                        </button>
+                      </span>
+                    )}
+                    {confirm?.id !== k.id && (
+                      <span style={{ display: 'inline-flex', gap: 6 }}>
+                        {canRotate && (
+                          <button type="button" className="btn btn-sm" aria-label={`Rotate ${k.name}`} onClick={() => ask(k.id, 'rotate')}>
+                            Rotate
+                          </button>
+                        )}
+                        <button type="button" className="btn btn-sm" aria-label={`Revoke ${k.name}`} onClick={() => ask(k.id, 'revoke')}>
+                          Revoke
+                        </button>
+                      </span>
                     )}
                   </td>
                 </tr>
@@ -221,13 +288,20 @@ export function KeysPage() {
               {actionError(revoke.error)}
             </p>
           )}
+          {rotate.isError && (
+            <p className="alert" role="alert" style={{ margin: '12px 24px' }}>
+              {rotateError(rotate.error)}
+            </p>
+          )}
         </div>
       )}
 
       <p className="sub" style={{ padding: '14px 24px 24px', fontSize: 12.5 }}>
         Revoked keys drop off this list. Last used is the most recent request the key made, kept to the minute; a server
-        before qwed-verification #486 does not record it, so there every key reads "No use recorded". Rotation, owners
-        and expiry dates will follow once the server returns them.
+        before qwed-verification #486 does not record it, so there every key reads "No use recorded". Rotate replaces a
+        key with a new one named after it. Anyone but a viewer can rotate their own key, and an owner or admin can
+        rotate another user's, unless that user ranks higher. Owners and expiry dates will follow once the server
+        returns them.
       </p>
     </Shell>
   );

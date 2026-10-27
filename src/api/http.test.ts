@@ -51,6 +51,23 @@ describe('httpApi API keys', () => {
     stubFetch(new Response(null, { status: 204 }));
     await expect(httpApi.revokeKey('tok', '3')).resolves.toBeUndefined();
   });
+
+  it('rotates a key with the session, and reads the server’s numeric ids as strings', async () => {
+    const fetchMock = stubFetch(
+      json({ status: 'rotated', old_key_id: 3, new_key_id: 9, new_key_preview: 'qwed_live_****wxyz', new_key_secret: 'qwed_live_secret' }),
+    );
+    await expect(httpApi.rotateKey('tok', '3')).resolves.toEqual({
+      oldKeyId: '3',
+      newKeyId: '9',
+      newKeyPreview: 'qwed_live_****wxyz',
+      newKey: 'qwed_live_secret',
+    });
+    const { url, init, headers } = call(fetchMock);
+    expect(url).toBe('/api/admin/keys/rotate?key_id=3');
+    expect(init.method).toBe('POST');
+    expect(headers.get('Authorization')).toBe('Bearer tok');
+    expect(headers.get('x-api-key')).toBeNull();
+  });
 });
 
 describe('request errors', () => {

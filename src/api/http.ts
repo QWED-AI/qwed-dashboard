@@ -2,6 +2,7 @@ import type {
   ActivitySummary,
   ApiKeyCreated,
   ApiKeyItem,
+  ApiKeyRotated,
   AuditLog,
   AuditLogList,
   AuditLogPage,
@@ -141,6 +142,25 @@ export const httpApi = {
 
   async revokeKey(token: string, id: string): Promise<void> {
     await request<unknown>(`/auth/api-keys/${encodeURIComponent(id)}`, { method: 'DELETE', headers: bearer(token) });
+  },
+
+  /**
+   * Revokes a key and makes its replacement (#56). The route takes the session
+   * from qwed-verification #505; an older server answers 401 "Missing
+   * x-api-key header" (see sessionNotAccepted). Its ids are numbers, so they
+   * become strings, as the key list has them.
+   */
+  async rotateKey(token: string, id: string): Promise<ApiKeyRotated> {
+    const res = await request<{ old_key_id: number | string; new_key_id: number | string; new_key_preview: string; new_key_secret: string }>(
+      `/admin/keys/rotate?key_id=${encodeURIComponent(id)}`,
+      { method: 'POST', headers: bearer(token) },
+    );
+    return {
+      oldKeyId: String(res.old_key_id),
+      newKeyId: String(res.new_key_id),
+      newKeyPreview: res.new_key_preview,
+      newKey: res.new_key_secret,
+    };
   },
 
   /** Checks one audit entry, with the session (after #485) or an API key. */

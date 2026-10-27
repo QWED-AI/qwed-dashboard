@@ -5,6 +5,7 @@ import type {
   ActivitySummary,
   ApiKeyCreated,
   ApiKeyItem,
+  ApiKeyRotated,
   AuditLog,
   EntryCheck,
   Jwks,
@@ -447,6 +448,23 @@ export const demoApi: QwedApi = {
     await wait(200);
     if (!keys.some((k) => k.id === id)) throw new ApiError(404, 'API key not found');
     keys = keys.filter((k) => k.id !== id);
+  },
+  // As the server rotates one: the old key goes, and its replacement is named after it.
+  async rotateKey(_token, id): Promise<ApiKeyRotated> {
+    await wait(200);
+    const old = keys.find((k) => k.id === id);
+    if (!old) throw new ApiError(404, 'Key not found');
+    const key = sampleKey();
+    const replacement: ApiKeyItem = {
+      id: String(nextKeyId++),
+      name: `${old.name} (Rotated)`,
+      key_preview: `${key.slice(0, 10)}****${key.slice(-4)}`,
+      created_at: new Date().toISOString(),
+      last_used_at: null,
+      is_revoked: false,
+    };
+    keys = [replacement, ...keys.filter((k) => k.id !== id)];
+    return { oldKeyId: id, newKeyId: replacement.id, newKeyPreview: replacement.key_preview, newKey: key };
   },
   async checkEntry(_auth, id): Promise<EntryCheck> {
     await wait(300);
