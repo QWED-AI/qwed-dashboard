@@ -175,13 +175,16 @@ describe('BatchPage', () => {
 
   it('says so when older records cannot be loaded, and keeps what it has', async () => {
     const user = userEvent.setup();
+    // A 4xx is not retried, so the reason shown is this error's, with no retry wait.
     vi.spyOn(demoApi, 'listLogs')
       .mockResolvedValueOnce({ logs: jobRows, nextBefore: '10' })
-      .mockRejectedValueOnce(new ApiError(500, 'Server error'));
+      .mockRejectedValue(new ApiError(403, 'Insufficient permissions'));
     renderJob('job-a');
     await screen.findByRole('link', { name: 'claim 14' });
     await user.click(screen.getByRole('button', { name: 'Load 200 older records' }));
-    expect((await screen.findByRole('alert')).textContent).toMatch(/^Older records could not be loaded\./);
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      'Older records could not be loaded. The server refused this request: Insufficient permissions',
+    );
     expect(tile('Items')).toBe('3');
   });
 
@@ -189,10 +192,12 @@ describe('BatchPage', () => {
     const user = userEvent.setup();
     vi.spyOn(demoApi, 'listLogs')
       .mockResolvedValueOnce({ logs: [single('30')], nextBefore: '30' })
-      .mockRejectedValueOnce(new ApiError(500, 'Server error'));
+      .mockRejectedValue(new ApiError(403, 'Insufficient permissions'));
     renderJob('job-a');
     await user.click(await screen.findByRole('button', { name: 'Load 200 older records' }));
-    expect((await screen.findByRole('alert')).textContent).toMatch(/^Older records could not be loaded\./);
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      'Older records could not be loaded. The server refused this request: Insufficient permissions',
+    );
     expect(screen.getByText('No item of this job is among the loaded records')).toBeTruthy();
   });
 
