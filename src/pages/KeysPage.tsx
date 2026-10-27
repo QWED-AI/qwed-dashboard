@@ -87,12 +87,22 @@ export function KeysPage() {
       showOnce({ id: res.newKeyId, heading: `${key.name} was rotated. The old key no longer works.`, key: res.newKey });
       void keys.refetch();
     },
-    onError: (err) => {
+    onError: (err, key) => {
       onAuthError(err);
-      // A key already gone drops off the list.
-      if (err instanceof ApiError && err.status === 404) void keys.refetch();
+      // A key already gone drops off the list, and its shown secret, if any, no longer works.
+      if (err instanceof ApiError && err.status === 404) {
+        setCreated((c) => (c?.id === key.id ? null : c));
+        void keys.refetch();
+      }
     },
   });
+
+  // One full key can be shown, and the server shows it only once. While one
+  // is shown and not yet saved, nothing may replace it, except rotating that
+  // same key, whose shown secret no longer works; nor may two requests that
+  // each make a key overlap.
+  const busy = create.isPending || rotate.isPending;
+  const holdsOther = (id: string | null) => created !== null && created.id !== id;
 
   function ask(id: string, action: Confirm['action']) {
     revoke.reset();
@@ -103,7 +113,7 @@ export function KeysPage() {
   function submit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
     const trimmed = name.trim();
-    if (trimmed) create.mutate(trimmed);
+    if (trimmed && !busy && !created) create.mutate(trimmed);
   }
 
   async function copyKey() {
@@ -142,7 +152,7 @@ export function KeysPage() {
             placeholder="For example: invoice pipeline"
           />
         </label>
-        <button type="submit" className="btn btn-primary" disabled={!name.trim() || create.isPending}>
+        <button type="submit" className="btn btn-primary" disabled={!name.trim() || busy || created !== null}>
           <Icon name="plus" size={14} />
           {create.isPending ? 'Creating…' : 'Create key'}
         </button>
@@ -157,7 +167,7 @@ export function KeysPage() {
         <output className="note" style={{ margin: '0 24px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
           <span>
             <strong>{created.heading}</strong> Copy the key now. It will not be shown again, and the server
-            cannot show it to you later.
+            cannot show it to you later. Creating or rotating another key waits until you have saved this one.
           </span>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
             <code className="mono" style={{ fontSize: 12.5, color: 'var(--ink)', background: 'var(--sheet)', boxShadow: 'inset 0 0 0 1px var(--line-strong)', borderRadius: 8, padding: '8px 10px', overflowWrap: 'anywhere' }}>
@@ -256,7 +266,7 @@ export function KeysPage() {
                         <button
                           type="button"
                           className="btn btn-sm btn-primary"
-                          disabled={rotate.isPending}
+                          disabled={busy || holdsOther(k.id)}
                           onClick={() => rotate.mutate(k)}
                         >
                           {rotate.isPending ? 'Rotating…' : 'Rotate'}
@@ -269,7 +279,13 @@ export function KeysPage() {
                     {confirm?.id !== k.id && (
                       <span style={{ display: 'inline-flex', gap: 6 }}>
                         {canRotate && (
-                          <button type="button" className="btn btn-sm" aria-label={`Rotate ${k.name}`} onClick={() => ask(k.id, 'rotate')}>
+                          <button
+                            type="button"
+                            className="btn btn-sm"
+                            aria-label={`Rotate ${k.name}`}
+                            disabled={busy || holdsOther(k.id)}
+                            onClick={() => ask(k.id, 'rotate')}
+                          >
                             Rotate
                           </button>
                         )}
@@ -283,17 +299,19 @@ export function KeysPage() {
               ))}
             </tbody>
           </table>
-          {revoke.isError && (
-            <p className="alert" role="alert" style={{ margin: '12px 24px' }}>
-              {actionError(revoke.error)}
-            </p>
-          )}
-          {rotate.isError && (
-            <p className="alert" role="alert" style={{ margin: '12px 24px' }}>
-              {rotateError(rotate.error)}
-            </p>
-          )}
         </div>
+      )}
+
+      {/* Outside the list, so a refresh that empties it does not hide why. */}
+      {revoke.isError && (
+        <p className="alert" role="alert" style={{ margin: '12px 24px' }}>
+          {actionError(revoke.error)}
+        </p>
+      )}
+      {rotate.isError && (
+        <p className="alert" role="alert" style={{ margin: '12px 24px' }}>
+          {rotateError(rotate.error)}
+        </p>
       )}
 
       <p className="sub" style={{ padding: '14px 24px 24px', fontSize: 12.5 }}>

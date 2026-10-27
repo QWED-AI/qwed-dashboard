@@ -219,6 +219,79 @@ describe('KeysPage', () => {
       expect(screen.queryByRole('button', { name: 'Rotate invoice pipeline' })).toBeNull();
     });
 
+    const disabled = (name: string) => (screen.getByRole('button', { name }) as HTMLButtonElement).disabled;
+
+    it('replaces nothing while a shown key is unsaved, except by rotating that key', async () => {
+      const user = userEvent.setup();
+      renderApp(<KeysPage />);
+      await screen.findByText('payments-agent prod');
+      await createKey(user, 'unsaved');
+      expect(screen.getByText(/Creating or rotating another key waits until you have saved this one\./)).toBeTruthy();
+
+      await user.type(screen.getByLabelText('New key name'), 'second');
+      expect(disabled('Create key')).toBe(true);
+      expect(disabled('Rotate invoice pipeline')).toBe(true);
+      // Its own key may be rotated: the shown secret would no longer work.
+      expect(disabled('Rotate unsaved')).toBe(false);
+
+      await user.click(screen.getByRole('button', { name: 'I have saved it' }));
+      expect(disabled('Create key')).toBe(false);
+      expect(disabled('Rotate invoice pipeline')).toBe(false);
+    });
+
+    it('lets no second key be made while a rotation is in flight', async () => {
+      const user = userEvent.setup();
+      let finish: (v: Awaited<ReturnType<typeof demoApi.rotateKey>>) => void = () => undefined;
+      const rotate = vi
+        .spyOn(demoApi, 'rotateKey')
+        .mockImplementation(() => new Promise((resolve) => (finish = resolve)));
+      renderApp(<KeysPage />);
+      await askToRotate(user, 'invoice pipeline');
+      await user.click(screen.getByRole('button', { name: 'Rotate' }));
+      expect(await screen.findByRole('button', { name: 'Rotating…' })).toBeTruthy();
+
+      await user.type(screen.getByLabelText('New key name'), 'meanwhile');
+      expect(disabled('Create key')).toBe(true);
+      expect(disabled('Rotate payments-agent prod')).toBe(true);
+
+      finish({ oldKeyId: '1', newKeyId: '99', newKeyPreview: 'qwed_test_****abcd', newKey: 'qwed_test_secret' });
+      expect(await screen.findByText('invoice pipeline was rotated. The old key no longer works.')).toBeTruthy();
+      expect(screen.getByText('qwed_test_secret')).toBeTruthy();
+      expect(rotate).toHaveBeenCalledTimes(1);
+    });
+
+    it('drops a shown key when the server no longer has it', async () => {
+      const user = userEvent.setup();
+      renderApp(<KeysPage />);
+      await screen.findByText('payments-agent prod');
+      await createKey(user, 'gone elsewhere');
+      vi.spyOn(demoApi, 'rotateKey').mockRejectedValue(new ApiError(404, 'Key not found'));
+      await askToRotate(user, 'gone elsewhere');
+      await user.click(screen.getByRole('button', { name: 'Rotate' }));
+      expect((await screen.findByRole('alert')).textContent).toBe(
+        'The server no longer has this key: it was revoked or rotated already.',
+      );
+      expect(screen.queryByText('gone elsewhere is ready.')).toBeNull();
+      expect(screen.queryByText(/^qwed_test_[A-Za-z0-9]{36}$/)).toBeNull();
+    });
+
+    it('keeps the reason in view when the refresh empties the list', async () => {
+      const user = userEvent.setup();
+      vi.spyOn(demoApi, 'listKeys')
+        .mockResolvedValueOnce([
+          { id: '9', name: 'last one', key_preview: 'qwed_live_****abcd', created_at: '2026-10-21T10:00:00', last_used_at: null, is_revoked: false },
+        ])
+        .mockResolvedValue([]);
+      vi.spyOn(demoApi, 'rotateKey').mockRejectedValue(new ApiError(404, 'Key not found'));
+      renderApp(<KeysPage />);
+      await askToRotate(user, 'last one');
+      await user.click(screen.getByRole('button', { name: 'Rotate' }));
+      expect(await screen.findByText('No active keys')).toBeTruthy();
+      expect(screen.getByRole('alert').textContent).toBe(
+        'The server no longer has this key: it was revoked or rotated already.',
+      );
+    });
+
     it('offers one confirmation at a time', async () => {
       const user = userEvent.setup();
       renderApp(<KeysPage />);
