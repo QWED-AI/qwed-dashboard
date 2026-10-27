@@ -170,6 +170,7 @@ export function Shell({ crumbs, children }: Readonly<{ crumbs: Crumb[]; children
               <div className="grp">Settings</div>
               <NavItem to="/keys" icon="key" label="API keys" onPick={closeMenu} />
               <NavItem to="/security" icon="shield" label="Security events" onPick={closeMenu} />
+              <NavItem to="/server" icon="server" label="Server" onPick={closeMenu} />
             </div>
           </nav>
 
@@ -217,10 +218,13 @@ export function Shell({ crumbs, children }: Readonly<{ crumbs: Crumb[]; children
           </nav>
           <span className="spacer" />
           <FindRecord />
-          <output className={pill.cls} title={server.kind === 'failed' ? server.reason : undefined}>
-            <span className="dot" aria-hidden="true" />
-            {pill.label}
-          </output>
+          {/* The pill opens the Server screen (#55); the <output> inside keeps its status live. */}
+          <Link to="/server" className="status-link" title={server.kind === 'failed' ? server.reason : undefined}>
+            <output className={pill.cls}>
+              <span className="dot" aria-hidden="true" />
+              {pill.label}
+            </output>
+          </Link>
           <a className="btn btn-sm" href="https://docs.qwedai.tech" target="_blank" rel="noreferrer">
             Docs
           </a>

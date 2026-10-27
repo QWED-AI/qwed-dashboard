@@ -65,10 +65,10 @@ export function serverStatus(health: ServerHealth | undefined, error: unknown, d
   return order < 0 ? { kind: 'older', version } : { kind: 'current', version };
 }
 
-/** The server's status, from one shared /health query: asked again every minute and when the tab regains focus. */
-export function useServerStatus(): ServerStatus {
+/** The shared /health query: asked again every minute and whenever the tab regains focus. None for sample data. */
+export function useServerHealth() {
   const { api, mode } = useSession();
-  const health = useQuery({
+  return useQuery({
     queryKey: [mode, 'health'],
     queryFn: () => api.health(),
     enabled: mode !== 'demo',
@@ -78,5 +78,24 @@ export function useServerStatus(): ServerStatus {
     refetchInterval: 60_000,
     retry: false,
   });
+}
+
+/** The server's status, from the shared /health query. */
+export function useServerStatus(): ServerStatus {
+  const { mode } = useSession();
+  const health = useServerHealth();
   return serverStatus(health.data, health.error, mode === 'demo');
 }
+
+/**
+ * The features the dashboard uses that need qwed-verification NEEDED_VERSION
+ * (#55), and the screens that show them.
+ */
+export const FEATURES: readonly { name: string; where: string }[] = [
+  { name: 'The stored verdict and admission on every row (#484, #307)', where: 'Overview, Decision ledger' },
+  { name: 'Paging back through older records (#484)', where: 'Decision ledger' },
+  { name: 'Audit chain checks with your session, and the whole-chain check (#485)', where: 'Record, Overview' },
+  { name: 'Key last-used times and security events (#486)', where: 'API keys, Security events' },
+  { name: 'A caller’s diagnostic kept apart from the server’s notice (#321)', where: 'Record, Decision ledger' },
+  { name: 'The attestation the server signs with each VERIFIED result (#319)', where: 'Record' },
+];

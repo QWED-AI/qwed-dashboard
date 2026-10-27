@@ -28,6 +28,14 @@ const paths = {
     </>
   ),
   shield: <path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z" />,
+  refresh: <path d="M20 12a8 8 0 11-2.3-5.7M20 4v5h-5" />,
+  server: (
+    <>
+      <rect x="4" y="4" width="16" height="7" rx="2" />
+      <rect x="4" y="13" width="16" height="7" rx="2" />
+      <path d="M8 7.5h.01M8 16.5h.01" />
+    </>
+  ),
   theme: (
     <>
       <circle cx="12" cy="12" r="8" />

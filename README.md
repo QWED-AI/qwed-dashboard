@@ -113,6 +113,13 @@ The release workflow then checks that the tag matches `package.json`, runs the t
 | Security events (also the Overview card) | `GET /admin/security/events` | session token of an owner or admin |
 | Attestation check (Record) | `GET /.well-known/jwks.json` | none |
 | Server status (header) and version (footer) | `GET /health` | none |
+| Server screen (Settings) | `GET /health`, `GET /.well-known/jwks.json` | none |
+
+**Settings › Server**, which the header's server pill also opens, has four parts:
+- **Connection:** the server's version, the address the dashboard calls and when the server last answered.
+- **This dashboard:** its version.
+- **Signing keys:** the server's public keys, with when this browser first saw each. When a key this browser saw before is no longer published, it says so until you dismiss it: the key was rotated, or the server was given no `QWED_SIGNING_KEY`, so it made a new one when it restarted. What it has seen is kept in this browser's `localStorage` only.
+- **What this server supports:** the features that need qwed-verification 8.0.0, read from the server's version.
 
 The header names the server and its version, from `GET /health`, asked again every minute and when the tab regains focus. A server older than qwed-verification 8.0.0 gets a note saying which views need 8.0.0. When the server cannot be reached, the header says so; each screen already says what it could not load. When something else answers, such as a page that is not JSON because `/api` is not routed to QWED, or an error status, the header says the check failed, and the footer gives the reason. The version only picks this wording; it never changes a verdict or an admission the dashboard shows. The footer gives the dashboard's version, the server's version and address, and the project's links.
 
