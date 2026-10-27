@@ -52,13 +52,13 @@ describe('DocumentSignatureCheck', () => {
     expect(screen.queryByRole('region', { name: 'Attestation' })).toBeNull();
   });
 
-  it('says why the stored copy of a document with personal data does not match', async () => {
+  it('says why the stored copy of a document with personal data likely does not match', async () => {
     vi.spyOn(demoApi, 'getJwks').mockResolvedValue(jwks);
     const user = userEvent.setup();
     const card = await openStored('redacted');
     await user.click(card.getByRole('button', { name: 'Check signature' }));
     expect(await card.findByText('The server signed a document, but not this document as stored.')).toBeTruthy();
-    expect(card.getByText(/The server replaced personal data in the copy it stored \(\[EMAIL_REDACTED\]\)/)).toBeTruthy();
+    expect(card.getByText(/It holds redaction markers \(\[EMAIL_REDACTED\]\)/)).toBeTruthy();
   });
 
   it('says the keys could not be loaded', async () => {

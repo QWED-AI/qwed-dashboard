@@ -35,8 +35,10 @@ export function canonicalJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
   if (typeof value === 'object') {
     const obj = value as Record<string, unknown>;
-    const keys = Object.keys(obj).sort(byCodeUnits);
-    return `{${keys.map((k) => `${encodeString(k)}:${canonicalJson(obj[k])}`).join(',')}}`;
+    const members = Object.keys(obj)
+      .sort(byCodeUnits)
+      .map((k) => `${encodeString(k)}:${canonicalJson(obj[k])}`);
+    return `{${members.join(',')}}`;
   }
   throw new CanonicalJsonError(`A value of type ${typeof value} cannot be encoded.`);
 }

@@ -37,16 +37,19 @@ export type DocumentSignature =
 
 export function documentSignature(value: unknown): DocumentSignature {
   const document = isObj(value) ? value : {};
-  const specVersion = str(document.spec_version);
   const token = str(document.attestation);
-  if (specVersion === SIGNED_SPEC_VERSION && token) return { kind: 'signed', token, document };
-  return { kind: 'unsigned', specVersion };
+  // Any document with a token is checked, whatever version it names: a
+  // signed 1.1 document relabelled 1.0 must fail the check, not read as
+  // unsigned.
+  if (token) return { kind: 'signed', token, document };
+  return { kind: 'unsigned', specVersion: str(document.spec_version) };
 }
 
 /**
  * The server stores its copy of a document with personal data replaced
- * ("[EMAIL_REDACTED]"), after it signed it. Such a copy is not the document
- * it signed, so its hash cannot match.
+ * ("[EMAIL_REDACTED]"), after it signed it (qwed-verification #532). Such a
+ * copy is not the document it signed, so its hash cannot match. A marker
+ * makes that a likely cause of a mismatch, not a proven one.
  */
 const REDACTED = /\[[A-Z]+_REDACTED\]/g;
 
@@ -69,6 +72,10 @@ async function documentItem(subtle: SubtleCrypto, document: Obj, qwed: Obj, sub:
   if (qwed.version !== SIGNED_SPEC_VERSION) {
     return item('fail', `The token signs a document of version ${String(qwed.version)}, not ${SIGNED_SPEC_VERSION}.`);
   }
+  const version = document.spec_version;
+  if (version !== SIGNED_SPEC_VERSION) {
+    return item('fail', `The document names spec version ${String(version)}, but the token signs a ${SIGNED_SPEC_VERSION} document.`);
+  }
   if (signed === null) return item('unknown', 'The token states no document hash.');
   if (sub !== signed) return item('fail', 'The token names two different documents: its sub and its document_hash differ.');
   const unsigned = Object.fromEntries(Object.entries(document).filter(([k]) => k !== 'attestation'));
@@ -84,7 +91,7 @@ async function documentItem(subtle: SubtleCrypto, document: Obj, qwed: Obj, sub:
   if (marks.length > 0) {
     return item(
       'fail',
-      `The stored copy hashes to ${hash}, not the signed ${signed}. The server replaced personal data in the copy it stored (${marks.join(', ')}) after it signed the document, so this copy is not the one it signed.`,
+      `The stored copy hashes to ${hash}, not the signed ${signed}. It holds redaction markers (${marks.join(', ')}): the server replaces personal data in the copy it stores after signing, which would explain the difference. The dashboard cannot tell whether anything else changed.`,
     );
   }
   return item('fail', `The stored document hashes to ${hash}, not the signed ${signed}: it was changed after it was signed.`);
@@ -146,6 +153,8 @@ export function documentSignatureHeadline(report: AttestationReport): string {
   if (state('signature') === 'unknown') return 'The signature cannot be checked: the server no longer has this key.';
   const claims = report.items.filter((i) => i.id !== 'signature' && i.id !== 'expiry');
   if (claims.some((i) => i.state === 'fail')) return 'The server signed a document, but not this document as stored.';
+  // Until the document's hash is compared, the token is all that was checked.
+  if (state('document') !== 'pass') return 'The server signed this token, but it could not be checked against this document.';
   const partial = claims.some((i) => i.state === 'unknown');
   if (partial) return 'The server signed this document; some of what it signed could not be compared.';
   if (state('expiry') === 'fail') return 'The server issued this document as stored, but the signature has expired.';

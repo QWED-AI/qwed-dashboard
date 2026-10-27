@@ -58,14 +58,14 @@ describe('checkDocumentSignature, on documents a qwed-verification 8.0.0 server 
     expect(documentSignatureHeadline(report)).toBe('The signature checks out: the server issued this document as stored.');
   });
 
-  it('says the server redacted the stored copy after signing it', async () => {
+  it('names redaction as the likely reason a redacted stored copy does not match', async () => {
     const f = documents.redacted;
     expect(f.storedHash).not.toBe(f.signedHash); // as the server computes them
     const report = await check(docOf(f));
     expect(states(report).signature).toBe('pass');
     expect(states(report).document).toBe('fail');
     expect(detail(report, 'document')).toBe(
-      `The stored copy hashes to ${f.storedHash}, not the signed ${f.signedHash}. The server replaced personal data in the copy it stored ([EMAIL_REDACTED]) after it signed the document, so this copy is not the one it signed.`,
+      `The stored copy hashes to ${f.storedHash}, not the signed ${f.signedHash}. It holds redaction markers ([EMAIL_REDACTED]): the server replaces personal data in the copy it stores after signing, which would explain the difference. The dashboard cannot tell whether anything else changed.`,
     );
     expect(documentSignatureHeadline(report)).toBe('The server signed a document, but not this document as stored.');
   });
@@ -79,6 +79,15 @@ describe('checkDocumentSignature, on documents a qwed-verification 8.0.0 server 
     // A changed verdict fails its own check too.
     const relabelled = await check({ ...doc, verdict: 'UNVERIFIABLE' });
     expect(states(relabelled)).toMatchObject({ document: 'fail', verdict: 'fail' });
+  });
+
+  it('fails a signed document relabelled spec 1.0, rather than reading it as unsigned', async () => {
+    const doc = { ...docOf(documents.admitted), spec_version: '1.0' };
+    expect(documentSignature(doc).kind).toBe('signed');
+    const report = await check(doc);
+    expect(states(report)).toMatchObject({ signature: 'pass', document: 'fail' });
+    expect(detail(report, 'document')).toBe('The document names spec version 1.0, but the token signs a 1.1 document.');
+    expect(documentSignatureHeadline(report)).toBe('The server signed a document, but not this document as stored.');
   });
 
   it('says when the signature has expired, and still what the server signed', async () => {
@@ -151,6 +160,10 @@ describe('checkDocumentSignature, on tokens made for the test', () => {
     expect(detail(sub, 'document')).toBe('The token names two different documents: its sub and its document_hash differ.');
     const none = (await signed(doc, { qwed: { document_hash: undefined } })).report;
     expect(states(none).document).toBe('unknown');
+    // Only the token was checked, so the headline does not say the document was.
+    expect(documentSignatureHeadline(none)).toBe(
+      'The server signed this token, but it could not be checked against this document.',
+    );
   });
 
   it('compares the admission and proof_ref the token states with the document’s', async () => {
@@ -176,10 +189,12 @@ describe('checkDocumentSignature, on tokens made for the test', () => {
 });
 
 describe('documentSignature and redactions', () => {
-  it('finds the signature of a spec 1.1 document only', () => {
+  it('finds a document’s token whatever version it names', () => {
     const doc = docOf(documents.admitted);
     expect(documentSignature(doc).kind).toBe('signed');
-    expect(documentSignature({ ...doc, spec_version: '1.0' })).toEqual({ kind: 'unsigned', specVersion: '1.0' });
+    expect(documentSignature({ ...doc, spec_version: '1.0' }).kind).toBe('signed');
+    const { attestation: _, ...unsigned } = doc;
+    expect(documentSignature({ ...unsigned, spec_version: '1.0' })).toEqual({ kind: 'unsigned', specVersion: '1.0' });
     expect(documentSignature({ ...doc, attestation: '' })).toEqual({ kind: 'unsigned', specVersion: '1.1' });
     expect(documentSignature(null)).toEqual({ kind: 'unsigned', specVersion: null });
   });
