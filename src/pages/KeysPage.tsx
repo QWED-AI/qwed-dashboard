@@ -1,11 +1,11 @@
 import { useMutation } from '@tanstack/react-query';
-import { useState, type SubmitEvent } from 'react';
+import { useEffect, useState, type SubmitEvent } from 'react';
 import { ApiError, sessionNotAccepted } from '../api/http';
 import type { ApiKeyItem } from '../api/types';
 import { useSession } from '../auth/session';
 import { Icon } from '../components/Icon';
 import { Shell } from '../components/Shell';
-import { formatUtcLong } from '../lib/format';
+import { formatUtcLong, parseUtc } from '../lib/format';
 import { describeError, useAuthedQuery } from '../lib/useAuthedQuery';
 
 const NAME_MAX = 80;
@@ -33,6 +33,60 @@ interface OneTimeKey {
 }
 
 type Confirm = { id: string; action: 'revoke' | 'rotate' };
+
+// The longest delay setTimeout takes (about 24.8 days); a later expiry is
+// waited for in steps.
+const MAX_DELAY = 2_147_483_647;
+
+/**
+ * The time now, moved on when the next of `times` passes, so a key that
+ * expires while the page is open is marked Expired then, not at the next
+ * render. The timer goes with the page.
+ */
+function useNowPast(times: readonly (string | null | undefined)[]): number {
+  const [now, setNow] = useState(() => Date.now());
+  const ahead = times
+    .map((t) => (t ? parseUtc(t)?.getTime() : undefined))
+    .filter((t): t is number => t !== undefined && t > now);
+  const next = Math.min(...ahead);
+  useEffect(() => {
+    if (!Number.isFinite(next)) return;
+    const id = setTimeout(() => setNow(Date.now()), Math.min(Math.max(next - Date.now(), 0) + 1, MAX_DELAY));
+    return () => clearTimeout(id);
+  }, [next, now]);
+  return now;
+}
+
+/** When a key stops working (#504). The server refuses a key past its expiry. */
+function Expiry({ at, now }: Readonly<{ at: string | null | undefined; now: number }>) {
+  if (at === undefined) return <>Not returned</>;
+  if (at === null) return <>Never</>;
+  const expired = (parseUtc(at)?.getTime() ?? Infinity) <= now;
+  return expired ? (
+    <>
+      <span className="tag">Expired</span> {formatUtcLong(at)}
+    </>
+  ) : (
+    <>{formatUtcLong(at)}</>
+  );
+}
+
+/** Whose key it is (#504): null when the server names no user for it. */
+function Owner({ owner, self }: Readonly<{ owner: ApiKeyItem['owner']; self: string | undefined }>) {
+  if (owner === undefined) return <>Not returned</>;
+  if (owner === null) return <>No user</>;
+  return (
+    <>
+      <bdi>{owner.email}</bdi>
+      {owner.id === self && (
+        <>
+          {' '}
+          <span className="muted">(you)</span>
+        </>
+      )}
+    </>
+  );
+}
 
 export function KeysPage() {
   const { api, token, user, signOut } = useSession();
@@ -101,6 +155,12 @@ export function KeysPage() {
   // is shown and not yet saved, nothing may replace it, except rotating that
   // same key, whose shown secret no longer works; nor may two requests that
   // each make a key overlap.
+  // A server before qwed-verification #504 sends neither, so the columns are left out.
+  const listed = keys.data ?? [];
+  const showOwner = listed.some((k) => 'owner' in k);
+  const showExpiry = listed.some((k) => 'expires_at' in k);
+  const now = useNowPast(listed.map((k) => k.expires_at));
+
   const busy = create.isPending || rotate.isPending;
   const holdsOther = (id: string | null) => created !== null && created.id !== id;
   // Opening another confirmation resets the mutations, and a reset clears
@@ -225,7 +285,9 @@ export function KeysPage() {
               <tr>
                 <th scope="col">Name</th>
                 <th scope="col">Key</th>
+                {showOwner && <th scope="col">Owner</th>}
                 <th scope="col">Created (UTC)</th>
+                {showExpiry && <th scope="col">Expires (UTC)</th>}
                 <th scope="col">Last used</th>
                 <th scope="col">
                   <span className="sr-only">Actions</span>
@@ -235,13 +297,30 @@ export function KeysPage() {
             <tbody>
               {keys.data.map((k) => (
                 <tr key={k.id}>
-                  <td style={{ color: 'var(--ink)', fontWeight: 500 }}>{k.name}</td>
+                  <td style={{ color: 'var(--ink)', fontWeight: 500 }}>
+                    {k.name}
+                    {k.rotation_required && (
+                      <span className="row-note">
+                        <span className="tag">Rotation required</span> The server asks for this key to be rotated.
+                      </span>
+                    )}
+                  </td>
                   <td className="mono" style={{ fontSize: 12 }}>
                     {k.key_preview}
                   </td>
+                  {showOwner && (
+                    <td className="cell-small" style={{ fontSize: 12.5 }} data-label="Owner">
+                      <Owner owner={k.owner} self={user?.id} />
+                    </td>
+                  )}
                   <td className="mono num muted cell-small" style={{ fontSize: 12 }} data-label="Created">
                     {formatUtcLong(k.created_at)}
                   </td>
+                  {showExpiry && (
+                    <td className="mono num muted cell-small" style={{ fontSize: 12 }} data-label="Expires">
+                      <Expiry at={k.expires_at} now={now} />
+                    </td>
+                  )}
                   <td className="muted cell-small" style={{ fontSize: 12.5 }} data-label="Last used">
                     {k.last_used_at ? formatUtcLong(k.last_used_at) : 'No use recorded'}
                   </td>
@@ -329,8 +408,9 @@ export function KeysPage() {
         Revoked keys drop off this list. Last used is the most recent request the key made, kept to the minute; a server
         before qwed-verification #486 does not record it, so there every key reads "No use recorded". Rotate replaces a
         key with a new one named after it. Anyone but a viewer can rotate their own key, and an owner or admin can
-        rotate another user's, unless that user ranks higher. Owners and expiry dates will follow once the server
-        returns them.
+        rotate another user's, unless that user ranks higher. Owner, Expires and the rotation flag come from
+        qwed-verification #504; a server before it does not return them, and the columns are left out. The server flags
+        a key for rotation in the 7 days before it expires, and refuses a key past its expiry.
       </p>
     </Shell>
   );

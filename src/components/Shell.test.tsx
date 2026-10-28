@@ -84,6 +84,22 @@ describe('Shell: the server (#50, #52)', () => {
   });
 });
 
+describe('Shell: the organisation (#64)', () => {
+  it('names the organisation when the server sent its name', () => {
+    renderShell({ user: { org_name: 'Acme Finance' } });
+    expect(screen.getByText('Acme Finance')).toBeTruthy();
+    expect(screen.queryByText('Organisation demo')).toBeNull();
+  });
+
+  it('gives the id when the server sent no name, or before qwed-verification #518', () => {
+    renderShell({ user: { org_name: null } });
+    expect(screen.getByText('Organisation demo')).toBeTruthy();
+    cleanup();
+    renderShell();
+    expect(screen.getByText('Organisation demo')).toBeTruthy();
+  });
+});
+
 describe('Shell: the footer (#52)', () => {
   it('names the dashboard version and links the project pages', () => {
     renderShell();

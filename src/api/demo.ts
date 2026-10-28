@@ -18,7 +18,8 @@ import type {
 // Sample data for exploring the dashboard without a QWED server. Shaped like
 // the real /audit/logs rows; none of it comes from a real verification.
 
-const demoUser: User = { id: 'demo', email: 'demo@example.com', org_id: 'demo', role: 'owner' };
+const demoUser: User = { id: 'demo', email: 'demo@example.com', org_id: 'demo', org_name: 'Sample Organisation', role: 'owner' };
+const demoOwner = { id: demoUser.id, email: demoUser.email };
 
 function diagnostic(
   status: 'VERIFIED' | 'UNVERIFIABLE' | 'BLOCKED',
@@ -327,14 +328,23 @@ let keys: ApiKeyItem[] = [
     // The newest sample rows each key made (1042 and 1040), as #486 records.
     last_used_at: '2026-10-20T09:41:12',
     is_revoked: false,
+    expires_at: null,
+    rotation_required: false,
+    owner: demoOwner,
   },
   {
+    // Another member's key, which an owner sees too. It expires 90 days
+    // after it was made, and the server flags it for rotation in the 7 days
+    // before that.
     id: '6',
     name: 'invoice pipeline',
     key_preview: 'qwed_live_****9mBe',
     created_at: '2026-07-22T11:04:00',
     last_used_at: '2026-10-20T08:57:44',
     is_revoked: false,
+    expires_at: '2026-10-20T11:04:00',
+    rotation_required: true,
+    owner: { id: 'sample-2', email: 'ops@example.com' },
   },
 ];
 
@@ -439,6 +449,9 @@ export const demoApi: QwedApi = {
         created_at: created.created_at,
         last_used_at: null,
         is_revoked: false,
+        expires_at: null,
+        rotation_required: false,
+        owner: demoOwner,
       },
       ...keys,
     ];
@@ -462,6 +475,10 @@ export const demoApi: QwedApi = {
       created_at: new Date().toISOString(),
       last_used_at: null,
       is_revoked: false,
+      // The server gives a rotated key 90 days, and the old key's owner.
+      expires_at: new Date(Date.now() + 90 * 86_400_000).toISOString(),
+      rotation_required: false,
+      owner: old.owner ?? null,
     };
     keys = [replacement, ...keys.filter((k) => k.id !== id)];
     return { oldKeyId: id, newKeyId: replacement.id, newKeyPreview: replacement.key_preview, newKey: key };

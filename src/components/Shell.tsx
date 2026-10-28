@@ -144,7 +144,8 @@ export function Shell({ crumbs, children }: Readonly<{ crumbs: Crumb[]; children
             </span>
             <span className="brand-name">
               <strong>QWED Dashboard</strong>
-              <span>Organisation {user?.org_id ?? ''}</span>
+              {/* The name from qwed-verification #518; an older server, or a session signed in before it, has only the id. */}
+              <span>{user?.org_name ?? `Organisation ${user?.org_id ?? ''}`}</span>
             </span>
           </Link>
           <button

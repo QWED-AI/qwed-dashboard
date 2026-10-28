@@ -28,12 +28,16 @@ const liveSession = {
 /**
  * Renders a screen inside the app's providers, signed in with sample data
  * unless `signedIn` is false, or against a server when `live` is true, as an
- * owner unless `role` says otherwise. Each call gets its own query cache.
+ * owner unless `role` says otherwise; `user` overrides other fields of the
+ * signed-in user. Each call gets its own query cache.
  */
-export function renderApp(ui: ReactElement, { route = '/', signedIn = true, live = false, role = 'owner' } = {}) {
+export function renderApp(
+  ui: ReactElement,
+  { route = '/', signedIn = true, live = false, role = 'owner', user = {} as Record<string, unknown> } = {},
+) {
   sessionStorage.clear();
   const session = live ? liveSession : demoSession;
-  if (signedIn) sessionStorage.setItem(SESSION_KEY, JSON.stringify({ ...session, user: { ...session.user, role } }));
+  if (signedIn) sessionStorage.setItem(SESSION_KEY, JSON.stringify({ ...session, user: { ...session.user, ...user, role } }));
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>

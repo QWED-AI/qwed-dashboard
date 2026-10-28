@@ -9,6 +9,8 @@ export interface User {
   id: string;
   email: string;
   org_id: string;
+  /** The organisation's display name (qwed-verification #518): null when the server cannot read it, absent before. */
+  org_name?: string | null;
   role: string;
 }
 
@@ -115,6 +117,12 @@ export interface ApiKeyItem {
   created_at: string;
   last_used_at: string | null;
   is_revoked: boolean;
+  // From qwed-verification #504; absent on an older server.
+  /** Null when the key does not expire. */
+  expires_at?: string | null;
+  rotation_required?: boolean;
+  /** Null for a key with no user, or one whose user is not in the key's organisation. */
+  owner?: { id: string; email: string } | null;
 }
 
 /** POST /auth/api-keys. `key` is the full key, returned this once only. */
