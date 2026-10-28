@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { ApiError } from '../api/http';
 import type { SecurityEvent } from '../api/types';
 import { useSession } from '../auth/session';
 import { Icon } from '../components/Icon';
@@ -9,7 +8,7 @@ import { Shell } from '../components/Shell';
 import { ThreatSummary } from '../components/ThreatSummary';
 import { formatUtc } from '../lib/format';
 import { securityEventsError, TYPE_LABEL, typeLabel } from '../lib/securityEvents';
-import { describeError, useAuthedQuery, useSecurityEventPages } from '../lib/useAuthedQuery';
+import { describeError, useAuthedQuery, useDataUnlessRefused, useSecurityEventPages } from '../lib/useAuthedQuery';
 
 const LIMIT = 50;
 
@@ -79,13 +78,9 @@ export function SecurityEventsPage() {
   // #507, say), users are named by id.
   const { user } = useSession();
   const members = useAuthedQuery(['users'], (api, token) => api.listUsers(token));
-  // A refusal (403) on a refresh leaves the list loaded before; its emails
-  // are not shown once the server refuses the list.
-  const membersRefused = members.error instanceof ApiError && members.error.status === 403;
-  const emails = useMemo(
-    () => new Map(membersRefused ? [] : (members.data ?? []).map((u) => [u.id, u.email])),
-    [members.data, membersRefused],
-  );
+  // Once the server refuses the list (403), the emails loaded before are not shown.
+  const memberList = useDataUnlessRefused(members);
+  const emails = useMemo(() => new Map((memberList ?? []).map((u) => [u.id, u.email])), [memberList]);
   // The types to filter by: the ones the server is known to write, every type
   // seen on this page so far, and the chosen one. The list is kept, so with
   // one type chosen (and only its events loaded) the others stay to pick.

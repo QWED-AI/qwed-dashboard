@@ -223,6 +223,32 @@ describe('SecurityEventsPage', () => {
       await waitFor(() => expect(userCell(rows()[0] as HTMLElement)).toBe('User 2'));
     });
 
+    it('keeps the emails hidden after a refusal until the list loads again', async () => {
+      const ops = { id: '2', email: 'ops@example.com', role: 'member', is_active: true, created_at: '2026-07-22T10:58:00Z' };
+      vi.spyOn(demoApi, 'listSecurityEvents').mockResolvedValue({ events: [event('1', { user_id: 2 })], nextBefore: null });
+      vi.spyOn(demoApi, 'listUsers')
+        .mockResolvedValueOnce([ops])
+        .mockRejectedValueOnce(new ApiError(403, 'Insufficient permissions for this operation'))
+        // A failure of another kind then replaces the 403 as the query's error.
+        // (A 4xx is not retried, so the test does not wait out the retry delays.)
+        .mockRejectedValueOnce(new ApiError(429, 'Too many requests'))
+        .mockResolvedValue([ops]);
+      const refocus = () =>
+        act(() => {
+          focusManager.setFocused(false);
+          focusManager.setFocused(true);
+        });
+      renderApp(<App />, { route: '/security' });
+      await waitFor(() => expect(userCell(rows()[0] as HTMLElement)).toBe('ops@example.com'));
+      refocus();
+      await waitFor(() => expect(userCell(rows()[0] as HTMLElement)).toBe('User 2'));
+      refocus();
+      await waitFor(() => expect(demoApi.listUsers).toHaveBeenCalledTimes(3));
+      expect(userCell(rows()[0] as HTMLElement)).toBe('User 2');
+      refocus();
+      await waitFor(() => expect(userCell(rows()[0] as HTMLElement)).toBe('ops@example.com'));
+    });
+
     it('names the sample events’ user', async () => {
       renderApp(<App />, { route: '/security' });
       await waitFor(() => expect(userCell(rows()[0] as HTMLElement)).toBe('ops@example.com'));

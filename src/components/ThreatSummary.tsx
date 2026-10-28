@@ -1,7 +1,7 @@
 import { ApiError, refusedForRole, sessionNotAccepted } from '../api/http';
 import { useSession } from '../auth/session';
 import { formatUtcLong } from '../lib/format';
-import { describeError, useAuthedQuery } from '../lib/useAuthedQuery';
+import { describeError, useAuthedQuery, useDataUnlessRefused } from '../lib/useAuthedQuery';
 import { Icon } from './Icon';
 
 // The server's threat summary for the organisation (#68), from
@@ -32,8 +32,7 @@ export function ThreatSummary() {
   const summary = useAuthedQuery(['threat-summary', orgId], (api, token) => api.threatSummary(token, orgId));
   // A failed refresh keeps the summary shown, marked as maybe out of date; a
   // refusal (403) does not, as the signed-in user may no longer see it.
-  const refused = summary.error instanceof ApiError && summary.error.status === 403;
-  const data = refused ? undefined : summary.data;
+  const data = useDataUnlessRefused(summary);
   const layers = Object.entries(data?.security_layer_breakdown ?? {}).sort((a, b) => b[1] - a[1]);
 
   return (

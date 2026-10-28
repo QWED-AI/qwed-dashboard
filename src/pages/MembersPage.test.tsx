@@ -141,6 +141,27 @@ describe('MembersPage', () => {
     );
   });
 
+  it('keeps the members hidden after a refusal, even when a later refresh fails otherwise', async () => {
+    vi.spyOn(demoApi, 'listUsers')
+      .mockResolvedValueOnce([member('1')])
+      .mockRejectedValueOnce(new ApiError(403, 'Insufficient permissions for this operation'))
+      // A 4xx is not retried, so the test does not wait out the retry delays.
+      .mockRejectedValue(new ApiError(429, 'Too many requests'));
+    renderApp(<MembersPage />);
+    await rowOf('user1@example.com');
+    const refocus = () =>
+      act(() => {
+        focusManager.setFocused(false);
+        focusManager.setFocused(true);
+      });
+    refocus();
+    expect(await screen.findByText('Only owners and admins can see the organisation’s members.')).toBeTruthy();
+    refocus();
+    expect(await screen.findByText('Too many requests. Try again shortly.')).toBeTruthy();
+    expect(screen.queryByRole('region', { name: 'Members' })).toBeNull();
+    expect(screen.queryByText(/could not be refreshed/)).toBeNull();
+  });
+
   it('signs out when the session has ended', async () => {
     vi.spyOn(demoApi, 'listUsers').mockRejectedValue(new ApiError(401, 'Not authenticated'));
     renderApp(<MembersPage />);

@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { ApiError, sessionNotAccepted, type QwedApi } from '../api/http';
 import { useSession } from '../auth/session';
 
@@ -66,6 +66,25 @@ export function useSecurityEventPages(limit: number, eventType: string | null) {
   });
   useSignOutOn401(query.error, signOut);
   return query;
+}
+
+/**
+ * The query's data, unless the server has refused it (403) since that data
+ * loaded. A refused refresh keeps the data loaded before, and a later failure
+ * of another kind replaces the 403 as the query's error, so the refusal is
+ * held until the server answers again with data. A failure that is not a
+ * refusal keeps the data, for the page to mark as maybe out of date.
+ */
+export function useDataUnlessRefused<T>(
+  query: Readonly<{ data: T | undefined; error: unknown; dataUpdatedAt: number; errorUpdatedAt: number }>,
+): T | undefined {
+  const refusedNow = query.error instanceof ApiError && query.error.status === 403;
+  const [refusedAt, setRefusedAt] = useState(0);
+  useEffect(() => {
+    if (refusedNow) setRefusedAt(query.errorUpdatedAt);
+  }, [refusedNow, query.errorUpdatedAt]);
+  if (refusedNow || (refusedAt > 0 && query.dataUpdatedAt <= refusedAt)) return undefined;
+  return query.data;
 }
 
 /** Turns an API error into one sentence for the page. */

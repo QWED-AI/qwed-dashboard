@@ -4,7 +4,7 @@ import { Icon } from '../components/Icon';
 import { RefreshError } from '../components/RefreshError';
 import { Shell } from '../components/Shell';
 import { formatUtcLong } from '../lib/format';
-import { describeError, useAuthedQuery } from '../lib/useAuthedQuery';
+import { describeError, useAuthedQuery, useDataUnlessRefused } from '../lib/useAuthedQuery';
 
 // The organisation's users (#66), from GET /auth/users (qwed-verification
 // #507): read only, as the route is. Owners and admins may list them.
@@ -32,7 +32,7 @@ export function MembersPage() {
   const users = useAuthedQuery(['users'], (api, token) => api.listUsers(token));
   // A failed refresh keeps the members loaded before, marked as maybe out of
   // date; a refusal (403) does not, as the signed-in user may no longer see them.
-  const shown = refused(users.error) ? undefined : users.data;
+  const shown = useDataUnlessRefused(users);
   const list = shown ?? [];
   const active = list.filter((u) => u.is_active);
   // A role the dashboard does not know is counted apart, as stored.
