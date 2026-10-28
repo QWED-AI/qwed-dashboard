@@ -5,6 +5,8 @@ import type {
   ApiKeyRotated,
   AuditLog,
   AuditLogList,
+  AgentActivity,
+  AgentSummary,
   OrgUser,
   ThreatSummary,
   AuditLogPage,
@@ -211,6 +213,16 @@ export const httpApi = {
    */
   threatSummary(token: string, orgId: string): Promise<ThreatSummary> {
     return request(`/admin/security/threats/${encodeURIComponent(orgId)}`, { headers: bearer(token) });
+  },
+
+  /** The organisation's agents, oldest first (#72). Owners and admins; a server before qwed-verification #527 answers 404. */
+  listAgents(token: string): Promise<AgentSummary[]> {
+    return request('/agents', { headers: bearer(token) });
+  },
+
+  /** An agent's activity, newest first, read with the owner's session (#72). `limit` is 1 to 200. */
+  agentActivity(token: string, agentId: string, limit: number): Promise<AgentActivity> {
+    return request(`/agents/${encodeURIComponent(agentId)}/activity?limit=${limit}`, { headers: bearer(token) });
   },
 
   /** The organisation's users, oldest first (#66). Owners and admins only; a server before qwed-verification #507 answers 404. */

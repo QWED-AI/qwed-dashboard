@@ -8,6 +8,8 @@ import type {
   ApiKeyRotated,
   AuditLog,
   EntryCheck,
+  AgentActivity,
+  AgentSummary,
   OrgUser,
   ThreatSummary,
   Jwks,
@@ -360,6 +362,32 @@ const users: OrgUser[] = [
   { id: 'sample-5', email: 'contractor@example.com', role: 'member', is_active: false, created_at: '2026-09-20T16:45:00Z' },
 ];
 
+// The sample organisation's agents, oldest first, as GET /agents lists them,
+// and their activity, newest first. Every status is listed.
+const agents: AgentSummary[] = [
+  { id: 3, name: 'invoice-reconciler', type: 'autonomous', status: 'active', created_at: '2026-08-02T09:15:00Z', last_active: '2026-10-20T09:40:58Z' },
+  { id: 5, name: 'support-drafts', type: 'supervised', status: 'suspended', created_at: '2026-09-10T13:20:00Z', last_active: '2026-10-11T16:02:31Z' },
+  { id: 8, name: 'pricing-trial', type: 'autonomous', status: 'deactivated', created_at: '2026-10-01T08:00:00Z', last_active: null },
+];
+
+const agentSpend: Record<number, { today: number; max: number }> = {
+  3: { today: 4.2, max: 25 },
+  5: { today: 0, max: 10 },
+  8: { today: 0, max: 5 },
+};
+
+const agentActivities: Record<number, AgentActivity['activities']> = {
+  3: [
+    { type: 'verification_request', description: 'Invoice total for [INVOICE ID]', status: 'VERIFIED', cost: 0.02, timestamp: '2026-10-20T09:40:58+00:00' },
+    { type: 'tool_call_blocked', description: 'Tool call blocked: write outside ./reports', status: 'blocked', cost: 0, timestamp: '2026-10-20T08:12:07+00:00' },
+    { type: 'tool_call_success', description: 'Tool export_report ran', status: 'success', cost: 0.01, timestamp: '2026-10-19T17:45:22+00:00' },
+    { type: 'verification_request', description: 'Budget exceeded', status: 'blocked', cost: 0, timestamp: '2026-10-18T23:59:40+00:00' },
+  ],
+  5: [
+    { type: 'tool_call_failed', description: 'Tool send_reply failed', status: 'failed', cost: 0, timestamp: '2026-10-11T16:02:31+00:00' },
+  ],
+};
+
 // Sample security events, of the one type the server writes today: a key
 // reported as leaked in public is revoked, and the event names it by its
 // preview only. Key 5 made sample rows 1035 and 1036, then was revoked.
@@ -448,6 +476,25 @@ export const demoApi: QwedApi = {
   // The server's summary of the sample events in the 24 hours up to the
   // newest sample row: one high-severity event, which its thresholds rate
   // MEDIUM.
+  async listAgents(): Promise<AgentSummary[]> {
+    await wait(200);
+    return agents;
+  },
+  async agentActivity(_token, agentId, limit): Promise<AgentActivity> {
+    await wait(200);
+    const agent = agents.find((a) => String(a.id) === agentId);
+    if (!agent) throw new ApiError(404, 'Agent not found');
+    const spend = agentSpend[agent.id] ?? { today: 0, max: 0 };
+    const activities = (agentActivities[agent.id] ?? []).slice(0, limit);
+    return {
+      agent_id: agent.id,
+      agent_name: agent.name,
+      total_activities: activities.length,
+      current_cost_today: spend.today,
+      max_cost_per_day: spend.max,
+      activities,
+    };
+  },
   async threatSummary(): Promise<ThreatSummary> {
     await wait(200);
     return {

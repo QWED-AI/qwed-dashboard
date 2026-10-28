@@ -28,6 +28,12 @@ const paths = {
     </>
   ),
   shield: <path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z" />,
+  agent: (
+    <>
+      <rect x="5" y="8" width="14" height="11" rx="3" />
+      <path d="M12 8V4M10 4h4M9.5 13h.01M14.5 13h.01M9.5 16.5h5" />
+    </>
+  ),
   users: (
     <>
       <circle cx="9" cy="8" r="3.5" />
