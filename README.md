@@ -120,6 +120,7 @@ The release workflow then checks that the tag matches `package.json`, runs the t
 | 90-day activity summary (Overview, on request) | `GET /admin/compliance/report/soc2/{org_id}` | session token of an owner or admin |
 | Members | `GET /auth/users` | session token of an owner or admin, on a server with [#507](https://github.com/QWED-AI/qwed-verification/issues/507) |
 | Security events (also the Overview card) | `GET /admin/security/events` | session token of an owner or admin |
+| Threat summary (Security events) | `GET /admin/security/threats/{org_id}` | session token of an owner or admin, on a server with [#506](https://github.com/QWED-AI/qwed-verification/issues/506) |
 | Attestation check, document signature check (Record) | `GET /.well-known/jwks.json` | none |
 | Server status (header) and version (footer) | `GET /health` | none |
 | Server screen (Settings) | `GET /health`, `GET /.well-known/jwks.json` | none |
@@ -140,6 +141,8 @@ From [qwed-verification #504](https://github.com/QWED-AI/qwed-verification/issue
 - **Rotation required:** a tag on a key the server flags for rotation, which it does in the 7 days before the key expires.
 
 The side menu names the organisation by its display name, from [#518](https://github.com/QWED-AI/qwed-verification/issues/518). Both are on qwed-verification's main branch and in no release yet. A server before them sends none of these fields, so the screen leaves out the Owner and Expires columns and the menu gives the organisation's id. A session signed in before the upgrade keeps the id until you sign in again.
+
+**Settings › Security events** opens with the server's **threat summary** for the last 24 hours ([qwed-verification #506](https://github.com/QWED-AI/qwed-verification/issues/506), on its main branch and in no release yet). It shows the server's threat level (LOW, MEDIUM, HIGH or CRITICAL), which the server rates from its own thresholds on high-severity events and blocked attempts; the dashboard shows the rating and works none out. It also shows the number of security events, blocked attempts and high-severity events, the failures in the last 10 minutes, the events per security layer, and when the server made the summary. The server counts those recent failures in its own memory, so that count starts again when it restarts. Only owners and admins may see it. A server before #506 takes only an API key there and answers the session with 401 "Missing x-api-key header"; the card says so, and the session stays signed in.
 
 **Settings › Members** lists the users of your organisation, oldest first, as `GET /auth/users` returns them ([qwed-verification #507](https://github.com/QWED-AI/qwed-verification/issues/507), on its main branch and in no release yet). Each row shows the user's email, with your own marked "(you)", their role, whether they are active, and when they joined. Deactivated users stay listed. The tiles count the active users by role and the deactivated ones apart. The screen only reads, as the route does: inviting users and changing roles are not part of it. Only owners and admins may list members; a member or viewer is told so. A server before #507 answers 404, and the screen says it needs a release with #507.
 

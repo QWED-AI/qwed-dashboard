@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ApiError, httpApi, sessionNotAccepted } from './http';
+import { ApiError, httpApi, refusedForRole, sessionNotAccepted } from './http';
 
 const json = (body: unknown, status = 200, headers: Record<string, string> = {}) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', ...headers } });
@@ -65,6 +65,26 @@ describe('httpApi API keys', () => {
     const { url, init, headers } = call(fetchMock);
     expect(url).toBe('/api/admin/keys/rotate?key_id=3');
     expect(init.method).toBe('POST');
+    expect(headers.get('Authorization')).toBe('Bearer tok');
+    expect(headers.get('x-api-key')).toBeNull();
+  });
+});
+
+describe('refusedForRole', () => {
+  it('tells the server’s role refusal from its other 403s', () => {
+    expect(refusedForRole(new ApiError(403, 'Insufficient permissions for this operation'))).toBe(true);
+    expect(refusedForRole(new ApiError(403, 'Organization is not active'))).toBe(false);
+    expect(refusedForRole(new ApiError(401, 'Insufficient permissions for this operation'))).toBe(false);
+    expect(refusedForRole(new Error('Insufficient permissions for this operation'))).toBe(false);
+  });
+});
+
+describe('httpApi threat summary', () => {
+  it('asks for the organisation’s summary with the session', async () => {
+    const fetchMock = stubFetch(json({ threat_level: 'LOW' }));
+    await httpApi.threatSummary('tok', '7');
+    const { url, headers } = call(fetchMock);
+    expect(url).toBe('/api/admin/security/threats/7');
     expect(headers.get('Authorization')).toBe('Bearer tok');
     expect(headers.get('x-api-key')).toBeNull();
   });

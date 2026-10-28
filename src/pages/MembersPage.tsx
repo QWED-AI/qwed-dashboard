@@ -1,4 +1,4 @@
-import { ApiError } from '../api/http';
+import { ApiError, refusedForRole } from '../api/http';
 import { useSession } from '../auth/session';
 import { Icon } from '../components/Icon';
 import { RefreshError } from '../components/RefreshError';
@@ -13,15 +13,12 @@ const ROLES = ['owner', 'admin', 'member', 'viewer'] as const;
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
-/** The server's word for a role that may not list members; its other 403s name another reason. */
-const INSUFFICIENT_ROLE = 'Insufficient permissions for this operation';
-
 const refused = (err: unknown): err is ApiError => err instanceof ApiError && err.status === 403;
 
 export function membersError(err: unknown): string {
   if (refused(err)) {
     // An inactive user or organisation is refused too, for its own reason.
-    if (err.message === INSUFFICIENT_ROLE) return 'Only owners and admins can see the organisation’s members.';
+    if (refusedForRole(err)) return 'Only owners and admins can see the organisation’s members.';
     return `The server refused: ${err.message}.`;
   }
   if (err instanceof ApiError && err.status === 404) {
