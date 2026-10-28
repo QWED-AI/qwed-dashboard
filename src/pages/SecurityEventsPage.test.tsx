@@ -200,6 +200,29 @@ describe('SecurityEventsPage', () => {
       expect(screen.queryByText(/does not list members/)).toBeNull();
     });
 
+    it('marks your own events "(you)" by id when the list does not name you', async () => {
+      vi.spyOn(demoApi, 'listSecurityEvents').mockResolvedValue({ events: [event('1', { user_id: 4 })], nextBefore: null });
+      vi.spyOn(demoApi, 'listUsers').mockRejectedValue(new ApiError(404, 'Not Found'));
+      renderApp(<App />, { route: '/security', user: { id: '4' } });
+      await waitFor(() => expect(userCell(rows()[0] as HTMLElement)).toBe('User 4 (you)'));
+    });
+
+    it('stops naming users by email once the members list is refused', async () => {
+      vi.spyOn(demoApi, 'listSecurityEvents').mockResolvedValue({ events: [event('1', { user_id: 2 })], nextBefore: null });
+      vi.spyOn(demoApi, 'listUsers')
+        .mockResolvedValueOnce([
+          { id: '2', email: 'ops@example.com', role: 'member', is_active: true, created_at: '2026-07-22T10:58:00Z' },
+        ])
+        .mockRejectedValue(new ApiError(403, 'Insufficient permissions for this operation'));
+      renderApp(<App />, { route: '/security' });
+      await waitFor(() => expect(userCell(rows()[0] as HTMLElement)).toBe('ops@example.com'));
+      act(() => {
+        focusManager.setFocused(false);
+        focusManager.setFocused(true);
+      });
+      await waitFor(() => expect(userCell(rows()[0] as HTMLElement)).toBe('User 2'));
+    });
+
     it('names the sample events’ user', async () => {
       renderApp(<App />, { route: '/security' });
       await waitFor(() => expect(userCell(rows()[0] as HTMLElement)).toBe('ops@example.com'));

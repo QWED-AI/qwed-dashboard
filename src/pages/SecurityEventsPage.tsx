@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
+import { ApiError } from '../api/http';
 import type { SecurityEvent } from '../api/types';
 import { useSession } from '../auth/session';
 import { Icon } from '../components/Icon';
@@ -16,10 +17,9 @@ const LIMIT = 50;
 function EventUser({ id, emails, self }: Readonly<{ id: number | null; emails: Map<string, string>; self: string | undefined }>) {
   if (id === null) return <>not recorded</>;
   const email = emails.get(String(id));
-  if (email === undefined) return <>User {id}</>;
   return (
     <>
-      <bdi>{email}</bdi>
+      {email === undefined ? <>User {id}</> : <bdi>{email}</bdi>}
       {String(id) === self && (
         <>
           {' '}
@@ -79,7 +79,13 @@ export function SecurityEventsPage() {
   // #507, say), users are named by id.
   const { user } = useSession();
   const members = useAuthedQuery(['users'], (api, token) => api.listUsers(token));
-  const emails = useMemo(() => new Map((members.data ?? []).map((u) => [u.id, u.email])), [members.data]);
+  // A refusal (403) on a refresh leaves the list loaded before; its emails
+  // are not shown once the server refuses the list.
+  const membersRefused = members.error instanceof ApiError && members.error.status === 403;
+  const emails = useMemo(
+    () => new Map(membersRefused ? [] : (members.data ?? []).map((u) => [u.id, u.email])),
+    [members.data, membersRefused],
+  );
   // The types to filter by: the ones the server is known to write, every type
   // seen on this page so far, and the chosen one. The list is kept, so with
   // one type chosen (and only its events loaded) the others stay to pick.
