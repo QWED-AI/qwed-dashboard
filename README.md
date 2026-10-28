@@ -114,6 +114,7 @@ The release workflow then checks that the tag matches `package.json`, runs the t
 | Overview, Decision ledger, Batch job | `GET /audit/logs` | session token |
 | Record | `GET /audit/logs/{id}` | session token |
 | API keys | `GET`, `POST /auth/api-keys`, `DELETE /auth/api-keys/{id}` | session token |
+| Rotate a key (API keys) | `POST /admin/keys/rotate?key_id={id}` | session token, on a server with [#505](https://github.com/QWED-AI/qwed-verification/issues/505) |
 | Audit chain entry check | `GET /admin/compliance/verify/{id}` | session token of an owner or admin |
 | Whole-chain check (Overview) | `GET /admin/compliance/verify-trail` | session token of an owner or admin |
 | 90-day activity summary (Overview, on request) | `GET /admin/compliance/report/soc2/{org_id}` | session token of an owner or admin |
@@ -131,6 +132,8 @@ The release workflow then checks that the tag matches `package.json`, runs the t
 The header names the server and its version, from `GET /health`, asked again every minute and when the tab regains focus. A server older than qwed-verification 8.0.0 gets a note saying which views need 8.0.0. When the server cannot be reached, the header says so; each screen already says what it could not load. When something else answers, such as a page that is not JSON because `/api` is not routed to QWED, or an error status, the header says the check failed, and the footer gives the reason. The version only picks this wording; it never changes a verdict or an admission the dashboard shows. The footer gives the dashboard's version, the server's version and address, and the project's links.
 
 The API keys screen shows when each key was last used. qwed-verification records it from [#486](https://github.com/QWED-AI/qwed-verification/issues/486), at most once a minute per key; on an older server every key reads "No use recorded". The security events screen needs #486 too.
+
+**Rotate**, next to Revoke on each key, asks the server to revoke the key and make a new one in its place, named after it ("<name> (Rotated)"). Callers still sending the old key are refused until they have the new one, and the confirmation says so. The new key is shown once, with Copy, as a created key is. Only one full key can be shown, so while one is shown and not yet saved, Create and Rotate of another key wait, and so do they while a key is being made. The server's rules apply: anyone but a viewer can rotate their own key, and an owner or admin can rotate another user's key, but not one whose owner ranks higher. The key list does not say who owns a key, so the dashboard offers Rotate on every key to anyone but a viewer, and shows the server's reason when it refuses. The route takes the signed-in session from [qwed-verification #505](https://github.com/QWED-AI/qwed-verification/issues/505), which is on its main branch and in no release yet. An older server, 8.0.0 included, takes only an API key there; the dashboard says so, and the session stays signed in.
 
 The Overview counts the newest 200 records the server returns, over the 24 hours or 7 days up to the newest record. When older records in that range are not loaded, it says how far back the counts reach. It groups the stored verdicts and admissions; it never works either out.
 
