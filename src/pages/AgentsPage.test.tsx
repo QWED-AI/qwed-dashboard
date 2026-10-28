@@ -258,6 +258,47 @@ describe('AgentPage', () => {
     expect(screen.getByRole('button', { name: 'Show the newest 200' })).toBeTruthy();
   });
 
+  it('keeps the newer 50 while this visit’s request for 200 runs and after it fails', async () => {
+    const user = userEvent.setup();
+    const named = (prefix: string, n: number) =>
+      activity({
+        activities: Array.from({ length: n }, (_, i) => ({
+          type: 'tool_call_success',
+          description: `${prefix} ${i}`,
+          status: 'success',
+          cost: 0,
+          timestamp: `2026-10-20T09:00:${String(59 - (i % 60)).padStart(2, '0')}+00:00`,
+        })),
+      });
+    vi.spyOn(demoApi, 'listAgents').mockResolvedValue([agent(3)]);
+    let visit = 1;
+    let failSecond: (e: unknown) => void = () => undefined;
+    vi.spyOn(demoApi, 'agentActivity').mockImplementation((_t, _id, limit) => {
+      if (limit === 50) return Promise.resolve(named(visit === 1 ? 'old' : 'new', 50));
+      // The first request for 200 answers; the one on the return visit fails.
+      return visit === 1 ? Promise.resolve(named('old', 120)) : new Promise((_, reject) => (failSecond = reject));
+    });
+    renderApp(<App />, { route: '/agents/3' });
+    await user.click(await screen.findByRole('button', { name: 'Show the newest 200' }));
+    expect(await screen.findByText('old 119')).toBeTruthy();
+    visit = 2;
+    const back = screen.getAllByRole('link', { name: 'Agents' }).find((a) => a.classList.contains('btn'));
+    if (!back) throw new Error('No back link');
+    await user.click(back);
+    await user.click(await screen.findByRole('link', { name: 'agent-3' }));
+    expect(await screen.findByText('new 0')).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Show the newest 200' }));
+    // While it runs, the 200 cached from the first visit stay out of view.
+    expect(await screen.findByRole('button', { name: 'Loading…' })).toBeTruthy();
+    expect(screen.getByText('new 0')).toBeTruthy();
+    expect(screen.queryByText('old 119')).toBeNull();
+    // A 4xx is not retried, so the test does not wait out the retry delays.
+    await act(async () => failSecond(new ApiError(429, 'Too many requests')));
+    expect((await screen.findByRole('alert')).textContent).toMatch(/^The newest 200 could not be loaded, so the newest 50 are shown\./);
+    expect(screen.getByText('new 0')).toBeTruthy();
+    expect(screen.queryByText('old 119')).toBeNull();
+  });
+
   it('carries no refusal over to another agent’s cached activity', async () => {
     const user = userEvent.setup();
     let agent4Calls = 0;

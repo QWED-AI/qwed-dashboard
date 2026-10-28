@@ -25,7 +25,9 @@ export function AgentPage() {
 }
 
 function AgentActivity({ agentId }: Readonly<{ agentId: string }>) {
-  const [wantMost, setWantMost] = useState(false);
+  // When the newest 200 were asked for on this visit, or null.
+  const [askedAt, setAskedAt] = useState<number | null>(null);
+  const wantMost = askedAt !== null;
   const first = useAuthedQuery(['agent-activity', agentId, FIRST], (api, token) =>
     api.agentActivity(token, agentId, FIRST),
   );
@@ -36,10 +38,13 @@ function AgentActivity({ agentId }: Readonly<{ agentId: string }>) {
   // either request hides it, whichever was shown.
   const firstRefused = useRefused(first);
   const mostRefusedEver = useRefused(most);
-  // The 200 count only once asked for on this visit: one cached from an
-  // earlier visit would hide newer activity the 50 bring.
-  const mostRefused = wantMost && mostRefusedEver;
-  const mostData = wantMost ? most.data : undefined;
+  // The 200 count only once this visit's request for them has answered: 200
+  // cached from an earlier visit would hide newer activity the 50 bring, so
+  // the 50 stay shown while that request runs and if it fails.
+  const sinceAsked = (at: number) => askedAt !== null && at >= askedAt;
+  const mostRefused = mostRefusedEver && sinceAsked(most.errorUpdatedAt);
+  const mostData = sinceAsked(most.dataUpdatedAt) ? most.data : undefined;
+  const mostFailed = most.isError && sinceAsked(most.errorUpdatedAt);
   const data = firstRefused || mostRefused ? undefined : (mostData ?? first.data);
   // The request whose activity is shown, or whose refusal hides it.
   let activity = first;
@@ -157,13 +162,13 @@ function AgentActivity({ agentId }: Readonly<{ agentId: string }>) {
                     type="button"
                     className="btn btn-sm"
                     disabled={most.isFetching}
-                    onClick={() => (wantMost ? most.refetch() : setWantMost(true))}
+                    onClick={() => (wantMost ? most.refetch() : setAskedAt(Date.now()))}
                   >
                     {most.isFetching ? 'Loading…' : `Show the newest ${MOST}`}
                   </button>
                 )}
               </div>
-              {wantMost && most.isError && !mostData && !mostRefused && (
+              {mostFailed && !mostData && !mostRefused && (
                 <p className="note" role="alert" style={{ margin: '0 24px 16px' }}>
                   The newest {MOST} could not be loaded, so the newest {data.activities.length} are shown.{' '}
                   {activityError(most.error)}
