@@ -196,6 +196,35 @@ describe('AgentPage', () => {
     expect(screen.getByRole('button', { name: 'Show the newest 200' })).toBeTruthy();
   });
 
+  it('hides the newest 200 too when a refresh of the 50 is refused', async () => {
+    const user = userEvent.setup();
+    const rows = (n: number) =>
+      activity({
+        activities: Array.from({ length: n }, (_, i) => ({
+          type: 'tool_call_success',
+          description: `call ${i}`,
+          status: 'success',
+          cost: 0,
+          timestamp: `2026-10-20T09:00:${String(59 - (i % 60)).padStart(2, '0')}+00:00`,
+        })),
+      });
+    let fiftyCalls = 0;
+    vi.spyOn(demoApi, 'agentActivity').mockImplementation((_t, _id, limit) => {
+      if (limit === 200) return Promise.resolve(rows(120));
+      fiftyCalls += 1;
+      return fiftyCalls === 1
+        ? Promise.resolve(rows(50))
+        : Promise.reject(new ApiError(403, 'Insufficient permissions for this operation'));
+    });
+    renderApp(<App />, { route: '/agents/3' });
+    await user.click(await screen.findByRole('button', { name: 'Show the newest 200' }));
+    expect(await screen.findByText('call 119')).toBeTruthy();
+    refocus();
+    expect(await screen.findByText('Only owners and admins can see the organisation’s agents.')).toBeTruthy();
+    expect(screen.queryByText('call 119')).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Activity' })).toBeNull();
+  });
+
   it('shows a small cost as the server stored it', async () => {
     vi.spyOn(demoApi, 'agentActivity').mockResolvedValue(
       activity({

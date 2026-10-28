@@ -1,12 +1,11 @@
 import { useState } from 'react';
-import { ApiError } from '../api/http';
 import { Link, useParams } from 'react-router';
 import { Icon } from '../components/Icon';
 import { RefreshError } from '../components/RefreshError';
 import { Shell } from '../components/Shell';
 import { agentsError, cost, NO_SUCH_AGENT, statusClass } from '../lib/agents';
 import { formatUtcLong } from '../lib/format';
-import { useAuthedQuery, useDataUnlessRefused } from '../lib/useAuthedQuery';
+import { useAuthedQuery, useRefused } from '../lib/useAuthedQuery';
 
 // One agent's activity (#72), from GET /agents/{agent_id}/activity read with
 // the owner's session (qwed-verification #527), newest first. The route
@@ -28,13 +27,14 @@ export function AgentPage() {
     enabled: wantMost,
   });
   // A failed refresh keeps the activity loaded before; a refusal (403) of
-  // either request does not.
-  const firstData = useDataUnlessRefused(first);
-  const mostData = useDataUnlessRefused(most);
-  const mostRefused = most.error instanceof ApiError && most.error.status === 403;
-  const data = mostRefused ? undefined : (mostData ?? firstData);
+  // either request hides it, whichever was shown.
+  const firstRefused = useRefused(first);
+  const mostRefused = useRefused(most);
+  const mostData = most.data;
+  const data = firstRefused || mostRefused ? undefined : (mostData ?? first.data);
   // The request whose activity is shown, or whose refusal hides it.
-  const activity = mostRefused || mostData ? most : first;
+  let activity = first;
+  if (mostRefused || (!firstRefused && mostData)) activity = most;
 
   return (
     <Shell crumbs={[{ label: 'Agents', to: '/agents' }, { label: data?.agent_name ?? 'Agent' }]}>
