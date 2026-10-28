@@ -133,6 +133,13 @@ The header names the server and its version, from `GET /health`, asked again eve
 
 The API keys screen shows when each key was last used. qwed-verification records it from [#486](https://github.com/QWED-AI/qwed-verification/issues/486), at most once a minute per key; on an older server every key reads "No use recorded". The security events screen needs #486 too.
 
+From [qwed-verification #504](https://github.com/QWED-AI/qwed-verification/issues/504), the API keys screen also shows:
+- **Owner:** whose key each one is, by email, with your own marked "(you)". Owners and admins see every key in their organisation, members and viewers only their own. A key the server names no user for reads "No user".
+- **Expires:** when the key stops working, or "Never". A key past its expiry is marked Expired; the server refuses it.
+- **Rotation required:** a tag on a key the server flags for rotation, which it does in the 7 days before the key expires.
+
+The side menu names the organisation by its display name, from [#518](https://github.com/QWED-AI/qwed-verification/issues/518). Both are on qwed-verification's main branch and in no release yet. A server before them sends none of these fields, so the screen leaves out the Owner and Expires columns and the menu gives the organisation's id. A session signed in before the upgrade keeps the id until you sign in again.
+
 **Rotate**, next to Revoke on each key, asks the server to revoke the key and make a new one in its place, named after it ("<name> (Rotated)"). Callers still sending the old key are refused until they have the new one, and the confirmation says so. The new key is shown once, with Copy, as a created key is. Only one full key can be shown, so while one is shown and not yet saved, Create and Rotate of another key wait, and so do they while a key is being made. The server's rules apply: anyone but a viewer can rotate their own key, and an owner or admin can rotate another user's key, but not one whose owner ranks higher. The key list does not say who owns a key, so the dashboard offers Rotate on every key to anyone but a viewer, and shows the server's reason when it refuses. The route takes the signed-in session from [qwed-verification #505](https://github.com/QWED-AI/qwed-verification/issues/505), which is on its main branch and in no release yet. An older server, 8.0.0 included, takes only an API key there; the dashboard says so, and the session stays signed in.
 
 The Overview counts the newest 200 records the server returns, over the 24 hours or 7 days up to the newest record. When older records in that range are not loaded, it says how far back the counts reach. It groups the stored verdicts and admissions; it never works either out.
