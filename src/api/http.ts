@@ -6,6 +6,7 @@ import type {
   AuditLog,
   AuditLogList,
   OrgUser,
+  ThreatSummary,
   AuditLogPage,
   ComplianceAuth,
   EntryCheck,
@@ -203,6 +204,15 @@ export const httpApi = {
     return request('/.well-known/jwks.json');
   },
 
+  /**
+   * The server's threat summary for the organisation over the last 24 hours
+   * (#68). Owners and admins; the session is taken from qwed-verification
+   * #506, and an older server answers 401 "Missing x-api-key header".
+   */
+  threatSummary(token: string, orgId: string): Promise<ThreatSummary> {
+    return request(`/admin/security/threats/${encodeURIComponent(orgId)}`, { headers: bearer(token) });
+  },
+
   /** The organisation's users, oldest first (#66). Owners and admins only; a server before qwed-verification #507 answers 404. */
   listUsers(token: string): Promise<OrgUser[]> {
     return request('/auth/users', { headers: bearer(token) });
@@ -225,6 +235,15 @@ function complianceHeaders(auth: ComplianceAuth): Record<string, string> {
  */
 export function sessionNotAccepted(err: unknown): boolean {
   return err instanceof ApiError && err.status === 401 && err.message === 'Missing x-api-key header';
+}
+
+/**
+ * Whether the server refused for the user's role. Its other 403s name
+ * another reason: an inactive user or organisation, or another
+ * organisation's data.
+ */
+export function refusedForRole(err: unknown): boolean {
+  return err instanceof ApiError && err.status === 403 && err.message === 'Insufficient permissions for this operation';
 }
 
 export type QwedApi = typeof httpApi;

@@ -1,19 +1,22 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
-import { ApiError, type QwedApi } from '../api/http';
+import { ApiError, sessionNotAccepted, type QwedApi } from '../api/http';
 import { useSession } from '../auth/session';
 
 // A 4xx will not change on a retry; anything else gets two more tries.
 const retry = (count: number, err: unknown) =>
   !(err instanceof ApiError && err.status >= 400 && err.status < 500) && count < 2;
 
+// An older server answers a route that takes only API keys with 401
+// "Missing x-api-key header" (see sessionNotAccepted): the session has not
+// ended, so that one does not sign the user out.
 function useSignOutOn401(error: unknown, signOut: () => void) {
   useEffect(() => {
-    if (error instanceof ApiError && error.status === 401) signOut();
+    if (error instanceof ApiError && error.status === 401 && !sessionNotAccepted(error)) signOut();
   }, [error, signOut]);
 }
 
-/** A query that needs the session token. A 401 signs the user out. */
+/** A query that needs the session token. A 401 signs the user out, unless it is an older server refusing the session. */
 export function useAuthedQuery<T>(key: readonly unknown[], fn: (api: QwedApi, token: string) => Promise<T>) {
   const { api, token, mode, user, signOut } = useSession();
   const query = useQuery({

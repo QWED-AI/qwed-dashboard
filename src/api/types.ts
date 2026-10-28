@@ -125,6 +125,21 @@ export interface ApiKeyItem {
   owner?: { id: string; email: string } | null;
 }
 
+/** GET /admin/security/threats/{org_id} (#68). The threat level is the server's rating. */
+export interface ThreatSummary {
+  organization_id: number;
+  period_hours: number;
+  threat_level: string;
+  metrics: {
+    total_events: number;
+    blocked_attempts: number;
+    high_severity_events: number;
+    recent_failures_10min: number;
+  };
+  security_layer_breakdown: Record<string, number>;
+  generated_at: string;
+}
+
 /** GET /auth/users (qwed-verification #507): one user of the organisation. Owners and admins only. */
 export interface OrgUser {
   id: string;

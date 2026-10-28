@@ -4,6 +4,7 @@ import type { SecurityEvent } from '../api/types';
 import { Icon } from '../components/Icon';
 import { RefreshError } from '../components/RefreshError';
 import { Shell } from '../components/Shell';
+import { ThreatSummary } from '../components/ThreatSummary';
 import { formatUtc } from '../lib/format';
 import { securityEventsError, TYPE_LABEL, typeLabel } from '../lib/securityEvents';
 import { describeError, useSecurityEventPages } from '../lib/useAuthedQuery';
@@ -85,6 +86,8 @@ export function SecurityEventsPage() {
           </p>
         </div>
       </div>
+
+      <ThreatSummary />
 
       {events.isPending && (
         <div className="state" aria-busy="true">

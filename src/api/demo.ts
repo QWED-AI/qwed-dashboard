@@ -9,6 +9,7 @@ import type {
   AuditLog,
   EntryCheck,
   OrgUser,
+  ThreatSummary,
   Jwks,
   SecurityEvent,
   ServerHealth,
@@ -443,6 +444,20 @@ export const demoApi: QwedApi = {
   async getLog(_token, id) {
     await wait(150);
     return find(id);
+  },
+  // The server's summary of the sample events in the 24 hours up to the
+  // newest sample row: one high-severity event, which its thresholds rate
+  // MEDIUM.
+  async threatSummary(): Promise<ThreatSummary> {
+    await wait(200);
+    return {
+      organization_id: 0,
+      period_hours: 24,
+      threat_level: 'MEDIUM',
+      metrics: { total_events: 1, blocked_attempts: 0, high_severity_events: 1, recent_failures_10min: 0 },
+      security_layer_breakdown: {},
+      generated_at: '2026-10-20T10:00:00+00:00',
+    };
   },
   async listUsers(): Promise<OrgUser[]> {
     await wait(200);
