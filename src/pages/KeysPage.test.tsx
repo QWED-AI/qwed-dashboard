@@ -253,6 +253,13 @@ describe('KeysPage', () => {
       await user.type(screen.getByLabelText('New key name'), 'meanwhile');
       expect(disabled('Create key')).toBe(true);
       expect(disabled('Rotate payments-agent prod')).toBe(true);
+      // Opening a Revoke would reset the rotation and free Create before the
+      // rotation's secret arrives, so it waits too.
+      expect(disabled('Revoke payments-agent prod')).toBe(true);
+      await user.click(screen.getByRole('button', { name: 'Revoke payments-agent prod' }));
+      expect(screen.queryByText('Calls with this key will fail.')).toBeNull();
+      expect(screen.getByRole('button', { name: 'Rotating…' })).toBeTruthy();
+      expect(disabled('Create key')).toBe(true);
 
       finish({ oldKeyId: '1', newKeyId: '99', newKeyPreview: 'qwed_test_****abcd', newKey: 'qwed_test_secret' });
       expect(await screen.findByText('invoice pipeline was rotated. The old key no longer works.')).toBeTruthy();

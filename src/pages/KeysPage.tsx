@@ -103,8 +103,13 @@ export function KeysPage() {
   // each make a key overlap.
   const busy = create.isPending || rotate.isPending;
   const holdsOther = (id: string | null) => created !== null && created.id !== id;
+  // Opening another confirmation resets the mutations, and a reset clears
+  // isPending without stopping the request, so no row action opens while one
+  // runs.
+  const acting = busy || revoke.isPending;
 
   function ask(id: string, action: Confirm['action']) {
+    if (acting) return;
     revoke.reset();
     rotate.reset();
     setConfirm({ id, action });
@@ -283,13 +288,19 @@ export function KeysPage() {
                             type="button"
                             className="btn btn-sm"
                             aria-label={`Rotate ${k.name}`}
-                            disabled={busy || holdsOther(k.id)}
+                            disabled={acting || holdsOther(k.id)}
                             onClick={() => ask(k.id, 'rotate')}
                           >
                             Rotate
                           </button>
                         )}
-                        <button type="button" className="btn btn-sm" aria-label={`Revoke ${k.name}`} onClick={() => ask(k.id, 'revoke')}>
+                        <button
+                          type="button"
+                          className="btn btn-sm"
+                          aria-label={`Revoke ${k.name}`}
+                          disabled={acting}
+                          onClick={() => ask(k.id, 'revoke')}
+                        >
                           Revoke
                         </button>
                       </span>
