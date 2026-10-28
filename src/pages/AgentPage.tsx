@@ -19,6 +19,12 @@ const activityError = (err: unknown) => agentsError(err, NO_SUCH_AGENT);
 
 export function AgentPage() {
   const { agentId = '' } = useParams();
+  // Keyed by the agent: moving to another agent starts its page afresh, with
+  // no request for 200 and no refusal carried over from the last one.
+  return <AgentActivity key={agentId} agentId={agentId} />;
+}
+
+function AgentActivity({ agentId }: Readonly<{ agentId: string }>) {
   const [wantMost, setWantMost] = useState(false);
   const first = useAuthedQuery(['agent-activity', agentId, FIRST], (api, token) =>
     api.agentActivity(token, agentId, FIRST),
@@ -29,8 +35,11 @@ export function AgentPage() {
   // A failed refresh keeps the activity loaded before; a refusal (403) of
   // either request hides it, whichever was shown.
   const firstRefused = useRefused(first);
-  const mostRefused = useRefused(most);
-  const mostData = most.data;
+  const mostRefusedEver = useRefused(most);
+  // The 200 count only once asked for on this visit: one cached from an
+  // earlier visit would hide newer activity the 50 bring.
+  const mostRefused = wantMost && mostRefusedEver;
+  const mostData = wantMost ? most.data : undefined;
   const data = firstRefused || mostRefused ? undefined : (mostData ?? first.data);
   // The request whose activity is shown, or whose refusal hides it.
   let activity = first;
@@ -154,7 +163,7 @@ export function AgentPage() {
                   </button>
                 )}
               </div>
-              {most.isError && !mostData && !mostRefused && (
+              {wantMost && most.isError && !mostData && !mostRefused && (
                 <p className="note" role="alert" style={{ margin: '0 24px 16px' }}>
                   The newest {MOST} could not be loaded, so the newest {data.activities.length} are shown.{' '}
                   {activityError(most.error)}

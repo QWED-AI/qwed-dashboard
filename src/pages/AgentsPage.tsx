@@ -25,7 +25,7 @@ export function AgentsPage() {
           <h1 className="h1">Agents</h1>
           <p className="sub">
             The agents registered in your organisation, oldest first, as the server lists them, whatever their status.
-            Open one to see what it did. The server never returns an agent’s token.
+            Open one to see what it did. The dashboard never displays an agent’s token.
           </p>
         </div>
       </div>

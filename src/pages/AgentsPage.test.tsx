@@ -3,12 +3,14 @@ import { focusManager } from '@tanstack/react-query';
 import { act, cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { Link, Route, Routes } from 'react-router';
 import { App } from '../App';
 import { demoApi } from '../api/demo';
 import { ApiError } from '../api/http';
 import type { AgentActivity, AgentSummary } from '../api/types';
 import { renderApp, SESSION_KEY } from '../test/render';
 import { expectStackedTable } from '../test/table';
+import { AgentPage } from './AgentPage';
 
 afterEach(() => {
   cleanup();
@@ -223,6 +225,71 @@ describe('AgentPage', () => {
     expect(await screen.findByText('Only owners and admins can see the organisation’s agents.')).toBeTruthy();
     expect(screen.queryByText('call 119')).toBeNull();
     expect(screen.queryByRole('region', { name: 'Activity' })).toBeNull();
+  });
+
+  it('shows the newer 50 on a return visit, not the 200 cached from before', async () => {
+    const user = userEvent.setup();
+    const named = (prefix: string, n: number) =>
+      activity({
+        activities: Array.from({ length: n }, (_, i) => ({
+          type: 'tool_call_success',
+          description: `${prefix} ${i}`,
+          status: 'success',
+          cost: 0,
+          timestamp: `2026-10-20T09:00:${String(59 - (i % 60)).padStart(2, '0')}+00:00`,
+        })),
+      });
+    vi.spyOn(demoApi, 'listAgents').mockResolvedValue([agent(3)]);
+    let visit = 1;
+    vi.spyOn(demoApi, 'agentActivity').mockImplementation((_t, _id, limit) =>
+      Promise.resolve(limit === 200 ? named('old', 120) : named(visit === 1 ? 'old' : 'new', 50)),
+    );
+    renderApp(<App />, { route: '/agents/3' });
+    await user.click(await screen.findByRole('button', { name: 'Show the newest 200' }));
+    expect(await screen.findByText('old 119')).toBeTruthy();
+    visit = 2;
+    // The page's own back link, not the menu's.
+    const back = screen.getAllByRole('link', { name: 'Agents' }).find((a) => a.classList.contains('btn'));
+    if (!back) throw new Error('No back link');
+    await user.click(back);
+    await user.click(await screen.findByRole('link', { name: 'agent-3' }));
+    expect(await screen.findByText('new 0')).toBeTruthy();
+    expect(screen.queryByText('old 119')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Show the newest 200' })).toBeTruthy();
+  });
+
+  it('carries no refusal over to another agent’s cached activity', async () => {
+    const user = userEvent.setup();
+    let agent4Calls = 0;
+    vi.spyOn(demoApi, 'agentActivity').mockImplementation((_t, id) => {
+      if (id === '3') return Promise.reject(new ApiError(403, 'Insufficient permissions for this operation'));
+      agent4Calls += 1;
+      // Agent 4 loads once; its refresh on the return never answers, so only
+      // the activity cached before agent 3's refusal can be shown.
+      return agent4Calls === 1 ? Promise.resolve(activity({ agent_id: 4, agent_name: 'agent-4' })) : new Promise(() => undefined);
+    });
+    renderApp(
+      <Routes>
+        <Route
+          path="/agents/:agentId"
+          element={
+            <>
+              <AgentPage />
+              <Link to="/agents/3">agent three</Link>
+              <Link to="/agents/4">agent four</Link>
+            </>
+          }
+        />
+      </Routes>,
+      { route: '/agents/4' },
+    );
+    expect(await screen.findByRole('heading', { name: 'agent-4', level: 1 })).toBeTruthy();
+    await user.click(screen.getByRole('link', { name: 'agent three' }));
+    expect(await screen.findByText('Only owners and admins can see the organisation’s agents.')).toBeTruthy();
+    await user.click(screen.getByRole('link', { name: 'agent four' }));
+    expect(await screen.findByRole('heading', { name: 'agent-4', level: 1 })).toBeTruthy();
+    expect(await rowOf('Activity', 'Tool call blocked')).toBeTruthy();
+    expect(screen.queryByText(/Only owners and admins/)).toBeNull();
   });
 
   it('shows a small cost as the server stored it', async () => {
