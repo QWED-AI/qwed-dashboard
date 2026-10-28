@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { cleanup, screen, waitFor, within } from '@testing-library/react';
+import { focusManager } from '@tanstack/react-query';
+import { act, cleanup, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../App';
 import { demoApi } from '../api/demo';
@@ -12,6 +13,7 @@ import { MembersPage } from './MembersPage';
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  focusManager.setFocused(undefined);
 });
 
 const member = (id: string, extra: Partial<OrgUser> = {}): OrgUser => ({
@@ -85,11 +87,50 @@ describe('MembersPage', () => {
   });
 
   it('tells a member or viewer that only owners and admins can see members', async () => {
-    vi.spyOn(demoApi, 'listUsers').mockRejectedValue(new ApiError(403, 'Insufficient permissions'));
+    vi.spyOn(demoApi, 'listUsers').mockRejectedValue(new ApiError(403, 'Insufficient permissions for this operation'));
     renderApp(<MembersPage />, { role: 'member' });
     expect((await screen.findByRole('alert')).textContent).toMatch(
       /Only owners and admins can see the organisation’s members\./,
     );
+  });
+
+  it('gives the server’s reason for any other refusal', async () => {
+    vi.spyOn(demoApi, 'listUsers').mockRejectedValue(new ApiError(403, 'Organization is not active'));
+    renderApp(<MembersPage />);
+    const alert = (await screen.findByRole('alert')).textContent;
+    expect(alert).toMatch(/The server refused: Organization is not active\./);
+    expect(alert).not.toMatch(/Only owners and admins/);
+  });
+
+  it('keeps the members it showed when a refresh fails, and says they may be out of date', async () => {
+    vi.spyOn(demoApi, 'listUsers')
+      .mockResolvedValueOnce([member('1')])
+      // A 4xx is not retried, so the test does not wait out the retry delays.
+      .mockRejectedValue(new ApiError(429, 'Too many requests'));
+    renderApp(<MembersPage />);
+    await rowOf('user1@example.com');
+    act(() => {
+      focusManager.setFocused(false);
+      focusManager.setFocused(true);
+    });
+    expect(await screen.findByText(/The members could not be refreshed, so what you see may be out of date\./)).toBeTruthy();
+    expect(await rowOf('user1@example.com')).toBeTruthy();
+  });
+
+  it('hides the members it showed when a refresh is refused, with the reason', async () => {
+    vi.spyOn(demoApi, 'listUsers')
+      .mockResolvedValueOnce([member('1')])
+      .mockRejectedValue(new ApiError(403, 'Insufficient permissions for this operation'));
+    renderApp(<MembersPage />);
+    await rowOf('user1@example.com');
+    act(() => {
+      focusManager.setFocused(false);
+      focusManager.setFocused(true);
+    });
+    expect(await screen.findByText('The members could not be loaded')).toBeTruthy();
+    expect(screen.getByText('Only owners and admins can see the organisation’s members.')).toBeTruthy();
+    expect(screen.queryByRole('region', { name: 'Members' })).toBeNull();
+    expect(screen.queryByText(/could not be refreshed/)).toBeNull();
   });
 
   it('says an older server does not list members', async () => {

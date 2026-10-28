@@ -13,8 +13,17 @@ const ROLES = ['owner', 'admin', 'member', 'viewer'] as const;
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
+/** The server's word for a role that may not list members; its other 403s name another reason. */
+const INSUFFICIENT_ROLE = 'Insufficient permissions for this operation';
+
+const refused = (err: unknown): err is ApiError => err instanceof ApiError && err.status === 403;
+
 export function membersError(err: unknown): string {
-  if (err instanceof ApiError && err.status === 403) return 'Only owners and admins can see the organisation’s members.';
+  if (refused(err)) {
+    // An inactive user or organisation is refused too, for its own reason.
+    if (err.message === INSUFFICIENT_ROLE) return 'Only owners and admins can see the organisation’s members.';
+    return `The server refused: ${err.message}.`;
+  }
   if (err instanceof ApiError && err.status === 404) {
     return 'This server does not list members. That needs a qwed-verification release with #507.';
   }
@@ -24,7 +33,10 @@ export function membersError(err: unknown): string {
 export function MembersPage() {
   const { user } = useSession();
   const users = useAuthedQuery(['users'], (api, token) => api.listUsers(token));
-  const list = users.data ?? [];
+  // A failed refresh keeps the members loaded before, marked as maybe out of
+  // date; a refusal (403) does not, as the signed-in user may no longer see them.
+  const shown = refused(users.error) ? undefined : users.data;
+  const list = shown ?? [];
   const active = list.filter((u) => u.is_active);
   // A role the dashboard does not know is counted apart, as stored.
   const roleCount = (role: string) => active.filter((u) => u.role === role).length;
@@ -50,7 +62,7 @@ export function MembersPage() {
         </div>
       )}
 
-      {users.isError && !users.data && (
+      {users.isError && !shown && (
         <div className="state" role="alert">
           <span className="state-icon">
             <Icon name="alert" size={20} />
@@ -65,16 +77,18 @@ export function MembersPage() {
         </div>
       )}
 
-      {users.isRefetchError && <RefreshError what="The members" error={users.error} onRetry={() => users.refetch()} />}
+      {users.isRefetchError && shown && (
+        <RefreshError what="The members" error={users.error} onRetry={() => users.refetch()} formatError={membersError} />
+      )}
 
-      {users.isSuccess && list.length === 0 && (
+      {shown && list.length === 0 && (
         <div className="state">
           <h2>No members listed</h2>
           <p className="sub">The server listed no users for your organisation.</p>
         </div>
       )}
 
-      {users.isSuccess && list.length > 0 && (
+      {shown && list.length > 0 && (
         <div className="overview">
           <section aria-label="Members by role" className="tiles">
             <div className="card tile">
