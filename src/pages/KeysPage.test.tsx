@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { demoApi } from '../api/demo';
@@ -156,6 +156,25 @@ describe('KeysPage', () => {
       expect(future.queryByText('Expired')).toBeNull();
       expect((await rowOf('key 3')).getByRole('cell', { name: 'Expired 2020-01-02 03:04:05 UTC' })).toBeTruthy();
       expect(screen.getByRole('columnheader', { name: 'Expires (UTC)' })).toBeTruthy();
+    });
+
+    it('marks a key Expired when it expires while the page is open', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        vi.setSystemTime(new Date('2030-01-01T00:00:00Z'));
+        vi.spyOn(demoApi, 'listKeys').mockResolvedValue([
+          key('1', { expires_at: '2030-01-01T00:01:00Z', rotation_required: false, owner: null }),
+        ]);
+        renderApp(<KeysPage />);
+        const row = await rowOf('key 1');
+        expect(row.getByRole('cell', { name: '2030-01-01 00:01:00 UTC' })).toBeTruthy();
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(61_000);
+        });
+        expect(row.getByRole('cell', { name: 'Expired 2030-01-01 00:01:00 UTC' })).toBeTruthy();
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it('tags a key the server flags for rotation, and no other', async () => {

@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
-import { useState, type SubmitEvent } from 'react';
+import { useEffect, useState, type SubmitEvent } from 'react';
 import { ApiError, sessionNotAccepted } from '../api/http';
 import type { ApiKeyItem } from '../api/types';
 import { useSession } from '../auth/session';
@@ -33,6 +33,29 @@ interface OneTimeKey {
 }
 
 type Confirm = { id: string; action: 'revoke' | 'rotate' };
+
+// The longest delay setTimeout takes (about 24.8 days); a later expiry is
+// waited for in steps.
+const MAX_DELAY = 2_147_483_647;
+
+/**
+ * The time now, moved on when the next of `times` passes, so a key that
+ * expires while the page is open is marked Expired then, not at the next
+ * render. The timer goes with the page.
+ */
+function useNowPast(times: readonly (string | null | undefined)[]): number {
+  const [now, setNow] = useState(() => Date.now());
+  const ahead = times
+    .map((t) => (t ? parseUtc(t)?.getTime() : undefined))
+    .filter((t): t is number => t !== undefined && t > now);
+  const next = Math.min(...ahead);
+  useEffect(() => {
+    if (!Number.isFinite(next)) return;
+    const id = setTimeout(() => setNow(Date.now()), Math.min(Math.max(next - Date.now(), 0) + 1, MAX_DELAY));
+    return () => clearTimeout(id);
+  }, [next, now]);
+  return now;
+}
 
 /** When a key stops working (#504). The server refuses a key past its expiry. */
 function Expiry({ at, now }: Readonly<{ at: string | null | undefined; now: number }>) {
@@ -136,7 +159,7 @@ export function KeysPage() {
   const listed = keys.data ?? [];
   const showOwner = listed.some((k) => 'owner' in k);
   const showExpiry = listed.some((k) => 'expires_at' in k);
-  const now = Date.now();
+  const now = useNowPast(listed.map((k) => k.expires_at));
 
   const busy = create.isPending || rotate.isPending;
   const holdsOther = (id: string | null) => created !== null && created.id !== id;
