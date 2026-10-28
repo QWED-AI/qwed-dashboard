@@ -346,7 +346,7 @@ let keys: ApiKeyItem[] = [
     is_revoked: false,
     expires_at: '2026-10-20T11:04:00',
     rotation_required: true,
-    owner: { id: 'sample-2', email: 'ops@example.com' },
+    owner: { id: '2', email: 'ops@example.com' },
   },
 ];
 
@@ -354,7 +354,7 @@ let keys: ApiKeyItem[] = [
 // them. One was deactivated and stays listed.
 const users: OrgUser[] = [
   { id: demoUser.id, email: demoUser.email, role: 'owner', is_active: true, created_at: '2026-07-01T09:00:00Z' },
-  { id: 'sample-2', email: 'ops@example.com', role: 'member', is_active: true, created_at: '2026-07-22T10:58:00Z' },
+  { id: '2', email: 'ops@example.com', role: 'member', is_active: true, created_at: '2026-07-22T10:58:00Z' },
   { id: 'sample-3', email: 'security@example.com', role: 'admin', is_active: true, created_at: '2026-08-04T14:12:00Z' },
   { id: 'sample-4', email: 'auditor@example.com', role: 'viewer', is_active: true, created_at: '2026-09-15T08:30:00Z' },
   { id: 'sample-5', email: 'contractor@example.com', role: 'member', is_active: false, created_at: '2026-09-20T16:45:00Z' },
@@ -372,7 +372,7 @@ const securityEvents: SecurityEvent[] = [
     security_layer: null,
     reason: 'Public leak auto-revoked: source=github url=https://example.com/[sample]/config.env',
     query: 'leaked key qwed_live_****Kd3p',
-    user_id: 1,
+    user_id: 2,
   },
   {
     id: '4',
@@ -382,7 +382,7 @@ const securityEvents: SecurityEvent[] = [
     security_layer: null,
     reason: 'Public leak auto-revoked: source=github url=https://example.com/[sample]/notebook.ipynb',
     query: 'leaked key qwed_live_****p2Wt',
-    user_id: 1,
+    user_id: 2,
   },
 ];
 let nextKeyId = 8;

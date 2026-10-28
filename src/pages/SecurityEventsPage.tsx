@@ -1,17 +1,40 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import type { SecurityEvent } from '../api/types';
+import { useSession } from '../auth/session';
 import { Icon } from '../components/Icon';
 import { RefreshError } from '../components/RefreshError';
 import { Shell } from '../components/Shell';
 import { ThreatSummary } from '../components/ThreatSummary';
 import { formatUtc } from '../lib/format';
 import { securityEventsError, TYPE_LABEL, typeLabel } from '../lib/securityEvents';
-import { describeError, useSecurityEventPages } from '../lib/useAuthedQuery';
+import { describeError, useAuthedQuery, useSecurityEventPages } from '../lib/useAuthedQuery';
 
 const LIMIT = 50;
 
-function EventRow({ event }: Readonly<{ event: SecurityEvent }>) {
+/** Who an event's user is (#70): by email from the members list, or by id when the list does not name them. */
+function EventUser({ id, emails, self }: Readonly<{ id: number | null; emails: Map<string, string>; self: string | undefined }>) {
+  if (id === null) return <>not recorded</>;
+  const email = emails.get(String(id));
+  if (email === undefined) return <>User {id}</>;
+  return (
+    <>
+      <bdi>{email}</bdi>
+      {String(id) === self && (
+        <>
+          {' '}
+          <span className="muted">(you)</span>
+        </>
+      )}
+    </>
+  );
+}
+
+function EventRow({
+  event,
+  emails,
+  self,
+}: Readonly<{ event: SecurityEvent; emails: Map<string, string>; self: string | undefined }>) {
   return (
     <tr>
       <td className="mono num muted cell-small" style={{ fontSize: 12 }} data-label="Time (UTC)">
@@ -36,6 +59,9 @@ function EventRow({ event }: Readonly<{ event: SecurityEvent }>) {
           {event.reason}
         </span>
       </td>
+      <td className="cell-small" data-label="User">
+        <EventUser id={event.user_id} emails={emails} self={self} />
+      </td>
       <td className="muted cell-small" data-label="Layer">
         {event.security_layer ?? 'not recorded'}
       </td>
@@ -48,6 +74,12 @@ export function SecurityEventsPage() {
   const type = params.get('type');
   const events = useSecurityEventPages(LIMIT, type);
   const rows = useMemo(() => (events.data?.pages ?? []).flatMap((p) => p.events), [events.data]);
+  // The members list (#66) names each event's user. Owners and admins see
+  // both; when the list cannot be loaded (a server before qwed-verification
+  // #507, say), users are named by id.
+  const { user } = useSession();
+  const members = useAuthedQuery(['users'], (api, token) => api.listUsers(token));
+  const emails = useMemo(() => new Map((members.data ?? []).map((u) => [u.id, u.email])), [members.data]);
   // The types to filter by: the ones the server is known to write, every type
   // seen on this page so far, and the chosen one. The list is kept, so with
   // one type chosen (and only its events loaded) the others stay to pick.
@@ -151,12 +183,13 @@ export function SecurityEventsPage() {
                     <th scope="col">Event</th>
                     <th scope="col">Severity</th>
                     <th scope="col">Subject · reason</th>
+                    <th scope="col">User</th>
                     <th scope="col">Layer</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map((e) => (
-                    <EventRow key={e.id} event={e} />
+                    <EventRow key={e.id} event={e} emails={emails} self={user?.id} />
                   ))}
                 </tbody>
               </table>

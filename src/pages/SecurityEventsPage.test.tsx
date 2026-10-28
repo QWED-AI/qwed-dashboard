@@ -166,4 +166,44 @@ describe('SecurityEventsPage', () => {
     expect(await screen.findByText(/The security events could not be refreshed/)).toBeTruthy();
     expect(screen.getByText('leaked key 9')).toBeTruthy();
   });
+
+  describe('the user of each event (#70)', () => {
+    const userCell = (row: HTMLElement) => row.querySelector('td[data-label="User"]')?.textContent;
+
+    it('names each user by email from the members list, with you marked', async () => {
+      vi.spyOn(demoApi, 'listSecurityEvents').mockResolvedValue({
+        events: [event('1', { user_id: 2 }), event('2', { user_id: 9 }), event('3', { user_id: null })],
+        nextBefore: null,
+      });
+      vi.spyOn(demoApi, 'listUsers').mockResolvedValue([
+        { id: '2', email: 'ops@example.com', role: 'member', is_active: true, created_at: '2026-07-22T10:58:00Z' },
+        { id: '9', email: 'demo-9@example.com', role: 'owner', is_active: true, created_at: '2026-07-01T09:00:00Z' },
+      ]);
+      renderApp(<App />, { route: '/security', user: { id: '9' } });
+      await waitFor(() => expect(userCell(rows()[0] as HTMLElement)).toBe('ops@example.com'));
+      const [, mine, none] = rows();
+      expect(userCell(mine as HTMLElement)).toBe('demo-9@example.com (you)');
+      expect(userCell(none as HTMLElement)).toBe('not recorded');
+      expect(screen.getByRole('columnheader', { name: 'User' })).toBeTruthy();
+    });
+
+    it('names a user by id when the members list does not name them, or cannot be loaded', async () => {
+      vi.spyOn(demoApi, 'listSecurityEvents').mockResolvedValue({ events: [event('1', { user_id: 4 })], nextBefore: null });
+      const list = vi.spyOn(demoApi, 'listUsers').mockResolvedValue([]);
+      renderApp(<App />, { route: '/security' });
+      await waitFor(() => expect(userCell(rows()[0] as HTMLElement)).toBe('User 4'));
+      cleanup();
+      // A server before qwed-verification #507 has no members list.
+      list.mockRejectedValue(new ApiError(404, 'Not Found'));
+      renderApp(<App />, { route: '/security' });
+      await waitFor(() => expect(userCell(rows()[0] as HTMLElement)).toBe('User 4'));
+      expect(screen.queryByText(/does not list members/)).toBeNull();
+    });
+
+    it('names the sample events’ user', async () => {
+      renderApp(<App />, { route: '/security' });
+      await waitFor(() => expect(userCell(rows()[0] as HTMLElement)).toBe('ops@example.com'));
+      expectStackedTable(screen.getByRole('table'));
+    });
+  });
 });
