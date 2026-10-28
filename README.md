@@ -2,7 +2,7 @@
 
 An open-source web dashboard for [QWED verification](https://github.com/QWED-AI/qwed-verification). It shows what your QWED server verified, as the server stored it: the decision ledger, each record, and whether its audit chain entry is intact.
 
-**Status: early, version 0.x.** It covers sign-in, API keys, an overview, the decision ledger, a record view with its attestation and audit chain checks, and security events. [CHANGELOG.md](CHANGELOG.md) lists what each version has.
+**Status: early, version 0.x.** It covers sign-in, API keys, members, an overview, the decision ledger, a record view with its attestation and audit chain checks, and security events. [CHANGELOG.md](CHANGELOG.md) lists what each version has.
 
 ## What it does and does not do
 
@@ -118,6 +118,7 @@ The release workflow then checks that the tag matches `package.json`, runs the t
 | Audit chain entry check | `GET /admin/compliance/verify/{id}` | session token of an owner or admin |
 | Whole-chain check (Overview) | `GET /admin/compliance/verify-trail` | session token of an owner or admin |
 | 90-day activity summary (Overview, on request) | `GET /admin/compliance/report/soc2/{org_id}` | session token of an owner or admin |
+| Members | `GET /auth/users` | session token of an owner or admin, on a server with [#507](https://github.com/QWED-AI/qwed-verification/issues/507) |
 | Security events (also the Overview card) | `GET /admin/security/events` | session token of an owner or admin |
 | Attestation check, document signature check (Record) | `GET /.well-known/jwks.json` | none |
 | Server status (header) and version (footer) | `GET /health` | none |
@@ -139,6 +140,8 @@ From [qwed-verification #504](https://github.com/QWED-AI/qwed-verification/issue
 - **Rotation required:** a tag on a key the server flags for rotation, which it does in the 7 days before the key expires.
 
 The side menu names the organisation by its display name, from [#518](https://github.com/QWED-AI/qwed-verification/issues/518). Both are on qwed-verification's main branch and in no release yet. A server before them sends none of these fields, so the screen leaves out the Owner and Expires columns and the menu gives the organisation's id. A session signed in before the upgrade keeps the id until you sign in again.
+
+**Settings › Members** lists the users of your organisation, oldest first, as `GET /auth/users` returns them ([qwed-verification #507](https://github.com/QWED-AI/qwed-verification/issues/507), on its main branch and in no release yet). Each row shows the user's email, with your own marked "(you)", their role, whether they are active, and when they joined. Deactivated users stay listed. The tiles count the active users by role and the deactivated ones apart. The screen only reads, as the route does: inviting users and changing roles are not part of it. Only owners and admins may list members; a member or viewer is told so. A server before #507 answers 404, and the screen says it needs a release with #507.
 
 **Rotate**, next to Revoke on each key, asks the server to revoke the key and make a new one in its place, named after it ("<name> (Rotated)"). Callers still sending the old key are refused until they have the new one, and the confirmation says so. The new key is shown once, with Copy, as a created key is. Only one full key can be shown, so while one is shown and not yet saved, Create and Rotate of another key wait, and so do they while a key is being made. The server's rules apply: anyone but a viewer can rotate their own key, and an owner or admin can rotate another user's key, but not one whose owner ranks higher. The key list names a key's owner from qwed-verification #504, but not the owner's role (and a server before #504 names no owner), so the dashboard cannot tell which keys rank higher. It offers Rotate on every key to anyone but a viewer, and shows the server's reason when it refuses. The route takes the signed-in session from [qwed-verification #505](https://github.com/QWED-AI/qwed-verification/issues/505), which is on its main branch and in no release yet. An older server, 8.0.0 included, takes only an API key there; the dashboard says so, and the session stays signed in.
 

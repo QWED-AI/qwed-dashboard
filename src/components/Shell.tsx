@@ -170,6 +170,7 @@ export function Shell({ crumbs, children }: Readonly<{ crumbs: Crumb[]; children
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <div className="grp">Settings</div>
               <NavItem to="/keys" icon="key" label="API keys" onPick={closeMenu} />
+              <NavItem to="/members" icon="users" label="Members" onPick={closeMenu} />
               <NavItem to="/security" icon="shield" label="Security events" onPick={closeMenu} />
               <NavItem to="/server" icon="server" label="Server" onPick={closeMenu} />
             </div>

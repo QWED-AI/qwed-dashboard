@@ -8,6 +8,7 @@ import type {
   ApiKeyRotated,
   AuditLog,
   EntryCheck,
+  OrgUser,
   Jwks,
   SecurityEvent,
   ServerHealth,
@@ -348,6 +349,16 @@ let keys: ApiKeyItem[] = [
   },
 ];
 
+// The sample organisation's users, oldest first, as GET /auth/users lists
+// them. One was deactivated and stays listed.
+const users: OrgUser[] = [
+  { id: demoUser.id, email: demoUser.email, role: 'owner', is_active: true, created_at: '2026-07-01T09:00:00Z' },
+  { id: 'sample-2', email: 'ops@example.com', role: 'member', is_active: true, created_at: '2026-07-22T10:58:00Z' },
+  { id: 'sample-3', email: 'security@example.com', role: 'admin', is_active: true, created_at: '2026-08-04T14:12:00Z' },
+  { id: 'sample-4', email: 'auditor@example.com', role: 'viewer', is_active: true, created_at: '2026-09-15T08:30:00Z' },
+  { id: 'sample-5', email: 'contractor@example.com', role: 'member', is_active: false, created_at: '2026-09-20T16:45:00Z' },
+];
+
 // Sample security events, of the one type the server writes today: a key
 // reported as leaked in public is revoked, and the event names it by its
 // preview only. Key 5 made sample rows 1035 and 1036, then was revoked.
@@ -432,6 +443,10 @@ export const demoApi: QwedApi = {
   async getLog(_token, id) {
     await wait(150);
     return find(id);
+  },
+  async listUsers(): Promise<OrgUser[]> {
+    await wait(200);
+    return users;
   },
   async listKeys() {
     await wait(200);
