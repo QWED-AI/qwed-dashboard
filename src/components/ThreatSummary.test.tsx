@@ -114,6 +114,24 @@ describe('ThreatSummary', () => {
     expect(c.queryByText('LOW')).toBeNull();
   });
 
+  it('keeps the summary hidden after a refusal, even when a later refresh fails otherwise', async () => {
+    const call = vi
+      .spyOn(demoApi, 'threatSummary')
+      .mockResolvedValueOnce(summary())
+      .mockRejectedValueOnce(new ApiError(403, 'Insufficient permissions for this operation'))
+      // A 4xx is not retried, so the test does not wait out the retry delays.
+      .mockRejectedValue(new ApiError(429, 'Too many requests'));
+    renderApp(<SecurityEventsPage />);
+    const c = await card();
+    await c.findByText('LOW');
+    refocus();
+    expect(await c.findByText('Only owners and admins can see the threat summary.')).toBeTruthy();
+    refocus();
+    await waitFor(() => expect(call).toHaveBeenCalledTimes(3));
+    expect(await c.findByText('Too many requests. Try again shortly.')).toBeTruthy();
+    expect(c.queryByText('LOW')).toBeNull();
+  });
+
   it('signs out when the session has ended', async () => {
     vi.spyOn(demoApi, 'threatSummary').mockRejectedValue(new ApiError(401, 'Not authenticated'));
     renderApp(<SecurityEventsPage />);
