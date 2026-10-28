@@ -7,6 +7,7 @@ import { KeysPage } from './pages/KeysPage';
 import { LedgerPage } from './pages/LedgerPage';
 import { LoginPage } from './pages/LoginPage';
 import { RecordPage } from './pages/RecordPage';
+import { MembersPage } from './pages/MembersPage';
 import { SecurityEventsPage } from './pages/SecurityEventsPage';
 import { ServerPage } from './pages/ServerPage';
 
@@ -71,6 +72,14 @@ export function App() {
         element={
           <RequireSession>
             <KeysPage />
+          </RequireSession>
+        }
+      />
+      <Route
+        path="/members"
+        element={
+          <RequireSession>
+            <MembersPage />
           </RequireSession>
         }
       />

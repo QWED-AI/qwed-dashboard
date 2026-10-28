@@ -5,6 +5,7 @@ import type {
   ApiKeyRotated,
   AuditLog,
   AuditLogList,
+  OrgUser,
   AuditLogPage,
   ComplianceAuth,
   EntryCheck,
@@ -200,6 +201,11 @@ export const httpApi = {
   /** The server's public keys for its attestations (#39). No credential: anyone may check one. */
   getJwks(): Promise<Jwks> {
     return request('/.well-known/jwks.json');
+  },
+
+  /** The organisation's users, oldest first (#66). Owners and admins only; a server before qwed-verification #507 answers 404. */
+  listUsers(token: string): Promise<OrgUser[]> {
+    return request('/auth/users', { headers: bearer(token) });
   },
 
   /** The server's health and version (#50). No credential. */

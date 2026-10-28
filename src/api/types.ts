@@ -125,6 +125,16 @@ export interface ApiKeyItem {
   owner?: { id: string; email: string } | null;
 }
 
+/** GET /auth/users (qwed-verification #507): one user of the organisation. Owners and admins only. */
+export interface OrgUser {
+  id: string;
+  email: string;
+  /** owner, admin, member or viewer */
+  role: string;
+  is_active: boolean;
+  created_at: string;
+}
+
 /** POST /auth/api-keys. `key` is the full key, returned this once only. */
 export interface ApiKeyCreated {
   id: string;

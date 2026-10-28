@@ -70,6 +70,17 @@ describe('httpApi API keys', () => {
   });
 });
 
+describe('httpApi members', () => {
+  it('lists the organisation’s users with the session', async () => {
+    const users = [{ id: '1', email: 'a@example.com', role: 'owner', is_active: true, created_at: '2026-10-01T10:00:00Z' }];
+    const fetchMock = stubFetch(json(users));
+    await expect(httpApi.listUsers('tok')).resolves.toEqual(users);
+    const { url, headers } = call(fetchMock);
+    expect(url).toBe('/api/auth/users');
+    expect(headers.get('Authorization')).toBe('Bearer tok');
+  });
+});
+
 describe('request errors', () => {
   it('turns a 2xx that is not JSON into a routing hint', async () => {
     stubFetch(new Response('<!doctype html>', { status: 200, headers: { 'Content-Type': 'text/html' } }));
