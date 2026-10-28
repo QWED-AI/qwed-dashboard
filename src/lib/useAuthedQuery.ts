@@ -16,14 +16,22 @@ function useSignOutOn401(error: unknown, signOut: () => void) {
   }, [error, signOut]);
 }
 
-/** A query that needs the session token. A 401 signs the user out, unless it is an older server refusing the session. */
-export function useAuthedQuery<T>(key: readonly unknown[], fn: (api: QwedApi, token: string) => Promise<T>) {
+/**
+ * A query that needs the session token. A 401 signs the user out, unless it
+ * is an older server refusing the session. `enabled: false` holds it back
+ * until a page asks for it.
+ */
+export function useAuthedQuery<T>(
+  key: readonly unknown[],
+  fn: (api: QwedApi, token: string) => Promise<T>,
+  { enabled = true }: Readonly<{ enabled?: boolean }> = {},
+) {
   const { api, token, mode, user, signOut } = useSession();
   const query = useQuery({
     // The user and organisation are part of the key, so two sessions never share a cache entry.
     queryKey: [mode, user?.org_id ?? null, user?.id ?? null, ...key],
     queryFn: () => fn(api, token as string),
-    enabled: token !== null,
+    enabled: token !== null && enabled,
     retry,
   });
   useSignOutOn401(query.error, signOut);

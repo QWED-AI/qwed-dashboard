@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ApiError } from '../api/http';
 import { Link, useParams } from 'react-router';
 import { Icon } from '../components/Icon';
 import { RefreshError } from '../components/RefreshError';
@@ -9,7 +10,9 @@ import { useAuthedQuery, useDataUnlessRefused } from '../lib/useAuthedQuery';
 
 // One agent's activity (#72), from GET /agents/{agent_id}/activity read with
 // the owner's session (qwed-verification #527), newest first. The route
-// returns at most 200 activities.
+// returns at most 200 activities. The newest 50 load first; the newest 200
+// load apart, on request, so the 50 stay shown while they load and if they
+// fail.
 
 const FIRST = 50;
 const MOST = 200;
@@ -17,12 +20,21 @@ const activityError = (err: unknown) => agentsError(err, NO_SUCH_AGENT);
 
 export function AgentPage() {
   const { agentId = '' } = useParams();
-  const [limit, setLimit] = useState(FIRST);
-  const activity = useAuthedQuery(['agent-activity', agentId, limit], (api, token) =>
-    api.agentActivity(token, agentId, limit),
+  const [wantMost, setWantMost] = useState(false);
+  const first = useAuthedQuery(['agent-activity', agentId, FIRST], (api, token) =>
+    api.agentActivity(token, agentId, FIRST),
   );
-  // A failed refresh keeps the activity loaded before; a refusal (403) does not.
-  const data = useDataUnlessRefused(activity);
+  const most = useAuthedQuery(['agent-activity', agentId, MOST], (api, token) => api.agentActivity(token, agentId, MOST), {
+    enabled: wantMost,
+  });
+  // A failed refresh keeps the activity loaded before; a refusal (403) of
+  // either request does not.
+  const firstData = useDataUnlessRefused(first);
+  const mostData = useDataUnlessRefused(most);
+  const mostRefused = most.error instanceof ApiError && most.error.status === 403;
+  const data = mostRefused ? undefined : (mostData ?? firstData);
+  // The request whose activity is shown, or whose refusal hides it.
+  const activity = mostRefused || mostData ? most : first;
 
   return (
     <Shell crumbs={[{ label: 'Agents', to: '/agents' }, { label: data?.agent_name ?? 'Agent' }]}>
@@ -39,7 +51,7 @@ export function AgentPage() {
         </Link>
       </div>
 
-      {activity.isPending && (
+      {first.isPending && (
         <div className="state" aria-busy="true">
           <span className="sr-only">Loading the activity</span>
           <span className="sk" style={{ width: '60%' }} aria-hidden="true" />
@@ -47,7 +59,7 @@ export function AgentPage() {
         </div>
       )}
 
-      {activity.isError && !data && (
+      {!first.isPending && activity.isError && !data && (
         <div className="state" role="alert">
           <span className="state-icon">
             <Icon name="alert" size={20} />
@@ -131,12 +143,23 @@ export function AgentPage() {
                 <span className="num">
                   The newest {data.activities.length} {data.activities.length === 1 ? 'activity' : 'activities'}.
                 </span>
-                {limit < MOST && data.activities.length >= limit && (
-                  <button type="button" className="btn btn-sm" disabled={activity.isFetching} onClick={() => setLimit(MOST)}>
-                    Show the newest {MOST}
+                {!mostData && data.activities.length >= FIRST && (
+                  <button
+                    type="button"
+                    className="btn btn-sm"
+                    disabled={most.isFetching}
+                    onClick={() => (wantMost ? most.refetch() : setWantMost(true))}
+                  >
+                    {most.isFetching ? 'Loading…' : `Show the newest ${MOST}`}
                   </button>
                 )}
               </div>
+              {most.isError && !mostData && !mostRefused && (
+                <p className="note" role="alert" style={{ margin: '0 24px 16px' }}>
+                  The newest {MOST} could not be loaded, so the newest {data.activities.length} are shown.{' '}
+                  {activityError(most.error)}
+                </p>
+              )}
             </section>
           )}
         </div>

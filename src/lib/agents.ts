@@ -21,5 +21,9 @@ export function statusClass(status: string): string {
   return ['suspended', 'deactivated', 'blocked', 'failed', 'BLOCKED'].includes(status) ? 'tag sev-high' : 'tag';
 }
 
+// At least two decimals, and every further one the server stored, so a
+// small charge such as 0.001 never reads as 0.00. No grouping or exponent.
+const COST = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 20, useGrouping: false });
+
 /** A cost as the server stores it: a plain number, in no currency the server names. */
-export const cost = (n: number) => n.toFixed(2);
+export const cost = (n: number) => COST.format(n);

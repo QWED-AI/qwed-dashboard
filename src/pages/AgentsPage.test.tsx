@@ -168,6 +168,47 @@ describe('AgentPage', () => {
     await waitFor(() => expect(call).toHaveBeenLastCalledWith('demo', '3', 200));
   });
 
+  it('keeps the newest 50 shown while the 200 load, and when they fail', async () => {
+    const user = userEvent.setup();
+    const fifty = activity({
+      activities: Array.from({ length: 50 }, (_, i) => ({
+        type: 'tool_call_success',
+        description: `call ${i}`,
+        status: 'success',
+        cost: 0,
+        timestamp: `2026-10-20T09:${String(59 - i).padStart(2, '0')}:00+00:00`,
+      })),
+    });
+    let fail: (e: unknown) => void = () => undefined;
+    vi.spyOn(demoApi, 'agentActivity').mockImplementation((_t, _id, limit) =>
+      limit === 50 ? Promise.resolve(fifty) : new Promise((_, reject) => (fail = reject)),
+    );
+    renderApp(<App />, { route: '/agents/3' });
+    await user.click(await screen.findByRole('button', { name: 'Show the newest 200' }));
+    expect(await screen.findByRole('button', { name: 'Loading…' })).toBeTruthy();
+    expect(screen.getByText('call 0')).toBeTruthy();
+    // A 4xx is not retried, so the test does not wait out the retry delays.
+    await act(async () => fail(new ApiError(429, 'Too many requests')));
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      'The newest 200 could not be loaded, so the newest 50 are shown. Too many requests. Try again shortly.',
+    );
+    expect(screen.getByText('call 0')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Show the newest 200' })).toBeTruthy();
+  });
+
+  it('shows a small cost as the server stored it', async () => {
+    vi.spyOn(demoApi, 'agentActivity').mockResolvedValue(
+      activity({
+        current_cost_today: 0.004,
+        activities: [{ type: 'verification_request', description: 'Tiny', status: 'VERIFIED', cost: 0.001, timestamp: '2026-10-20T09:00:00+00:00' }],
+      }),
+    );
+    renderApp(<App />, { route: '/agents/3' });
+    expect((await rowOf('Activity', 'Tiny')).getByRole('cell', { name: '0.001' })).toBeTruthy();
+    const tiles = within(screen.getByRole('region', { name: 'Spend' }));
+    expect(tiles.getByText('Spent today').nextElementSibling?.textContent).toBe('0.004');
+  });
+
   it('says when the organisation has no agent with that id', async () => {
     vi.spyOn(demoApi, 'agentActivity').mockRejectedValue(new ApiError(404, 'Agent not found'));
     renderApp(<App />, { route: '/agents/999' });
