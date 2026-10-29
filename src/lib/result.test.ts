@@ -216,6 +216,9 @@ describe('toRecord', () => {
     expect(toRecord(log({})).latencyMs).toBeNull();
     expect(toRecord(log({ latency_ms: -5 })).latencyMs).toBeNull();
     expect(toRecord(log({ latency_ms: '12' })).latencyMs).toBeNull();
+    // JSON carries neither, but a time that is not finite is no time.
+    expect(toRecord(log({ latency_ms: Number.NaN })).latencyMs).toBeNull();
+    expect(toRecord(log({ latency_ms: Number.POSITIVE_INFINITY })).latencyMs).toBeNull();
   });
 
   it('reads the verdict from the result when the server sends none (before #484)', () => {

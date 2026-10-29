@@ -424,6 +424,11 @@ describe('HomePage', () => {
     it('opens on seven days from the address', async () => {
       renderApp(<HomePage />, { route: '/?range=7d' });
       expect((await screen.findByRole('button', { name: '7 days' })).getAttribute('aria-pressed')).toBe('true');
+      // The time to answer opens the ledger on those days, by their UTC bounds, not the range's name.
+      const latency = within(await screen.findByRole('region', { name: 'Time to answer, by verifier' }));
+      expect(latency.getByRole('link', { name: 'math' }).getAttribute('href')).toBe(
+        '/ledger?verifier=MATH&from=2026-10-14T00:00:00.000Z&to=2026-10-21T00:00:00.000Z',
+      );
     });
 
     it('shows a column’s counts when it is focused, and the whole window otherwise', async () => {
