@@ -11,13 +11,21 @@ export const MAX_PASSWORD_BYTES = 72;
 export const passwordTooLong = (password: string) => new TextEncoder().encode(password).length > MAX_PASSWORD_BYTES;
 
 function signInError(err: unknown, longPassword: boolean): string {
+  const reason = signInReason(err);
   // A server on bcrypt 5 cannot check such a password: 8.0.0 answers 500,
-  // and one after #548 answers 401. Both mean this password cannot be
-  // accepted, which neither answer says. The request is still sent: a server
-  // on bcrypt 4 read the first 72 bytes and accepted it.
+  // and one after #548 answers 401, the same 401 as for a wrong password.
+  // So the length is named as a possible cause, beside the usual reason. The
+  // request is still sent: a server on bcrypt 4 read the first 72 bytes and
+  // accepted it.
   if (longPassword && err instanceof ApiError && (err.status === 401 || err.status === 500)) {
-    return `This password is longer than ${MAX_PASSWORD_BYTES} bytes, the most QWED reads of a password, so the server cannot accept it.`;
+    return `${reason} ${LONG_PASSWORD_NOTE}`;
   }
+  return reason;
+}
+
+export const LONG_PASSWORD_NOTE = `This password is also longer than ${MAX_PASSWORD_BYTES} bytes, the most QWED reads of a password, which may be why: a QWED server on bcrypt 5 cannot accept such a password.`;
+
+function signInReason(err: unknown): string {
   if (err instanceof ApiError) {
     if (err.status === 401) return 'The email or password is wrong.';
     if (err.status === 403) return 'This account is deactivated.';

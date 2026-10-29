@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../App';
 import { renderApp } from '../test/render';
-import { passwordTooLong } from './LoginPage';
+import { LONG_PASSWORD_NOTE, passwordTooLong } from './LoginPage';
 
 afterEach(() => {
   cleanup();
@@ -50,9 +50,8 @@ describe('LoginPage', () => {
     const long = 'é'.repeat(37);
     // 36 of them: 72 bytes, the most the server reads.
     const longest = 'é'.repeat(36);
-    const LONG = 'This password is longer than 72 bytes, the most QWED reads of a password, so the server cannot accept it.';
     const answer = (status: number, detail: string) =>
-      vi.fn(async () => new Response(JSON.stringify({ detail }), { status }));
+      vi.fn(async (_url: string, _init?: RequestInit) => new Response(JSON.stringify({ detail }), { status }));
 
     it('counts bytes, not characters', () => {
       expect(passwordTooLong(long)).toBe(true);
@@ -61,17 +60,21 @@ describe('LoginPage', () => {
       expect(passwordTooLong('a'.repeat(73))).toBe(true);
     });
 
-    it('says why a server after #548 refuses it (401)', async () => {
+    it('names the length as a possible cause of a 401, beside the usual reason', async () => {
+      // A server after #548 answers this 401 for a wrong password too.
       const fetchMock = answer(401, 'Invalid email or password');
       vi.stubGlobal('fetch', fetchMock);
-      expect(await signIn(long)).toBe(LONG);
-      // The request is still sent: a server on bcrypt 4 accepted such a password.
+      expect(await signIn(long)).toBe(`The email or password is wrong. ${LONG_PASSWORD_NOTE}`);
+      // The request is still sent, with the whole password: a server on
+      // bcrypt 4 read the first 72 bytes and accepted it.
       expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)).password).toBe(long);
     });
 
-    it('says why 8.0.0 fails on it (500)', async () => {
+    it('names the length as a possible cause of a 500, beside the server error', async () => {
+      // 8.0.0 answers 500 for such a password; a 500 can have other causes.
       vi.stubGlobal('fetch', answer(500, 'Internal Server Error'));
-      expect(await signIn(long)).toBe(LONG);
+      expect(await signIn(long)).toBe(`Sign-in failed: Internal Server Error ${LONG_PASSWORD_NOTE}`);
     });
 
     it('says a password of 72 bytes or fewer is wrong, as before', async () => {
