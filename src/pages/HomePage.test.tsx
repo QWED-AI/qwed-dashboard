@@ -58,7 +58,7 @@ describe('HomePage: time to answer (#53)', () => {
     expect(fact?.textContent).toBe('fact2.5 s2.5 s1 of 1 record');
     const math = c.getByRole('link', { name: 'math' }).closest('tr');
     // The 0 is a server before #528: not measured, and not counted.
-    expect(math?.textContent).toBe('math200 ms400 ms2 of 3 records');
+    expect(math?.textContent).toBe('math300 ms400 ms2 of 3 records');
     expect(c.getByRole('link', { name: 'math' }).getAttribute('href')).toMatch(/^\/ledger\?verifier=MATH&/);
   });
 

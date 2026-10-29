@@ -9,6 +9,7 @@ import {
   formatMs,
   inPeriod,
   latencyBy,
+  median,
   niceScale,
   overviewWindow,
   percentile,
@@ -35,6 +36,14 @@ describe('time to answer (#53)', () => {
     expect(Number.isNaN(percentile([], 50))).toBe(true);
   });
 
+  it('takes the median as the middle value, or the mean of the two middle ones', () => {
+    expect(median([1, 2, 3])).toBe(2);
+    expect(median([200, 400])).toBe(300);
+    expect(median([100, 200, 300, 400])).toBe(250);
+    expect(median([7])).toBe(7);
+    expect(Number.isNaN(median([]))).toBe(true);
+  });
+
   it('gives each verifier the median and 95th percentile of its measured records, slowest first', () => {
     const records = [
       ...[100, 300, 200, 400].map((ms) => timed('MATH', ms)),
@@ -43,8 +52,8 @@ describe('time to answer (#53)', () => {
       timed('SQL', null),
     ];
     expect(latencyBy(records, (r) => r.domain)).toEqual([
-      { key: 'FACT', median: 900, p95: 1500, measured: 2, of: 2 },
-      { key: 'MATH', median: 200, p95: 400, measured: 4, of: 5 },
+      { key: 'FACT', median: 1200, p95: 1500, measured: 2, of: 2 },
+      { key: 'MATH', median: 250, p95: 400, measured: 4, of: 5 },
     ]);
   });
 

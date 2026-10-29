@@ -212,9 +212,16 @@ export function percentile(sorted: readonly number[], p: number): number {
   return sorted[rank - 1] ?? Number.NaN;
 }
 
+/** The median of sorted `values`: the middle one, or the mean of the two middle ones. */
+export function median(sorted: readonly number[]): number {
+  const middle = Math.floor(sorted.length / 2);
+  if (sorted.length % 2 === 1) return sorted[middle] ?? Number.NaN;
+  return ((sorted[middle - 1] ?? Number.NaN) + (sorted[middle] ?? Number.NaN)) / 2;
+}
+
 /**
  * How long the server took for each group's records (#53, #528): the median
- * and the 95th percentile of the measured ones, with how many were measured
+ * and the 95th percentile (nearest rank) of the measured ones, with how many were measured
  * and how many there are. Groups with none measured are left out; slowest at
  * the 95th percentile first, then by key.
  */
@@ -234,7 +241,7 @@ export function latencyBy(
     .filter(([, g]) => g.times.length > 0)
     .map(([k, g]) => {
       const sorted = [...g.times].sort((a, b) => a - b);
-      return { key: k, median: percentile(sorted, 50), p95: percentile(sorted, 95), measured: sorted.length, of: g.of };
+      return { key: k, median: median(sorted), p95: percentile(sorted, 95), measured: sorted.length, of: g.of };
     })
     .sort((a, b) => b.p95 - a.p95 || a.key.localeCompare(b.key));
 }
