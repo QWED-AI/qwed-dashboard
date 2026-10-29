@@ -39,6 +39,46 @@ function labelled(el: HTMLElement): string | null | undefined {
   return el.parentElement?.textContent;
 }
 
+describe('HomePage: time to answer (#53)', () => {
+  const card = async () => within(await screen.findByRole('region', { name: 'Time to answer, by verifier' }));
+
+  it('gives each verifier the median and 95th percentile the server measured, with how many', async () => {
+    vi.spyOn(demoApi, 'listLogs').mockResolvedValue({
+      logs: [
+        { ...verified('4', 'm'), latency_ms: 400 },
+        { ...verified('3', 'm'), latency_ms: 200 },
+        { ...verified('2', 'm'), latency_ms: 0 },
+        { ...verified('1', 'm'), engine_used: 'FACT', latency_ms: 2450 },
+      ],
+      nextBefore: null,
+    });
+    renderApp(<HomePage />);
+    const c = await card();
+    const fact = (await c.findByRole('link', { name: 'fact' })).closest('tr');
+    expect(fact?.textContent).toBe('fact2.5 s2.5 s1 of 1 record');
+    const math = c.getByRole('link', { name: 'math' }).closest('tr');
+    // The 0 is a server before #528: not measured, and not counted.
+    expect(math?.textContent).toBe('math200 ms400 ms2 of 3 records');
+    expect(c.getByRole('link', { name: 'math' }).getAttribute('href')).toMatch(/^\/ledger\?verifier=MATH&/);
+  });
+
+  it('says when the server measured no record, as a server before #528 does', async () => {
+    vi.spyOn(demoApi, 'listLogs').mockResolvedValue({
+      logs: [{ ...verified('2', 'm'), latency_ms: 0 }, verified('1', 'm')],
+      nextBefore: null,
+    });
+    renderApp(<HomePage />);
+    expect((await card()).getByText(/A server before qwed-verification #528 measures none\./)).toBeTruthy();
+  });
+
+  it('shows the sample times', async () => {
+    renderApp(<HomePage />);
+    const c = await card();
+    expect(await c.findByRole('link', { name: 'math' })).toBeTruthy();
+    expect(c.getAllByRole('row').length).toBeGreaterThan(2);
+  });
+});
+
 describe('HomePage', () => {
   it('lists the BLOCKED, UNVERIFIABLE, unreadable and denied VERIFIED records, each linked to its ledger filter', async () => {
     renderApp(<HomePage />);

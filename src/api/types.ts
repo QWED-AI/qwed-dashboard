@@ -37,7 +37,11 @@ export interface AuditLog {
   verification_result: string;
   engine_used: string;
   status: string;
-  latency_ms?: number;
+  /**
+   * How long the server took, from the request to the row (#528): null when
+   * it did not measure. A server before #528 sends 0 for every row.
+   */
+  latency_ms?: number | null;
   created_at: string;
   /** The stored verdict, or null when the result holds none (#484). */
   verdict?: Verdict | null;

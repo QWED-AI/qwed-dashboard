@@ -208,6 +208,16 @@ describe('toRecord', () => {
     ...extra,
   });
 
+  it('keeps the time the server measured, and counts 0 or none as not measured (#53, #528)', () => {
+    expect(toRecord(log({ latency_ms: 412 })).latencyMs).toBe(412);
+    // A server before #528 sends a fixed 0 for every row.
+    expect(toRecord(log({ latency_ms: 0 })).latencyMs).toBeNull();
+    expect(toRecord(log({ latency_ms: null })).latencyMs).toBeNull();
+    expect(toRecord(log({})).latencyMs).toBeNull();
+    expect(toRecord(log({ latency_ms: -5 })).latencyMs).toBeNull();
+    expect(toRecord(log({ latency_ms: '12' })).latencyMs).toBeNull();
+  });
+
   it('reads the verdict from the result when the server sends none (before #484)', () => {
     expect(toRecord(log({})).result.verdict).toBe('VERIFIED');
   });

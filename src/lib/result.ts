@@ -280,6 +280,11 @@ export interface LedgerRecord {
   createdAt: string;
   /** The API key that made the request: null when none did, undefined before #484. */
   apiKeyId: string | null | undefined;
+  /**
+   * How long the server took, in milliseconds (#528), or null when it did not
+   * measure. A server before #528 sends a fixed 0, so 0 counts as not measured.
+   */
+  latencyMs: number | null;
   result: ParsedResult;
   raw: string;
 }
@@ -303,6 +308,7 @@ export function toRecord(log: AuditLog): LedgerRecord {
     domain: log.engine_used,
     createdAt: log.created_at,
     apiKeyId: log.api_key_id,
+    latencyMs: typeof log.latency_ms === 'number' && Number.isFinite(log.latency_ms) && log.latency_ms > 0 ? log.latency_ms : null,
     result,
     raw: log.verification_result,
   };
