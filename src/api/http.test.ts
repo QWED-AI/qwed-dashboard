@@ -79,6 +79,20 @@ describe('refusedForRole', () => {
   });
 });
 
+describe('httpApi agents', () => {
+  it('lists the agents, and reads an agent’s activity, with the session', async () => {
+    const list = stubFetch(json([]));
+    await httpApi.listAgents('tok');
+    expect(call(list).url).toBe('/api/agents');
+    expect(call(list).headers.get('Authorization')).toBe('Bearer tok');
+    const activity = stubFetch(json({ activities: [] }));
+    await httpApi.agentActivity('tok', '3', 200);
+    expect(call(activity).url).toBe('/api/agents/3/activity?limit=200');
+    expect(call(activity).headers.get('Authorization')).toBe('Bearer tok');
+    expect(call(activity).headers.get('x-agent-token')).toBeNull();
+  });
+});
+
 describe('httpApi threat summary', () => {
   it('asks for the organisation’s summary with the session', async () => {
     const fetchMock = stubFetch(json({ threat_level: 'LOW' }));

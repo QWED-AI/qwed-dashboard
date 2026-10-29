@@ -16,14 +16,22 @@ function useSignOutOn401(error: unknown, signOut: () => void) {
   }, [error, signOut]);
 }
 
-/** A query that needs the session token. A 401 signs the user out, unless it is an older server refusing the session. */
-export function useAuthedQuery<T>(key: readonly unknown[], fn: (api: QwedApi, token: string) => Promise<T>) {
+/**
+ * A query that needs the session token. A 401 signs the user out, unless it
+ * is an older server refusing the session. `enabled: false` holds it back
+ * until a page asks for it.
+ */
+export function useAuthedQuery<T>(
+  key: readonly unknown[],
+  fn: (api: QwedApi, token: string) => Promise<T>,
+  { enabled = true }: Readonly<{ enabled?: boolean }> = {},
+) {
   const { api, token, mode, user, signOut } = useSession();
   const query = useQuery({
     // The user and organisation are part of the key, so two sessions never share a cache entry.
     queryKey: [mode, user?.org_id ?? null, user?.id ?? null, ...key],
     queryFn: () => fn(api, token as string),
-    enabled: token !== null,
+    enabled: token !== null && enabled,
     retry,
   });
   useSignOutOn401(query.error, signOut);
@@ -68,23 +76,30 @@ export function useSecurityEventPages(limit: number, eventType: string | null) {
   return query;
 }
 
+type QueryState<T> = Readonly<{ data: T | undefined; error: unknown; dataUpdatedAt: number; errorUpdatedAt: number }>;
+
 /**
- * The query's data, unless the server has refused it (403) since that data
- * loaded. A refused refresh keeps the data loaded before, and a later failure
- * of another kind replaces the 403 as the query's error, so the refusal is
- * held until the server answers again with data. A failure that is not a
- * refusal keeps the data, for the page to mark as maybe out of date.
+ * Whether the server has refused the query (403) since its data last
+ * loaded. A refused refresh keeps the data loaded before, and a later
+ * failure of another kind replaces the 403 as the query's error, so the
+ * refusal is held until the server answers again with data.
  */
-export function useDataUnlessRefused<T>(
-  query: Readonly<{ data: T | undefined; error: unknown; dataUpdatedAt: number; errorUpdatedAt: number }>,
-): T | undefined {
+export function useRefused(query: QueryState<unknown>): boolean {
   const refusedNow = query.error instanceof ApiError && query.error.status === 403;
   const [refusedAt, setRefusedAt] = useState(0);
   useEffect(() => {
     if (refusedNow) setRefusedAt(query.errorUpdatedAt);
   }, [refusedNow, query.errorUpdatedAt]);
-  if (refusedNow || (refusedAt > 0 && query.dataUpdatedAt <= refusedAt)) return undefined;
-  return query.data;
+  return refusedNow || (refusedAt > 0 && query.dataUpdatedAt <= refusedAt);
+}
+
+/**
+ * The query's data, unless the server has refused it since (see useRefused).
+ * A failure that is not a refusal keeps the data, for the page to mark as
+ * maybe out of date.
+ */
+export function useDataUnlessRefused<T>(query: QueryState<T>): T | undefined {
+  return useRefused(query) ? undefined : query.data;
 }
 
 /** Turns an API error into one sentence for the page. */

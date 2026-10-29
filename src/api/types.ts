@@ -125,6 +125,35 @@ export interface ApiKeyItem {
   owner?: { id: string; email: string } | null;
 }
 
+/** GET /agents (qwed-verification #527): one agent of the organisation. Owners and admins only; no token. */
+export interface AgentSummary {
+  id: number;
+  name: string;
+  type: string;
+  /** active, suspended or deactivated */
+  status: string;
+  created_at: string;
+  /** Null until the agent authenticates. */
+  last_active: string | null;
+}
+
+/** GET /agents/{agent_id}/activity: an agent's activity, newest first. */
+export interface AgentActivity {
+  agent_id: number;
+  agent_name: string;
+  total_activities: number;
+  current_cost_today: number;
+  max_cost_per_day: number;
+  activities: {
+    type: string;
+    description: string;
+    /** As the server stored it: blocked, success, failed, or a verification status. */
+    status: string;
+    cost: number;
+    timestamp: string;
+  }[];
+}
+
 /** GET /admin/security/threats/{org_id} (#68). The threat level is the server's rating. */
 export interface ThreatSummary {
   organization_id: number;
