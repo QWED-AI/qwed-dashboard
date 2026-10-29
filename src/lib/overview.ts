@@ -206,6 +206,51 @@ export function deniedBy(
     .sort((a, b) => b.denied - a.denied || a.key.localeCompare(b.key));
 }
 
+/** The value at percentile `p` of sorted `values`, by nearest rank: the p95 of 20 values is the 19th. */
+export function percentile(sorted: readonly number[], p: number): number {
+  const rank = Math.max(1, Math.ceil((p / 100) * sorted.length));
+  return sorted[rank - 1] ?? Number.NaN;
+}
+
+/** The median of sorted `values`: the middle one, or the mean of the two middle ones. */
+export function median(sorted: readonly number[]): number {
+  const middle = Math.floor(sorted.length / 2);
+  if (sorted.length % 2 === 1) return sorted[middle] ?? Number.NaN;
+  return ((sorted[middle - 1] ?? Number.NaN) + (sorted[middle] ?? Number.NaN)) / 2;
+}
+
+/**
+ * How long the server took for each group's records (#53, #528): the median
+ * and the 95th percentile (nearest rank) of the measured ones, with how many were measured
+ * and how many there are. Groups with none measured are left out; slowest at
+ * the 95th percentile first, then by key.
+ */
+export function latencyBy(
+  records: readonly LedgerRecord[],
+  key: (r: LedgerRecord) => string,
+): { key: string; median: number; p95: number; measured: number; of: number }[] {
+  const groups = new Map<string, { times: number[]; of: number }>();
+  for (const r of records) {
+    const k = key(r);
+    const g = groups.get(k) ?? { times: [], of: 0 };
+    g.of += 1;
+    if (r.latencyMs !== null) g.times.push(r.latencyMs);
+    groups.set(k, g);
+  }
+  return [...groups]
+    .filter(([, g]) => g.times.length > 0)
+    .map(([k, g]) => {
+      const sorted = [...g.times].sort((a, b) => a - b);
+      return { key: k, median: median(sorted), p95: percentile(sorted, 95), measured: sorted.length, of: g.of };
+    })
+    .sort((a, b) => b.p95 - a.p95 || a.key.localeCompare(b.key));
+}
+
+/** "850 ms", or "1.2 s" from a second up. */
+export function formatMs(ms: number): string {
+  return ms < 1000 ? `${Math.round(ms)} ms` : `${(ms / 1000).toFixed(1)} s`;
+}
+
 /** A round axis top for counts up to `max`, with at most four steps: 34 → 40 by 10. */
 export function niceScale(max: number): { top: number; step: number } {
   if (max <= 0) return { top: 1, step: 1 };

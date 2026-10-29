@@ -14,6 +14,8 @@ import {
   comparedText,
   countBy,
   deniedBy,
+  formatMs,
+  latencyBy,
   overviewWindow,
   periodParams,
   RANGES,
@@ -360,7 +362,72 @@ function Breakdowns({ win, keys }: Readonly<{ win: OverviewWindow; keys: KeysQue
         <BarList rows={callers} />
       </section>
       <DeniedCards win={win} keys={keys} />
+      <LatencyCard win={win} />
     </>
+  );
+}
+
+/**
+ * How long the server took, by verifier (#53): the median and the 95th
+ * percentile of the times it stored (qwed-verification #528), from the
+ * request to its audit row. A server before #528 stores none.
+ */
+function LatencyCard({ win }: Readonly<{ win: OverviewWindow }>) {
+  const range = periodParams(win);
+  const name = RANGES[win.range].name;
+  const rows = latencyBy(win.records, (r) => r.domain);
+  let none = `No record in these ${name} has a time the server measured. A server before qwed-verification #528 measures none.`;
+  if (win.reachesBackTo !== null) {
+    none = `No loaded record in these ${name} has a time the server measured. Older records in the range are not loaded.`;
+  }
+  return (
+    <section className="card" aria-labelledby="latency-title">
+      <div className="card-head">
+        <h2 id="latency-title">Time to answer, by verifier</h2>
+      </div>
+      {rows.length === 0 ? (
+        <p className="sub" style={{ margin: 0 }}>
+          {none}
+        </p>
+      ) : (
+        <>
+          <table className="tbl compact tbl-stack">
+            <thead>
+              <tr>
+                <th scope="col">Verifier</th>
+                <th scope="col">Median</th>
+                <th scope="col">95th percentile</th>
+                <th scope="col">Measured</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.key}>
+                  <td>
+                    <Link className="mono" to={`/ledger?verifier=${encodeURIComponent(r.key)}&${range}`}>
+                      {r.key.toLowerCase()}
+                    </Link>
+                  </td>
+                  <td className="num cell-small" data-label="Median">
+                    {formatMs(r.median)}
+                  </td>
+                  <td className="num cell-small" data-label="95th percentile">
+                    {formatMs(r.p95)}
+                  </td>
+                  <td className="num muted cell-small" data-label="Measured">
+                    {r.measured} of {plural(r.of, 'record', 'records')}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="hint" style={{ margin: 0 }}>
+            From the request to its audit row, as the server measured it, so it includes the verifier and any model
+            call. Records the server did not measure are left out.
+          </p>
+        </>
+      )}
+    </section>
   );
 }
 

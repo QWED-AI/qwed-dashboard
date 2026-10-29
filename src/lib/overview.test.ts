@@ -6,9 +6,13 @@ import {
   comparedText,
   countBy,
   deniedBy,
+  formatMs,
   inPeriod,
+  latencyBy,
+  median,
   niceScale,
   overviewWindow,
+  percentile,
   periodName,
   periodParams,
   readPeriod,
@@ -17,8 +21,49 @@ import { parseResult, type LedgerRecord } from './result';
 
 const rec = (createdAt: string, verdict: Verdict | null, domain = 'MATH', admission?: string): LedgerRecord => {
   const result = parseResult(JSON.stringify({ status: verdict ?? 'SAT', ...(admission ? { admission } : {}) }));
-  return { id: createdAt, query: 'q', domain, createdAt, apiKeyId: null, result, raw: '' };
+  return { id: createdAt, query: 'q', domain, createdAt, apiKeyId: null, latencyMs: null, result, raw: '' };
 };
+
+describe('time to answer (#53)', () => {
+  const timed = (domain: string, latencyMs: number | null): LedgerRecord => ({ ...rec('2026-10-20T09:00:00', 'VERIFIED', domain), latencyMs });
+
+  it('takes a percentile by nearest rank', () => {
+    const twenty = Array.from({ length: 20 }, (_, i) => i + 1);
+    expect(percentile(twenty, 50)).toBe(10);
+    expect(percentile(twenty, 95)).toBe(19);
+    expect(percentile([7], 95)).toBe(7);
+    expect(percentile([3, 9], 50)).toBe(3);
+    expect(Number.isNaN(percentile([], 50))).toBe(true);
+  });
+
+  it('takes the median as the middle value, or the mean of the two middle ones', () => {
+    expect(median([1, 2, 3])).toBe(2);
+    expect(median([200, 400])).toBe(300);
+    expect(median([100, 200, 300, 400])).toBe(250);
+    expect(median([7])).toBe(7);
+    expect(Number.isNaN(median([]))).toBe(true);
+  });
+
+  it('gives each verifier the median and 95th percentile of its measured records, slowest first', () => {
+    const records = [
+      ...[100, 300, 200, 400].map((ms) => timed('MATH', ms)),
+      timed('MATH', null),
+      ...[900, 1500].map((ms) => timed('FACT', ms)),
+      timed('SQL', null),
+    ];
+    expect(latencyBy(records, (r) => r.domain)).toEqual([
+      { key: 'FACT', median: 1200, p95: 1500, measured: 2, of: 2 },
+      { key: 'MATH', median: 250, p95: 400, measured: 4, of: 5 },
+    ]);
+  });
+
+  it('writes milliseconds, and seconds from one second up', () => {
+    expect(formatMs(850)).toBe('850 ms');
+    expect(formatMs(999.6)).toBe('1000 ms');
+    expect(formatMs(1000)).toBe('1.0 s');
+    expect(formatMs(2450)).toBe('2.5 s');
+  });
+});
 
 describe('overviewWindow', () => {
   it('ends with the hour of the newest record and counts each hour by verdict', () => {

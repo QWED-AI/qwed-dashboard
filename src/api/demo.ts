@@ -297,6 +297,24 @@ function asBatchItem(log: AuditLog): AuditLog {
   };
 }
 
+// How long the server took for each sample row (#528): a fixed spread per
+// verifier, from the row's id, so the Overview's times stay the same.
+const LATENCY_RANGE: Record<string, [number, number]> = {
+  MATH: [40, 180],
+  SQL: [30, 120],
+  CODE: [150, 900],
+  LOGIC: [60, 400],
+  STATS: [300, 2400],
+  FACT: [700, 3800],
+  VERIFICATION_CONTEXT: [20, 90],
+};
+
+function sampleLatency(log: AuditLog): number {
+  const [low, high] = LATENCY_RANGE[log.engine_used] ?? [50, 500];
+  const spread = Number.parseInt(sampleHex(`latency-${log.id}`).slice(0, 6), 16) / 0xffffff;
+  return Math.round(low + (high - low) * spread);
+}
+
 // The fields a server after #484 and #307 adds: the stored verdict (read the
 // same way the dashboard reads it), the chain entry, the caller and the
 // admission.
@@ -312,6 +330,7 @@ const logs: AuditLog[] = chain.map((log, i) => {
     hmac_signature: sampleHex(`hmac-${log.id}`),
     api_key_id: keyId,
     verifier_version: keyId === null ? null : '7.3.0',
+    latency_ms: sampleLatency(log),
     admission: log.id in ADMISSION ? (ADMISSION[log.id] ?? null) : (log.admission ?? null),
   };
 });
