@@ -452,15 +452,21 @@ function find(id: string): AuditLog {
   return log;
 }
 
+// The scope as qwed-verification words it: a check with no start or end
+// names every entry, one over a period names the period (#551).
+const TRAIL_SCOPE = {
+  whole: 'Signature and hash-chain check of every audit entry recorded for the organisation.',
+  period: 'Signature and hash-chain check of the audit entries recorded in the period.',
+};
+
 // Agrees with checkEntry: the sample entry 1037 fails its signature, so the
 // whole chain does not check out and 1037 is the first failure.
-function sampleTrail(): TrailCheck {
+function sampleTrail(covers: keyof typeof TRAIL_SCOPE): TrailCheck {
   return {
     status: 'NOT_VERIFIED',
     proof_ref: null,
     evidence: null,
-    scope:
-      'Signature and hash-chain check of the audit entries recorded in the period. It does not show that every request was recorded.',
+    scope: `${TRAIL_SCOPE[covers]} It does not show that every request was recorded.`,
     total_entries: logs.length,
     verified_entries: logs.length - 1,
     failed_entries: 1,
@@ -603,7 +609,7 @@ export const demoApi: QwedApi = {
   },
   async verifyTrail(): Promise<TrailCheck> {
     await wait(400);
-    return sampleTrail();
+    return sampleTrail('whole');
   },
   // The sample period ends with the newest sample row, so every sample row
   // and event falls inside its 90 days.
@@ -623,7 +629,7 @@ export const demoApi: QwedApi = {
         active_users: 1,
         active_api_keys: keys.length,
       },
-      audit_trail: sampleTrail(),
+      audit_trail: sampleTrail('period'),
       generated_at: '2026-10-20T10:00:00+00:00',
     };
   },

@@ -1,6 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import { demoApi } from './demo';
 
+describe('the sample audit chain checks', () => {
+  // As qwed-verification words the scope from #551: the whole-chain check
+  // has no start or end, the activity summary's check covers its period.
+  it('names every entry for the whole chain, and the period for the summary', async () => {
+    expect((await demoApi.verifyTrail({ session: 'demo' })).scope).toBe(
+      'Signature and hash-chain check of every audit entry recorded for the organisation. It does not show that every request was recorded.',
+    );
+    expect((await demoApi.activitySummary('demo', 'demo')).audit_trail.scope).toBe(
+      'Signature and hash-chain check of the audit entries recorded in the period. It does not show that every request was recorded.',
+    );
+  });
+});
+
 describe('the sample ledger', () => {
   it('holds a week of rows, newest first, with distinct ids', async () => {
     const { logs } = await demoApi.listLogs('demo', 200);
