@@ -65,7 +65,7 @@ describe('checkDocumentSignature, on documents a qwed-verification 8.0.0 server 
     expect(states(report).signature).toBe('pass');
     expect(states(report).document).toBe('fail');
     expect(detail(report, 'document')).toBe(
-      `The stored copy hashes to ${f.storedHash}, not the signed ${f.signedHash}. It holds redaction markers ([EMAIL_REDACTED]): the server replaces personal data in the copy it stores after signing, which would explain the difference. The dashboard cannot tell whether anything else changed.`,
+      `The stored copy hashes to ${f.storedHash}, not the signed ${f.signedHash}. It holds redaction markers ([EMAIL_REDACTED]): a server before the qwed-verification #532 fix replaced personal data in the copy it stored after signing, which would explain the difference; a record written by a fixed server should match. The dashboard cannot tell whether anything else changed.`,
     );
     expect(documentSignatureHeadline(report)).toBe('The server signed a document, but not this document as stored.');
   });
@@ -139,6 +139,13 @@ describe('checkDocumentSignature, on tokens made for the test', () => {
     expect(documentSignatureHeadline((await signed(doc)).report)).toBe(
       'The signature checks out: the server issued this document as stored.',
     );
+  });
+
+  it('passes a document stored with its personal data, as a server with the #532 fix stores it', async () => {
+    const withEmail = { ...doc, object: { formal_statement: 'Send the report to owner@example.com' } };
+    const { report } = await signed(withEmail);
+    expect(states(report).document).toBe('pass');
+    expect(redactions(withEmail)).toEqual([]);
   });
 
   it('refuses a verdict’s attestation in a document', async () => {
