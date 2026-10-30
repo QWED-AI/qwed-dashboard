@@ -56,13 +56,23 @@ print(json.dumps({"email": email, "password": getpass.getpass("Owner password: "
 ' | curl -sS -X POST "$QWED_URL/auth/signup" -H "Content-Type: application/json" --data-binary @-
 ```
 
-It asks for the owner's email, the organisation's name and a password. The password is not echoed. The request body goes to `curl` on standard input, so the password stays out of your shell history and the process list. On Windows, run it in Git Bash or WSL, not in PowerShell or Command Prompt; in Git Bash, use `python` in place of `python3`.
+It asks for the owner's email, the organisation's name and a password. The password is not echoed, and it must be at most 72 bytes in UTF-8: bcrypt, which the server hashes passwords with, reads no more. The request body goes to `curl` on standard input, so the password stays out of your shell history and the process list. On Windows, run it in Git Bash or WSL, not in PowerShell or Command Prompt; in Git Bash, use `python` in place of `python3`.
 
 - Each sign-up creates a new organisation, with you as its owner. The email and the organisation name must not be taken already.
 - Sign in to the dashboard with that email and password, then create an API key on the **API keys** screen.
 - Send your verify requests with that key. The dashboard shows your organisation's records only, so records made with another organisation's key do not appear.
 
-`qwed init` creates an organisation of its own, with an email and password it does not show you, and hands you only an API key. Records made with that key belong to that organisation, and you cannot sign in to it here. Use a key created in the dashboard instead.
+#### Or with `qwed init`
+
+On qwed-verification main (in no release yet, see QWED-AI/qwed-verification#547), `qwed init` can create the owner for you:
+
+```bash
+qwed init --owner-email you@example.com
+```
+
+It asks for the owner's password with hidden input, twice, and refuses one over 72 bytes. With `--non-interactive` it reads the password from `QWED_OWNER_PASSWORD` instead. Sign in to the dashboard with that email and password. Records made with the API key `qwed init` prints belong to that organisation, so they appear here.
+
+Without an owner email (QWED 8.0.0, or `--non-interactive` with neither `--owner-email` nor `QWED_OWNER_EMAIL`), `qwed init` creates an organisation with an email and password it does not show you, and hands you only an API key. Records made with that key belong to that organisation, and you cannot sign in to it here. Running `qwed init` again with `--owner-email` creates a new organisation; it does not recover those records. Use a key created in the dashboard instead.
 
 ### Build
 
