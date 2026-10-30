@@ -46,10 +46,12 @@ export function documentSignature(value: unknown): DocumentSignature {
 }
 
 /**
- * The server stores its copy of a document with personal data replaced
- * ("[EMAIL_REDACTED]"), after it signed it (qwed-verification #532). Such a
- * copy is not the document it signed, so its hash cannot match. A marker
- * makes that a likely cause of a mismatch, not a proven one.
+ * qwed-verification before the #532 fix stored its copy of a document with
+ * personal data replaced ("[EMAIL_REDACTED]"), after it signed it. Such a copy
+ * is not the document it signed, so its hash cannot match. A server with the
+ * fix (4295e18) stores the document as signed, but older records keep their
+ * redacted copy. A marker makes redaction a likely cause of a mismatch, not a
+ * proven one.
  */
 const REDACTED = /\[[A-Z]+_REDACTED\]/g;
 
@@ -91,7 +93,7 @@ async function documentItem(subtle: SubtleCrypto, document: Obj, qwed: Obj, sub:
   if (marks.length > 0) {
     return item(
       'fail',
-      `The stored copy hashes to ${hash}, not the signed ${signed}. It holds redaction markers (${marks.join(', ')}): the server replaces personal data in the copy it stores after signing, which would explain the difference. The dashboard cannot tell whether anything else changed.`,
+      `The stored copy hashes to ${hash}, not the signed ${signed}. It holds redaction markers (${marks.join(', ')}): a server before the qwed-verification #532 fix replaced personal data in the copy it stored after signing, which would explain the difference; a record written by a fixed server should match. The dashboard cannot tell whether anything else changed.`,
     );
   }
   return item('fail', `The stored document hashes to ${hash}, not the signed ${signed}: it was changed after it was signed.`);
