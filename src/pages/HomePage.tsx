@@ -448,7 +448,9 @@ function LatencyCard({ win }: Readonly<{ win: OverviewWindow }>) {
     none = `No loaded record in these ${name} has a time the server measured. Older records in the range are not loaded.`;
   }
   return (
-    <section className="card" aria-labelledby="latency-title">
+    // Two columns of the grid (#88): one is too narrow for the table, which
+    // spilled out over the next card.
+    <section className="card card-span-2" aria-labelledby="latency-title">
       <div className="card-head">
         <h2 id="latency-title">Time to answer, by verifier</h2>
       </div>
@@ -458,36 +460,38 @@ function LatencyCard({ win }: Readonly<{ win: OverviewWindow }>) {
         </p>
       ) : (
         <>
-          <table className="tbl compact tbl-stack">
-            <thead>
-              <tr>
-                <th scope="col">Verifier</th>
-                <th scope="col">Median</th>
-                <th scope="col">95th percentile</th>
-                <th scope="col">Measured</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.key}>
-                  <td>
-                    <Link className="mono" to={`/ledger?verifier=${encodeURIComponent(r.key)}&${range}`}>
-                      {r.key.toLowerCase()}
-                    </Link>
-                  </td>
-                  <td className="num cell-small" data-label="Median">
-                    {formatMs(r.median)}
-                  </td>
-                  <td className="num cell-small" data-label="95th percentile">
-                    {formatMs(r.p95)}
-                  </td>
-                  <td className="num muted cell-small" data-label="Measured">
-                    {r.measured} of {plural(r.of, 'record', 'records')}
-                  </td>
+          <div className="table-wrap">
+            <table className="tbl compact latency-tbl tbl-stack">
+              <thead>
+                <tr>
+                  <th scope="col">Verifier</th>
+                  <th scope="col">Median</th>
+                  <th scope="col">95th percentile</th>
+                  <th scope="col">Measured</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.key}>
+                    <td>
+                      <Link className="mono" to={`/ledger?verifier=${encodeURIComponent(r.key)}&${range}`}>
+                        {r.key.toLowerCase()}
+                      </Link>
+                    </td>
+                    <td className="num cell-small" data-label="Median">
+                      {formatMs(r.median)}
+                    </td>
+                    <td className="num cell-small" data-label="95th percentile">
+                      {formatMs(r.p95)}
+                    </td>
+                    <td className="num muted cell-small" data-label="Measured">
+                      {r.measured} of {plural(r.of, 'record', 'records')}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           <p className="hint" style={{ margin: 0 }}>
             From the request to its audit row, as the server measured it, so it includes the verifier and any model
             call. Records the server did not measure are left out.

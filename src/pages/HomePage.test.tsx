@@ -63,6 +63,22 @@ describe('HomePage: time to answer (#53)', () => {
     expect(c.getByRole('link', { name: 'math' }).getAttribute('href')).toMatch(/^\/ledger\?verifier=MATH&/);
   });
 
+  it('keeps its table inside the card, which takes two columns of the grid (#88)', async () => {
+    vi.spyOn(demoApi, 'listLogs').mockResolvedValue({
+      logs: [{ ...verified('1', 'm'), latency_ms: 400 }],
+      nextBefore: null,
+    });
+    renderApp(<HomePage />);
+    const region = await screen.findByRole('region', { name: 'Time to answer, by verifier' });
+    // jsdom lays nothing out, so this checks the classes the layout rests on:
+    // the table scrolls in a .table-wrap, as every other table does, rather
+    // than spilling over the next card.
+    expect(region.classList.contains('card-span-2')).toBe(true);
+    const table = within(region).getByRole('table');
+    expect(table.parentElement?.classList.contains('table-wrap')).toBe(true);
+    expect(table.classList.contains('latency-tbl')).toBe(true);
+  });
+
   it('says when the server measured no record, as a server before #528 does', async () => {
     vi.spyOn(demoApi, 'listLogs').mockResolvedValue({
       logs: [{ ...verified('2', 'm'), latency_ms: 0 }, verified('1', 'm')],
