@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Link } from 'react-router';
 
 const W = 96;
 const H = 32;
@@ -17,12 +18,18 @@ export function Sparkline({ values }: Readonly<{ values: readonly number[] }>) {
   );
 }
 
-/** One headline number with its label, an optional trend and a line of context. */
+/**
+ * One headline number with its label, an optional trend and a line of
+ * context. With `to`, the number links there, and the whole tile takes the
+ * click (#90); `linkLabel` names the link, since a number alone says little.
+ */
 export function StatTile({
   label,
   dot,
   value,
   trend,
+  to,
+  linkLabel,
   children,
   after,
 }: Readonly<{
@@ -30,19 +37,29 @@ export function StatTile({
   dot?: string;
   value: ReactNode;
   trend?: readonly number[];
+  to?: string;
+  linkLabel?: string;
   /** The line of context under the number. */
   children?: ReactNode;
   /** Anything below that line, such as a refresh warning. */
   after?: ReactNode;
 }>) {
   return (
-    <section className="card tile" aria-label={label}>
+    <section className={to ? 'card tile tile-link' : 'card tile'} aria-label={label}>
       <span className="tile-label">
         {dot && <span className={`dot ${dot}`} aria-hidden="true" />}
         {label}
       </span>
       <span className="tile-row">
-        <span className="tile-value">{value}</span>
+        <span className="tile-value">
+          {to ? (
+            <Link to={to} aria-label={linkLabel}>
+              {value}
+            </Link>
+          ) : (
+            value
+          )}
+        </span>
         {trend && <Sparkline values={trend} />}
       </span>
       {children && <p className="tile-note">{children}</p>}
@@ -56,6 +73,8 @@ export interface BarRow {
   label: ReactNode;
   n: number;
   note?: ReactNode;
+  /** Where the row's label links (#90), when it is not a link already. */
+  to?: string;
 }
 
 /** Counts as bars on one scale, most first. */
@@ -66,7 +85,7 @@ export function BarList({ rows }: Readonly<{ rows: readonly BarRow[] }>) {
       {rows.map((r) => (
         <li key={r.key}>
           <span className="bars-head">
-            <span className="bars-label">{r.label}</span>
+            <span className="bars-label">{r.to ? <Link to={r.to}>{r.label}</Link> : r.label}</span>
             <span className="num">{r.n}</span>
           </span>
           <span className="bars-track" aria-hidden="true">

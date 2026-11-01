@@ -1,5 +1,16 @@
 import { useState } from 'react';
-import { bucketLabel, bucketName, niceScale, RANGES, type Bucket, type OverviewWindow, type VerdictCounts } from '../lib/overview';
+import { Link, useNavigate } from 'react-router';
+import {
+  bucketLabel,
+  bucketName,
+  niceScale,
+  periodParams,
+  RANGES,
+  type Bucket,
+  type OverviewWindow,
+  type Period,
+  type VerdictCounts,
+} from '../lib/overview';
 
 // A column stacks either the stored verdicts or the stored admissions (#53).
 // DENY cuts across the verdicts, so the two never share a stack.
@@ -38,6 +49,20 @@ const FILL: Record<Key, string> = {
   noAdmission: 'var(--v-none)',
 };
 
+// The ledger filter for each series (#90), read by the same rule the counts are.
+const FILTER: Record<Key, string> = {
+  verified: 'verdict=VERIFIED',
+  unverifiable: 'verdict=UNVERIFIABLE',
+  blocked: 'verdict=BLOCKED',
+  none: 'verdict=none',
+  admitted: 'admission=ADMIT',
+  denied: 'admission=DENY',
+  noAdmission: 'admission=none',
+};
+
+/** The ledger on a period's records, of one series or all of them. */
+const ledgerOf = (period: Period, key?: Key) => `/ledger?${key ? `${FILTER[key]}&` : ''}${periodParams(period)}`;
+
 const PLOT = 200;
 const GAP = 2;
 
@@ -71,6 +96,7 @@ export function columnSegments(
  * chart; the table view holds the same numbers.
  */
 export function VerdictChart({ win }: Readonly<{ win: OverviewWindow }>) {
+  const navigate = useNavigate();
   const [view, setView] = useState<'chart' | 'table'>('chart');
   const [grouping, setGrouping] = useState<Grouping>('verdict');
   const series = SERIES[grouping];
@@ -99,7 +125,8 @@ export function VerdictChart({ win }: Readonly<{ win: OverviewWindow }>) {
         <div style={{ flex: '1 1 200px', minWidth: 0 }}>
           <h2 id="by-verdict-title">{grouping === 'verdict' ? 'Records by verdict' : 'Records by admission'}</h2>
           <p className="hint" style={{ margin: 0 }}>
-            {win.range === '24h' ? 'Per hour, UTC.' : 'Per day, UTC.'} Hover or focus a column for its counts.
+            {win.range === '24h' ? 'Per hour, UTC.' : 'Per day, UTC.'} Hover or focus a column for its counts; open
+            it for its records.
           </p>
         </div>
         <fieldset className="seg">
@@ -131,7 +158,10 @@ export function VerdictChart({ win }: Readonly<{ win: OverviewWindow }>) {
           {series.map((s) => (
             <li key={s.key}>
               <span className={`sw ${s.swatch}`} aria-hidden="true" />
-              {s.label} <b>{shown[s.key]}</b>
+              {/* The count and the link go together: a column's while one is hovered or focused, else the range's. */}
+              <Link to={ledgerOf(focused ?? win, s.key)}>
+                {s.label} <b>{shown[s.key]}</b>
+              </Link>
             </li>
           ))}
         </ul>
@@ -158,7 +188,7 @@ export function VerdictChart({ win }: Readonly<{ win: OverviewWindow }>) {
                     key={b.start}
                     type="button"
                     className="vc-col"
-                    aria-label={`${bucketName(b, win.range)}, ${describe(b, series)}`}
+                    aria-label={`${bucketName(b, win.range)}, ${describe(b, series)}. Open its records in the ledger.`}
                     style={{ gap, opacity: focused && focused.start !== b.start ? 0.45 : 1 }}
                     onMouseEnter={() => setHovered(b.start)}
                     onMouseLeave={() => setHovered(null)}
@@ -168,6 +198,7 @@ export function VerdictChart({ win }: Readonly<{ win: OverviewWindow }>) {
                       setFocusedAt(b.start);
                     }}
                     onBlur={() => setFocusedAt(null)}
+                    onClick={() => void navigate(ledgerOf(b))}
                   >
                     {segs.map((s) => (
                       <span key={s.key} className="vc-seg" style={{ height: s.h, background: FILL[s.key] }} />
@@ -205,11 +236,23 @@ export function VerdictChart({ win }: Readonly<{ win: OverviewWindow }>) {
                   </th>
                   {series.map((s) => (
                     <td key={s.key} className="num">
-                      {b[s.key]}
+                      {b[s.key] > 0 ? (
+                        <Link to={ledgerOf(b, s.key)} aria-label={`${b[s.key]} ${s.label}, ${bucketName(b, win.range)}`}>
+                          {b[s.key]}
+                        </Link>
+                      ) : (
+                        0
+                      )}
                     </td>
                   ))}
                   <td className="num" style={{ color: 'var(--ink)', fontWeight: 600 }}>
-                    {b.total}
+                    {b.total > 0 ? (
+                      <Link to={ledgerOf(b)} aria-label={`${b.total} in all, ${bucketName(b, win.range)}`}>
+                        {b.total}
+                      </Link>
+                    ) : (
+                      0
+                    )}
                   </td>
                 </tr>
               ))}

@@ -919,6 +919,30 @@ a.btn {
 .tile-value a {
   color: var(--ink);
 }
+/* A tile that opens a page (#90): its number is the link, stretched over the
+   whole tile, which shows the hover and the keyboard focus. */
+.tile-link {
+  position: relative;
+}
+.tile-link:hover {
+  box-shadow: 0 1px 2px rgba(15, 21, 48, 0.06), 0 0 0 1px var(--line-strong);
+}
+.tile-link .tile-value a::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+.tile-link .tile-value a:hover {
+  text-decoration: none;
+}
+.tile-link .tile-value a:focus-visible {
+  outline: none;
+}
+.tile-link:has(a:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 .tile-note {
   margin: 0;
   font-size: 12px;
@@ -1050,7 +1074,8 @@ a.btn {
   border: 0;
   border-radius: 4px;
   background: transparent;
-  cursor: default;
+  /* A column opens its records (#90). */
+  cursor: pointer;
 }
 .vc-col:hover,
 .vc-col:focus-visible {
