@@ -384,9 +384,27 @@ describe('the translated expression of a natural-language verdict (#85)', () => 
     const scoped = { verification_scope: 'translated_expression_only', translated_expression: '0.15 * 240', query_semantics_verified: false };
     expect(parseResult(nl(scoped)).translatedExpression).toBe('0.15 * 240');
     expect(parseResult(nl({ translated_expression: '0.15 * 240' })).translatedExpression).toBeNull();
+    expect(parseResult(nl({ ...scoped, verification_scope: 'full_query' })).translatedExpression).toBeNull();
     expect(parseResult(nl({ ...scoped, translated_expression: '' })).translatedExpression).toBeNull();
     expect(parseResult(nl({ ...scoped, translated_expression: 36 })).translatedExpression).toBeNull();
     expect(parseResult(nl(scoped).replace('"developer_fields"', '"other_fields"')).translatedExpression).toBeNull();
+  });
+
+  it('leaves it null for every other shape of result', () => {
+    const fields = { verification_scope: 'translated_expression_only', translated_expression: '0.15 * 240' };
+    const context = parseResult(
+      JSON.stringify({ spec_version: '1.1', verdict: 'VERIFIED', context: { evidence: { evidence: { developer_fields: fields } } } }),
+    );
+    expect(context.shape).toBe('verification-context');
+    expect(context.translatedExpression).toBeNull();
+    const truncated = parseResult(JSON.stringify({ truncated: true, preview: '{"developer_fields": ...' }));
+    expect(truncated.shape).toBe('truncated');
+    expect(truncated.translatedExpression).toBeNull();
+    const shortenedItem = parseResult(JSON.stringify({ batch_job_id: 'j', details: { truncated: true } }));
+    expect(shortenedItem.shape).toBe('truncated');
+    expect(shortenedItem.translatedExpression).toBeNull();
+    expect(parseResult('not json').translatedExpression).toBeNull();
+    expect(parseResult(JSON.stringify({ developer_fields: fields })).translatedExpression).toBeNull();
   });
 
   it('reads it from a batch item too', () => {

@@ -103,17 +103,25 @@ export function compare(
  * Whether the attestation is about this record's request. A natural-language
  * verdict covers the expression the model translated the request into, and
  * the server signs that expression instead (qwed-verification core/trust.py).
+ * The record's scope says the server verified the expression; only a
+ * signature that checks out says the server signed it.
  */
-async function requestItem(subtle: SubtleCrypto, sub: string | null, stored: StoredFacts): Promise<AttestationItem> {
+async function requestItem(
+  subtle: SubtleCrypto,
+  sub: string | null,
+  stored: StoredFacts,
+  signed: boolean,
+): Promise<AttestationItem> {
   const expression = stored.translatedExpression ?? null;
   if (expression === null) {
     return compare('request', 'About this record’s request', sub, await sha256Ref(subtle, stored.request), 'a request');
   }
   const item = compare('request', 'About the translated expression', sub, await sha256Ref(subtle, expression), 'an expression');
   if (item.state !== 'pass') return item;
+  const did = signed ? 'verified and signed' : 'verified';
   return {
     ...item,
-    detail: `${item.detail}, the expression ${expression}, which the model translated the request into. The server verified and signed this expression, not the request.`,
+    detail: `${item.detail}, the expression ${expression}, which the model translated the request into. The server ${did} this expression, not the request.`,
   };
 }
 
@@ -224,10 +232,11 @@ export async function checkAttestation(
   const result = isObj(qwed.result) ? qwed.result : {};
   const { key, keyOwner } = keyOf(jwks, kid);
 
+  const signature = await signatureItem(subtle, key, decoded);
   const items: AttestationItem[] = [
-    await signatureItem(subtle, key, decoded),
+    signature,
     compare('issuer', 'Issued by the key’s owner', issuer, keyOwner, 'an issuer'),
-    await requestItem(subtle, str(claims.sub), stored),
+    await requestItem(subtle, str(claims.sub), stored, signature.state === 'pass'),
     compare('verdict', 'States the stored verdict', str(result.status), stored.verdict, 'a verdict'),
     compare('proof', 'States the stored proof_ref', str(qwed.proof_hash), stored.proofRef, 'a proof_ref'),
     compare('admission', 'States the stored admission', str(qwed.admission), stored.admissionWord, 'an admission'),

@@ -159,6 +159,22 @@ describe('checkAttestation, on a natural-language verdict', () => {
     expect(states(asRequest).request).toBe('fail');
   });
 
+  it('says the server signed the expression only when the signature checks out', async () => {
+    const { privateKey } = await keyPair(KID);
+    const token = await signAttestation(privateKey, { kid: KID, request: EXPRESSION, now: NOW });
+    // Checked with another key under the same kid, then with no key for it.
+    const other = await keyPair(KID);
+    for (const jwks of [{ keys: [other.jwk] }, { keys: [] }]) {
+      const r = await checkAttestation(token, jwks, NL, NOW);
+      expect(states(r).signature).not.toBe('pass');
+      const item = r.items.find((i) => i.id === 'request');
+      expect(item?.state).toBe('pass');
+      expect(item?.detail).toBe(
+        `${await sha256Ref(EXPRESSION)}, the expression 0.15 * 240, which the model translated the request into. The server verified this expression, not the request.`,
+      );
+    }
+  });
+
   it('fails an attestation about another statement', async () => {
     const { privateKey, jwk } = await keyPair(KID);
     const token = await signAttestation(privateKey, { kid: KID, request: QUESTION, now: NOW });
