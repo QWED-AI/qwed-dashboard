@@ -799,6 +799,13 @@ a.btn {
   gap: 12px;
   font-size: 13px;
 }
+/* A value may be one long word, such as a server address with no break in
+   it: it wraps inside its card rather than running out of it (#92). */
+.pairs li > :last-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
 .table-foot {
   display: flex;
   flex-wrap: wrap;
@@ -845,10 +852,9 @@ a.btn {
   /* Its cards ask how wide it is (.card-span-2). */
   container: ov-grid / inline-size;
 }
-.ov-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+/* A long unbroken line, such as a sha256, wraps in its card rather than
+   widening the column. */
+.ov-grid > * {
   min-width: 0;
 }
 .card-head {

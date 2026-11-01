@@ -567,14 +567,18 @@ function DeniedCards({ win, keys }: Readonly<{ win: OverviewWindow; keys: KeysQu
   );
 }
 
-/** The cards that ask the server for themselves, not from the loaded records. */
+/**
+ * The cards that ask the server for themselves, not from the loaded records.
+ * Each is a cell of the grid (#92): stacked in one cell, they left the cells
+ * beside them empty for the whole stack's height.
+ */
 function ServerCards() {
   return (
-    <div className="ov-stack">
+    <>
       <ActivitySummaryCard />
       <ChainTrail />
       <SecurityCard />
-    </div>
+    </>
   );
 }
 
