@@ -12,7 +12,7 @@ An open-source web dashboard for [QWED verification](https://github.com/QWED-AI/
 - When the server's attestation check, not the verifier, made a result BLOCKED ([qwed-verification #320](https://github.com/QWED-AI/qwed-verification/issues/320)), the record says so and shows, where the server kept them, the verdict the verifier reached and its proof_ref, as not admitted. It recognises these by the `trust_gate.` and `api.attestation.` prefixes of the stored `constraint_id`.
 - **Check attestation.** The server stores the attestation it signed with a VERIFIED result, and the record page can check it. The check runs in your browser with the server's public keys (`GET /.well-known/jwks.json`), and it reports:
   - whether the ES256 signature matches the server's key, and whether the issuer is the key's owner;
-  - whether the claims match what the record stored: the request (its SHA-256), the verdict, the proof_ref and the admission;
+  - whether the claims match what the record stored: the request (its SHA-256), the verdict, the proof_ref and the admission. A natural-language verdict covers the expression the model translated the request into, not the request, and the server signs that expression: when the stored result says so (`verification_scope` is `translated_expression_only`) and holds a non-empty `translated_expression`, the check compares the attestation with that expression instead, and says so. Otherwise, it compares it with the request;
   - whether the attestation has expired (24 hours by default).
 
   It says so when the key is no longer among the server's keys: the key was rotated, or the server makes a key per process and has restarted. Web Crypto, which the check needs, works only on HTTPS and on localhost.
