@@ -31,6 +31,12 @@ export interface ParsedResult {
   attestationBlock: AttestationBlock | null;
   /** The attestation JWT the server signed and stored with the result, if any (#39). */
   attestation: string | null;
+  /**
+   * For a natural-language verdict, the expression the model translated the
+   * request into: the server verified that expression, not the request, and
+   * its attestation is about the expression. Null for any other result.
+   */
+  translatedExpression: string | null;
   /** The /verify/batch job this record is an item of, or null (#57). */
   batch: BatchRef | null;
   /** The parsed JSON, or null when the stored text is not valid JSON. */
@@ -123,6 +129,17 @@ function readAttestationBlock(verdict: Verdict | null, fields: unknown): Attesta
   };
 }
 
+/**
+ * The expression a natural-language verdict covers, read as qwed-verification
+ * reads it to bind the attestation (_attested_statement, core/trust.py): only
+ * when the server marked the verdict as covering the translated expression.
+ */
+function readTranslatedExpression(fields: unknown): string | null {
+  if (at(fields, 'verification_scope') !== 'translated_expression_only') return null;
+  const expression = at(fields, 'translated_expression');
+  return typeof expression === 'string' && expression ? expression : null;
+}
+
 /** The verifier's verdict as a refusal records it, for the card and the ledger. */
 export function attestationVerdictLabel(block: AttestationBlock): string {
   if (block.verdict) return block.verdict;
@@ -141,6 +158,7 @@ const empty = (shape: ResultShape, value: unknown, error: string | null): Parsed
   isAuthoritative: null,
   attestationBlock: null,
   attestation: null,
+  translatedExpression: null,
   batch: null,
   value,
   error,
@@ -208,6 +226,7 @@ export function parseResult(raw: string): ParsedResult {
       attestationBlock: readAttestationBlock(verdict, at(value, 'context', 'evidence', 'evidence', 'developer_fields')),
       // A document's own signature is not a verdict attestation (#319).
       attestation: null,
+      translatedExpression: null,
       batch: null,
       value,
       error: null,
@@ -267,6 +286,7 @@ function fromDiagnostic(result: Obj, value: unknown): ParsedResult {
     isAuthoritative: typeof result.is_authoritative === 'boolean' ? result.is_authoritative : null,
     attestationBlock: readAttestationBlock(verdict, result.developer_fields),
     attestation: asMessage(result.attestation),
+    translatedExpression: readTranslatedExpression(result.developer_fields),
     batch: null,
     value,
     error: null,
