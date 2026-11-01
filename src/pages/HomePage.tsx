@@ -268,25 +268,70 @@ export function HomePage() {
   );
 }
 
+/**
+ * Each tile opens the ledger on the records it counts (#90): the same range,
+ * read by the same rule as the ledger's filters, so the ledger's first page
+ * lists as many. Older records it loads on request may add to them.
+ */
 function RecordTiles({ win }: Readonly<{ win: OverviewWindow }>) {
   const t = win.totals;
   const name = RANGES[win.range].name;
   const series = (key: 'total' | 'blocked' | 'unverifiable' | 'none' | 'denied') => win.buckets.map((b) => b[key]);
+  const range = periodParams(win);
+  const open = (n: number, what: string, which = '') => {
+    const one = `${what}record`;
+    const many = `${what}records`;
+    return `Open the ${plural(n, one, many)}${which} in the ledger`;
+  };
   return (
     <>
-      <StatTile label="Records" value={t.total} trend={series('total')}>
+      <StatTile
+        label="Records"
+        value={t.total}
+        trend={series('total')}
+        to={`/ledger?${range}`}
+        linkLabel={open(t.total, '')}
+      >
         {comparedText(t.total, win.previousTotal, name) ?? `In the ${name} up to the newest record.`}
       </StatTile>
-      <StatTile label="Not admitted (DENY)" dot="d-DENY" value={t.denied} trend={series('denied')}>
+      <StatTile
+        label="Not admitted (DENY)"
+        dot="d-DENY"
+        value={t.denied}
+        trend={series('denied')}
+        to={`/ledger?admission=DENY&${range}`}
+        linkLabel={open(t.denied, 'DENY ')}
+      >
         {shareOf(t.denied, t.total)}, any verdict
       </StatTile>
-      <StatTile label="BLOCKED" dot="d-BLOCKED" value={t.blocked} trend={series('blocked')}>
+      <StatTile
+        label="BLOCKED"
+        dot="d-BLOCKED"
+        value={t.blocked}
+        trend={series('blocked')}
+        to={`/ledger?verdict=BLOCKED&${range}`}
+        linkLabel={open(t.blocked, 'BLOCKED ')}
+      >
         {shareOf(t.blocked, t.total)}
       </StatTile>
-      <StatTile label="UNVERIFIABLE" dot="d-UNVERIFIABLE" value={t.unverifiable} trend={series('unverifiable')}>
+      <StatTile
+        label="UNVERIFIABLE"
+        dot="d-UNVERIFIABLE"
+        value={t.unverifiable}
+        trend={series('unverifiable')}
+        to={`/ledger?verdict=UNVERIFIABLE&${range}`}
+        linkLabel={open(t.unverifiable, 'UNVERIFIABLE ')}
+      >
         {shareOf(t.unverifiable, t.total)}
       </StatTile>
-      <StatTile label="No verdict recorded" dot="d-none" value={t.none} trend={series('none')}>
+      <StatTile
+        label="No verdict recorded"
+        dot="d-none"
+        value={t.none}
+        trend={series('none')}
+        to={`/ledger?verdict=none&${range}`}
+        linkLabel={open(t.none, '', ' with no verdict recorded')}
+      >
         {shareOf(t.none, t.total)}
       </StatTile>
     </>
@@ -298,9 +343,10 @@ function KeysTile({ keys }: Readonly<{ keys: KeysQuery }>) {
   if (keys.isError && !keys.data) note = describeError(keys.error);
   else if (keys.data) {
     const unused = unusedKeys(keys.data);
+    // The whole tile opens the API keys screen (#90), so the note is not a link too.
     note = (
       <>
-        <Link to="/keys">{plural(keys.data.length, 'active key', 'active keys')}</Link>
+        {plural(keys.data.length, 'active key', 'active keys')}
         {unused > 0 && `, ${unused} with no use recorded`}.
       </>
     );
@@ -309,6 +355,8 @@ function KeysTile({ keys }: Readonly<{ keys: KeysQuery }>) {
     <StatTile
       label="API keys"
       value={keys.data ? keys.data.length : <span className="sk" style={{ width: 40, height: 24 }} aria-hidden="true" />}
+      to={keys.data ? '/keys' : undefined}
+      linkLabel="Open the API keys"
       after={
         keys.isRefetchError && (
           <div role="alert" style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-start' }}>
@@ -341,10 +389,29 @@ function keyRow(id: string, n: number, list: ApiKeyItem[] | undefined): BarRow {
 
 function Breakdowns({ win, keys }: Readonly<{ win: OverviewWindow; keys: KeysQuery }>) {
   const count = plural(win.totals.total, 'record', 'records');
-  const verifiers = countBy(win.records, (r) => r.domain.toLowerCase()).map(
-    ({ key, n }): BarRow => ({ key, label: <span className="mono">{key}</span>, n }),
+  const range = periodParams(win);
+  // Each bar opens the ledger on its records (#90). The ledger matches the
+  // verifier as stored, so the link keeps its case. The label shows it lower,
+  // as the other cards do, unless two stored names differ only in case: then
+  // each shows as stored, so the two rows can be told apart.
+  const byVerifier = countBy(win.records, (r) => r.domain);
+  const clash = new Set(
+    countBy(byVerifier, (v) => v.key.toLowerCase())
+      .filter((v) => v.n > 1)
+      .map((v) => v.key),
   );
-  const callers = countBy(win.records, (r) => r.apiKeyId ?? '').map(({ key, n }) => keyRow(key, n, keys.data));
+  const verifiers = byVerifier.map(
+    ({ key, n }): BarRow => ({
+      key,
+      label: <span className="mono">{clash.has(key.toLowerCase()) ? key : key.toLowerCase()}</span>,
+      n,
+      to: `/ledger?verifier=${encodeURIComponent(key)}&${range}`,
+    }),
+  );
+  const callers = countBy(win.records, (r) => r.apiKeyId ?? '').map(({ key, n }) => ({
+    ...keyRow(key, n, keys.data),
+    to: `/ledger?key=${key === '' ? 'none' : encodeURIComponent(key)}&${range}`,
+  }));
   return (
     <>
       <section className="card" aria-labelledby="by-verifier-title">

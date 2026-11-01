@@ -934,6 +934,37 @@ a.btn {
 .tile-value a {
   color: var(--ink);
 }
+/* A tile that opens a page (#90): its number is the link, stretched over the
+   whole tile, which shows the hover and the keyboard focus. */
+.tile-link {
+  position: relative;
+}
+.tile-link:hover {
+  box-shadow: 0 1px 2px rgba(15, 21, 48, 0.06), 0 0 0 1px var(--line-strong);
+}
+.tile-link .tile-value a::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+.tile-link .tile-value a:hover {
+  text-decoration: none;
+}
+.tile-link .tile-value a:focus-visible {
+  outline: none;
+}
+.tile-link:has(a:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+/* A control of its own in such a tile, such as the key list's Try again,
+   sits above the stretched link, so a click on it is not a click on the tile. */
+.tile-link button,
+.tile-link .tile-note a {
+  position: relative;
+  z-index: 1;
+}
 .tile-note {
   margin: 0;
   font-size: 12px;
@@ -957,6 +988,12 @@ a.btn {
   stroke-width: 2;
 }
 
+/* The readout and the chart, which keep a chosen column between them (#90). */
+.vc-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
 .vc-readout {
   display: flex;
   flex-wrap: wrap;
@@ -1065,11 +1102,13 @@ a.btn {
   border: 0;
   border-radius: 4px;
   background: transparent;
-  cursor: default;
+  /* A column opens its records (#90). */
+  cursor: pointer;
 }
 .vc-col:hover,
 .vc-col:focus-visible {
   background: var(--hover);
+  text-decoration: none;
 }
 .vc-seg {
   display: block;

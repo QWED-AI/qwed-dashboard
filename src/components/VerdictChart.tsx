@@ -1,5 +1,16 @@
-import { useState } from 'react';
-import { bucketLabel, bucketName, niceScale, RANGES, type Bucket, type OverviewWindow, type VerdictCounts } from '../lib/overview';
+import { useState, type KeyboardEvent } from 'react';
+import { Link } from 'react-router';
+import {
+  bucketLabel,
+  bucketName,
+  niceScale,
+  periodParams,
+  RANGES,
+  type Bucket,
+  type OverviewWindow,
+  type Period,
+  type VerdictCounts,
+} from '../lib/overview';
 
 // A column stacks either the stored verdicts or the stored admissions (#53).
 // DENY cuts across the verdicts, so the two never share a stack.
@@ -37,6 +48,23 @@ const FILL: Record<Key, string> = {
   denied: 'var(--v-bad)',
   noAdmission: 'var(--v-none)',
 };
+
+// The ledger filter for each series (#90), read by the same rule the counts are.
+const FILTER: Record<Key, string> = {
+  verified: 'verdict=VERIFIED',
+  unverifiable: 'verdict=UNVERIFIABLE',
+  blocked: 'verdict=BLOCKED',
+  none: 'verdict=none',
+  admitted: 'admission=ADMIT',
+  denied: 'admission=DENY',
+  noAdmission: 'admission=none',
+};
+
+/** The ledger on a period's records, of one series or all of them. */
+function ledgerOf(period: Period, key?: Key): string {
+  const filter = key ? `${FILTER[key]}&` : '';
+  return `/ledger?${filter}${periodParams(period)}`;
+}
 
 const PLOT = 200;
 const GAP = 2;
@@ -76,9 +104,27 @@ export function VerdictChart({ win }: Readonly<{ win: OverviewWindow }>) {
   const series = SERIES[grouping];
   // Columns are known by their start time, which a refresh does not move,
   // and pointer and keyboard are kept apart: the pointer leaving a column
-  // does not clear the one that has focus.
+  // does not clear the one that has focus. A column stays chosen until the
+  // pointer or the focus leaves the readout and the chart together (#90), so
+  // its counts in the legend can be followed to the ledger.
   const [hovered, setHovered] = useState<number | null>(null);
   const [focusedAt, setFocusedAt] = useState<number | null>(null);
+  // The columns are one tab stop, and the arrow keys move between them, so
+  // Tab leaves the chart at once and Shift+Tab reaches the legend with the
+  // chosen column kept (#90). The newest column takes the stop at first.
+  const [rover, setRover] = useState<number | null>(null);
+  const tabStop = win.buckets.some((b) => b.start === rover) ? rover : (win.buckets.at(-1)?.start ?? null);
+  function move(e: KeyboardEvent<HTMLAnchorElement>) {
+    // With a modifier the key is the browser's or the screen reader's, such as Alt+Left for Back.
+    if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    const cols = [...(e.currentTarget.parentElement?.children ?? [])] as HTMLElement[];
+    const i = cols.indexOf(e.currentTarget);
+    const keys: Record<string, number> = { ArrowLeft: i - 1, ArrowUp: i - 1, ArrowRight: i + 1, ArrowDown: i + 1, Home: 0, End: cols.length - 1 };
+    const to = keys[e.key];
+    if (to === undefined) return;
+    e.preventDefault();
+    cols[Math.max(0, Math.min(cols.length - 1, to))]?.focus();
+  }
   const { top, step } = niceScale(Math.max(...win.buckets.map((b) => b.total)));
   const ticks: number[] = [];
   for (let v = top; v >= 0; v -= step) ticks.push(v);
@@ -99,7 +145,8 @@ export function VerdictChart({ win }: Readonly<{ win: OverviewWindow }>) {
         <div style={{ flex: '1 1 200px', minWidth: 0 }}>
           <h2 id="by-verdict-title">{grouping === 'verdict' ? 'Records by verdict' : 'Records by admission'}</h2>
           <p className="hint" style={{ margin: 0 }}>
-            {win.range === '24h' ? 'Per hour, UTC.' : 'Per day, UTC.'} Hover or focus a column for its counts.
+            {win.range === '24h' ? 'Per hour, UTC.' : 'Per day, UTC.'} Hover or focus a column for its counts (the
+            arrow keys move between them); open it for its records.
           </p>
         </div>
         <fieldset className="seg">
@@ -122,68 +169,83 @@ export function VerdictChart({ win }: Readonly<{ win: OverviewWindow }>) {
         </fieldset>
       </div>
 
-      <div className="vc-readout" aria-live="polite">
-        <strong>{focused ? bucketName(focused, win.range) : `All ${name}`}</strong>
-        <span className="mono num">
-          {shown.total} {shown.total === 1 ? 'record' : 'records'}
-        </span>
-        <ul className="vc-legend">
-          {series.map((s) => (
-            <li key={s.key}>
-              <span className={`sw ${s.swatch}`} aria-hidden="true" />
-              {s.label} <b>{shown[s.key]}</b>
-            </li>
-          ))}
-        </ul>
-      </div>
+      <div
+        className="vc-pick"
+        onMouseLeave={() => setHovered(null)}
+        onBlur={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFocusedAt(null);
+        }}
+      >
+        <div className="vc-readout" aria-live="polite">
+          <strong>{focused ? bucketName(focused, win.range) : `All ${name}`}</strong>
+          <span className="mono num">
+            {shown.total} {shown.total === 1 ? 'record' : 'records'}
+          </span>
+          <ul className="vc-legend">
+            {series.map((s) => (
+              <li key={s.key}>
+                <span className={`sw ${s.swatch}`} aria-hidden="true" />
+                {/* The count and the link go together: the chosen column's, else the range's. */}
+                <Link to={ledgerOf(focused ?? win, s.key)}>
+                  {s.label} <b>{shown[s.key]}</b>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
 
-      {view === 'chart' ? (
-        <div className="vc-plot">
-          <div className="vc-axis" aria-hidden="true">
-            {ticks.map((v) => (
-              <span key={v} style={{ top: (1 - v / top) * PLOT }}>
-                {v}
-              </span>
-            ))}
-          </div>
-          <div className="vc-area">
-            {ticks.map((v) => (
-              <span key={v} className="vc-grid" aria-hidden="true" style={{ top: (1 - v / top) * PLOT }} />
-            ))}
-            <div className="vc-cols">
-              {win.buckets.map((b) => {
-                const { gap, segs } = columnSegments(b, top, grouping);
-                return (
-                  <button
-                    key={b.start}
-                    type="button"
-                    className="vc-col"
-                    aria-label={`${bucketName(b, win.range)}, ${describe(b, series)}`}
-                    style={{ gap, opacity: focused && focused.start !== b.start ? 0.45 : 1 }}
-                    onMouseEnter={() => setHovered(b.start)}
-                    onMouseLeave={() => setHovered(null)}
-                    onFocus={() => {
-                      // A new focus wins over a pointer resting elsewhere.
-                      setHovered(null);
-                      setFocusedAt(b.start);
-                    }}
-                    onBlur={() => setFocusedAt(null)}
-                  >
-                    {segs.map((s) => (
-                      <span key={s.key} className="vc-seg" style={{ height: s.h, background: FILL[s.key] }} />
-                    ))}
-                  </button>
-                );
-              })}
+        {view === 'chart' ? (
+          <div className="vc-plot">
+            <div className="vc-axis" aria-hidden="true">
+              {ticks.map((v) => (
+                <span key={v} style={{ top: (1 - v / top) * PLOT }}>
+                  {v}
+                </span>
+              ))}
+            </div>
+            <div className="vc-area">
+              {ticks.map((v) => (
+                <span key={v} className="vc-grid" aria-hidden="true" style={{ top: (1 - v / top) * PLOT }} />
+              ))}
+              <div className="vc-cols">
+                {win.buckets.map((b) => {
+                  const { gap, segs } = columnSegments(b, top, grouping);
+                  // A link, as any way to another page is: it opens in a new tab and copies as an address.
+                  return (
+                    <Link
+                      key={b.start}
+                      to={ledgerOf(b)}
+                      className="vc-col"
+                      aria-label={`${bucketName(b, win.range)}, ${describe(b, series)}. Open its records in the ledger.`}
+                      style={{ gap, opacity: focused && focused.start !== b.start ? 0.45 : 1 }}
+                      tabIndex={b.start === tabStop ? 0 : -1}
+                      onKeyDown={move}
+                      onMouseEnter={() => setHovered(b.start)}
+                      onFocus={() => {
+                        // A new focus wins over a pointer resting elsewhere.
+                        setHovered(null);
+                        setFocusedAt(b.start);
+                        setRover(b.start);
+                      }}
+                    >
+                      {segs.map((s) => (
+                        <span key={s.key} className="vc-seg" style={{ height: s.h, background: FILL[s.key] }} />
+                      ))}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="vc-ticks" aria-hidden="true">
+              {win.buckets.map((b, i) => (
+                <span key={b.start}>{tick(b, i)}</span>
+              ))}
             </div>
           </div>
-          <div className="vc-ticks" aria-hidden="true">
-            {win.buckets.map((b, i) => (
-              <span key={b.start}>{tick(b, i)}</span>
-            ))}
-          </div>
-        </div>
-      ) : (
+        ) : null}
+      </div>
+
+      {view === 'table' && (
         <div className="table-wrap vc-table">
           <table className="tbl" style={{ minWidth: 520 }}>
             <thead>
@@ -205,11 +267,23 @@ export function VerdictChart({ win }: Readonly<{ win: OverviewWindow }>) {
                   </th>
                   {series.map((s) => (
                     <td key={s.key} className="num">
-                      {b[s.key]}
+                      {b[s.key] > 0 ? (
+                        <Link to={ledgerOf(b, s.key)} aria-label={`${b[s.key]} ${s.label}, ${bucketName(b, win.range)}`}>
+                          {b[s.key]}
+                        </Link>
+                      ) : (
+                        0
+                      )}
                     </td>
                   ))}
                   <td className="num" style={{ color: 'var(--ink)', fontWeight: 600 }}>
-                    {b.total}
+                    {b.total > 0 ? (
+                      <Link to={ledgerOf(b)} aria-label={`${b.total} in all, ${bucketName(b, win.range)}`}>
+                        {b.total}
+                      </Link>
+                    ) : (
+                      0
+                    )}
                   </td>
                 </tr>
               ))}

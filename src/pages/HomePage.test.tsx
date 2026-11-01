@@ -1,12 +1,13 @@
 // @vitest-environment jsdom
 import { focusManager } from '@tanstack/react-query';
-import { act, cleanup, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { demoApi } from '../api/demo';
 import { ApiError } from '../api/http';
 import type { AuditLog } from '../api/types';
 import { CALLER_SUPPLIED_NOTICE } from '../lib/result';
+import { App } from '../App';
 import { renderApp } from '../test/render';
 import { HomePage } from './HomePage';
 
@@ -318,7 +319,7 @@ describe('HomePage', () => {
       const byAdmission = within(screen.getByRole('region', { name: 'Records by admission' }));
       const legend = byAdmission.getAllByRole('listitem').map((li) => li.textContent);
       expect(legend).toEqual(['ADMIT 1', 'DENY 3', 'Admission not recorded 1']);
-      expect(byAdmission.getByRole('button', { name: /^21 Oct, 10:00 to 11:00 UTC, 5 records: 1 ADMIT, 3 DENY, 1 Admission not recorded$/ })).toBeTruthy();
+      expect(byAdmission.getByRole('link', { name: /^21 Oct, 10:00 to 11:00 UTC, 5 records: 1 ADMIT, 3 DENY, 1 Admission not recorded\. Open its records in the ledger\.$/ })).toBeTruthy();
     });
 
     it('lists the denials by verifier and by API key, each opening the ledger on them', async () => {
@@ -358,6 +359,113 @@ describe('HomePage', () => {
           'No loaded record in these 24 hours was stored with DENY. Older records in the range are not loaded.',
         ),
       ).toBeTruthy();
+    });
+
+    describe('opening the ledger from what the Overview counts (#90)', () => {
+      const hour = 'from=2026-10-21T10:00:00.000Z&to=2026-10-21T11:00:00.000Z';
+      const link = (region: string, name: string) => within(screen.getByRole('region', { name: region })).getByRole('link', { name });
+      /** The rows of the ledger's table, once it lists records. */
+      const ledgerRows = async () => {
+        await screen.findByRole('heading', { name: 'Decision ledger' });
+        return within(await screen.findByRole('table')).getAllByRole('row').length - 1;
+      };
+
+      it('opens it from each tile, with the filter and the range the tile counted', async () => {
+        vi.spyOn(demoApi, 'listLogs').mockResolvedValue({ logs, nextBefore: null });
+        renderApp(<HomePage />);
+        await screen.findByRole('region', { name: 'Records' });
+        const tiles: [string, string, string][] = [
+          ['Records', 'Open the 5 records in the ledger', `/ledger?${range}`],
+          ['Not admitted (DENY)', 'Open the 3 DENY records in the ledger', `/ledger?admission=DENY&${range}`],
+          ['BLOCKED', 'Open the 0 BLOCKED records in the ledger', `/ledger?verdict=BLOCKED&${range}`],
+          ['UNVERIFIABLE', 'Open the 0 UNVERIFIABLE records in the ledger', `/ledger?verdict=UNVERIFIABLE&${range}`],
+          ['No verdict recorded', 'Open the 0 records with no verdict recorded in the ledger', `/ledger?verdict=none&${range}`],
+        ];
+        for (const [tile, name, href] of tiles) {
+          expect(link(tile, name).getAttribute('href')).toBe(href);
+        }
+        expect((await screen.findByRole('link', { name: 'Open the API keys' })).getAttribute('href')).toBe('/keys');
+      });
+
+      it('lists as many records in the ledger as the tile counted', async () => {
+        vi.spyOn(demoApi, 'listLogs').mockResolvedValue({ logs, nextBefore: null });
+        const user = userEvent.setup();
+        renderApp(<App />);
+        await user.click(await screen.findByRole('link', { name: 'Open the 3 DENY records in the ledger' }));
+        expect(await ledgerRows()).toBe(3);
+      });
+
+      it('opens it from each bar, on that verifier or key', async () => {
+        vi.spyOn(demoApi, 'listLogs').mockResolvedValue({ logs, nextBefore: null });
+        vi.spyOn(demoApi, 'listKeys').mockResolvedValue(keys);
+        renderApp(<HomePage />);
+        await screen.findByRole('region', { name: 'By verifier' });
+        // The ledger matches the verifier as stored, so the link keeps its case.
+        expect(link('By verifier', 'sql').getAttribute('href')).toBe(`/ledger?verifier=SQL&${range}`);
+        expect(link('By verifier', 'math').getAttribute('href')).toBe(`/ledger?verifier=MATH&${range}`);
+        expect((await within(screen.getByRole('region', { name: 'By API key' })).findByRole('link', { name: 'payments agent' })).getAttribute('href')).toBe(
+          `/ledger?key=7&${range}`,
+        );
+        expect(link('By API key', 'Not recorded').getAttribute('href')).toBe(`/ledger?key=none&${range}`);
+      });
+
+      it('shows verifiers stored in two cases as stored, so their bars differ', async () => {
+        vi.spyOn(demoApi, 'listLogs').mockResolvedValue({
+          logs: [row('3', 'MATH', 'ADMIT'), row('2', 'math', 'ADMIT'), row('1', 'SQL', 'ADMIT')],
+          nextBefore: null,
+        });
+        renderApp(<HomePage />);
+        await screen.findByRole('region', { name: 'By verifier' });
+        expect(link('By verifier', 'MATH').getAttribute('href')).toBe(`/ledger?verifier=MATH&${range}`);
+        expect(link('By verifier', 'math').getAttribute('href')).toBe(`/ledger?verifier=math&${range}`);
+        // One with no twin still reads lower case.
+        expect(link('By verifier', 'sql').getAttribute('href')).toBe(`/ledger?verifier=SQL&${range}`);
+      });
+
+      it('counts a record with an empty key id as no key, as the ledger does', async () => {
+        vi.spyOn(demoApi, 'listLogs').mockResolvedValue({
+          logs: [row('2', 'MATH', 'ADMIT', { api_key_id: '' }), row('1', 'MATH', 'ADMIT')],
+          nextBefore: null,
+        });
+        const user = userEvent.setup();
+        renderApp(<App />);
+        const byKey = within(await screen.findByRole('region', { name: 'By API key' }));
+        expect(byKey.getByRole('link', { name: 'Not recorded' }).closest('li')?.querySelector('.num')?.textContent).toBe('2');
+        await user.click(byKey.getByRole('link', { name: 'Not recorded' }));
+        expect(await ledgerRows()).toBe(2);
+      });
+
+      it('opens it on a column of the chart, for that hour', async () => {
+        vi.spyOn(demoApi, 'listLogs').mockResolvedValue({ logs, nextBefore: null });
+        const user = userEvent.setup();
+        renderApp(<App />);
+        const chart = within(await screen.findByRole('region', { name: 'Records by verdict' }));
+        await user.click(chart.getByRole('link', { name: /^21 Oct, 10:00 to 11:00 UTC, 5 records: / }));
+        expect(await ledgerRows()).toBe(5);
+      });
+
+      it('opens it from the legend and the table, for that verdict or admission', async () => {
+        vi.spyOn(demoApi, 'listLogs').mockResolvedValue({ logs, nextBefore: null });
+        const user = userEvent.setup();
+        renderApp(<HomePage />);
+        const chart = within(await screen.findByRole('region', { name: 'Records by verdict' }));
+        expect(chart.getByRole('link', { name: 'VERIFIED 5' }).getAttribute('href')).toBe(`/ledger?verdict=VERIFIED&${range}`);
+        await user.click(chart.getByRole('button', { name: 'Admission' }));
+        const byAdmission = within(screen.getByRole('region', { name: 'Records by admission' }));
+        expect(byAdmission.getByRole('link', { name: 'DENY 3' }).getAttribute('href')).toBe(`/ledger?admission=DENY&${range}`);
+        expect(byAdmission.getByRole('link', { name: 'Admission not recorded 1' }).getAttribute('href')).toBe(
+          `/ledger?admission=none&${range}`,
+        );
+        await user.click(byAdmission.getByRole('button', { name: 'Table' }));
+        expect(byAdmission.getByRole('link', { name: '3 DENY, 21 Oct, 10:00 to 11:00 UTC' }).getAttribute('href')).toBe(
+          `/ledger?admission=DENY&${hour}`,
+        );
+        expect(byAdmission.getByRole('link', { name: '5 in all, 21 Oct, 10:00 to 11:00 UTC' }).getAttribute('href')).toBe(
+          `/ledger?${hour}`,
+        );
+        // An hour with no record opens nothing.
+        expect(byAdmission.queryByRole('link', { name: /, 21 Oct, 09:00 to 10:00 UTC$/ })).toBeNull();
+      });
     });
   });
 
@@ -434,7 +542,7 @@ describe('HomePage', () => {
       expect(screen.getByRole('button', { name: '7 days' }).getAttribute('aria-pressed')).toBe('true');
       expect(screen.getByText(/^The 7 days up to the newest record/)).toBeTruthy();
       expect(screen.getByText('All 7 days')).toBeTruthy();
-      expect(screen.getAllByRole('button', { name: /^\d\d Oct UTC, / })).toHaveLength(7);
+      expect(screen.getAllByRole('link', { name: /^\d\d Oct UTC, / })).toHaveLength(7);
     });
 
     it('opens on seven days from the address', async () => {
@@ -455,7 +563,7 @@ describe('HomePage', () => {
       expect(chart.getByText('All 24 hours')).toBeTruthy();
       expect(legend()).toEqual(['VERIFIED 9', 'UNVERIFIABLE 2', 'BLOCKED 3', 'No verdict recorded 1']);
 
-      const eight = chart.getByRole('button', { name: /^20 Oct, 08:00 to 09:00 UTC, 4 records: / });
+      const eight = chart.getByRole('link', { name: /^20 Oct, 08:00 to 09:00 UTC, 4 records: / });
       await user.hover(eight);
       expect(chart.getByText('20 Oct, 08:00 to 09:00 UTC')).toBeTruthy();
       expect(legend()).toEqual(['VERIFIED 2', 'UNVERIFIABLE 1', 'BLOCKED 1', 'No verdict recorded 0']);
@@ -470,8 +578,8 @@ describe('HomePage', () => {
       const user = userEvent.setup();
       renderApp(<HomePage />);
       const chart = within(await screen.findByRole('region', { name: 'Records by verdict' }));
-      const eight = chart.getByRole('button', { name: /^20 Oct, 08:00 to 09:00 UTC, / });
-      const nine = chart.getByRole('button', { name: /^20 Oct, 09:00 to 10:00 UTC, / });
+      const eight = chart.getByRole('link', { name: /^20 Oct, 08:00 to 09:00 UTC, / });
+      const nine = chart.getByRole('link', { name: /^20 Oct, 09:00 to 10:00 UTC, / });
       act(() => eight.focus());
       await user.hover(nine);
       expect(chart.getByText('20 Oct, 09:00 to 10:00 UTC')).toBeTruthy();
@@ -484,11 +592,65 @@ describe('HomePage', () => {
       const user = userEvent.setup();
       renderApp(<HomePage />);
       const chart = within(await screen.findByRole('region', { name: 'Records by verdict' }));
-      const eight = chart.getByRole('button', { name: /^20 Oct, 08:00 to 09:00 UTC, / });
-      const nine = chart.getByRole('button', { name: /^20 Oct, 09:00 to 10:00 UTC, / });
+      const eight = chart.getByRole('link', { name: /^20 Oct, 08:00 to 09:00 UTC, / });
+      const nine = chart.getByRole('link', { name: /^20 Oct, 09:00 to 10:00 UTC, / });
       await user.hover(nine);
       act(() => eight.focus());
       expect(chart.getByText('20 Oct, 08:00 to 09:00 UTC')).toBeTruthy();
+    });
+
+    it('keeps a column chosen for the legend, and opens the ledger on its counts (#90)', async () => {
+      const user = userEvent.setup();
+      renderApp(<HomePage />);
+      const chart = within(await screen.findByRole('region', { name: 'Records by verdict' }));
+      const eight = chart.getByRole('link', { name: /^20 Oct, 08:00 to 09:00 UTC, / });
+      const hour = 'from=2026-10-20T08:00:00.000Z&to=2026-10-20T09:00:00.000Z';
+      // From the column to the legend, the pointer stays over the chart. A
+      // browser names where the pointer went (relatedTarget), and React reads
+      // it to tell that the chart was not left; user-event leaves it out.
+      fireEvent.mouseOver(eight);
+      const verified = chart.getByRole('link', { name: 'VERIFIED 2' });
+      fireEvent.mouseOut(eight, { relatedTarget: verified });
+      fireEvent.mouseOver(verified, { relatedTarget: eight });
+      expect(chart.getByText('20 Oct, 08:00 to 09:00 UTC')).toBeTruthy();
+      expect(verified.getAttribute('href')).toBe(`/ledger?verdict=VERIFIED&${hour}`);
+      // Leaving the chart gives the whole window back.
+      fireEvent.mouseOut(verified, { relatedTarget: document.body });
+      expect(chart.getByText('All 24 hours')).toBeTruthy();
+      expect(chart.getByRole('link', { name: 'VERIFIED 9' }).getAttribute('href')).toMatch(/^\/ledger\?verdict=VERIFIED&from=/);
+
+      // The keyboard: the columns are one tab stop, and the arrow keys move
+      // between them, so Shift+Tab reaches the legend with the column kept.
+      const columns = () => chart.getAllByRole('link', { name: /^\d\d Oct, \d\d:00 to \d\d:00 UTC, / });
+      act(() => eight.focus());
+      await user.keyboard('{ArrowRight}');
+      const nine = chart.getByRole('link', { name: /^20 Oct, 09:00 to 10:00 UTC, / });
+      expect(document.activeElement).toBe(nine);
+      expect(columns().filter((c) => c.tabIndex === 0)).toEqual([nine]);
+      await user.tab({ shift: true });
+      expect(document.activeElement?.closest('.vc-legend')).toBeTruthy();
+      expect(chart.getByText('20 Oct, 09:00 to 10:00 UTC')).toBeTruthy();
+      expect(document.activeElement?.getAttribute('href')).toBe(
+        '/ledger?verdict=none&from=2026-10-20T09:00:00.000Z&to=2026-10-20T10:00:00.000Z',
+      );
+      // Tab goes back to that column, and once more out of the chart.
+      await user.tab();
+      expect(document.activeElement).toBe(nine);
+      await user.tab();
+      expect(columns()).not.toContain(document.activeElement);
+      expect(chart.getByText('All 24 hours')).toBeTruthy();
+    });
+
+    it('leaves a modified arrow key to the browser, such as Alt+Left for Back', async () => {
+      const user = userEvent.setup();
+      renderApp(<HomePage />);
+      const chart = within(await screen.findByRole('region', { name: 'Records by verdict' }));
+      const eight = chart.getByRole('link', { name: /^20 Oct, 08:00 to 09:00 UTC, / });
+      act(() => eight.focus());
+      await user.keyboard('{Alt>}{ArrowRight}{/Alt}');
+      expect(document.activeElement).toBe(eight);
+      await user.keyboard('{ArrowRight}');
+      expect(document.activeElement).not.toBe(eight);
     });
 
     it('shows the same counts as a table', async () => {
@@ -570,7 +732,9 @@ describe('HomePage', () => {
     renderApp(<HomePage />);
     expect(await screen.findByText('No active API keys')).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Create a key: No active API keys' }).getAttribute('href')).toBe('/keys');
-    expect(screen.getByRole('link', { name: '0 active keys' })).toBeTruthy();
+    const card = within(screen.getByRole('region', { name: 'API keys' }));
+    expect(card.getByRole('link', { name: 'Open the API keys' }).getAttribute('href')).toBe('/keys');
+    expect(card.getByText('0 active keys.')).toBeTruthy();
   });
 
   it('counts the keys with no use recorded', async () => {
@@ -585,15 +749,15 @@ describe('HomePage', () => {
     vi.spyOn(demoApi, 'listKeys').mockResolvedValue([key('1', '2026-10-21T09:00:00'), key('2', null)]);
     renderApp(<HomePage />);
     const card = within(await screen.findByRole('region', { name: 'API keys' }));
-    expect((await card.findByRole('link', { name: '2 active keys' })).parentElement?.textContent).toBe(
-      '2 active keys, 1 with no use recorded.',
-    );
+    expect(await card.findByText('2 active keys, 1 with no use recorded.')).toBeTruthy();
+    // The whole tile opens the key list (#90), so its note is not a second link there.
+    expect(card.getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual(['/keys']);
   });
 
   it('says nothing more when every key has a recorded use', async () => {
     renderApp(<HomePage />);
     const card = within(await screen.findByRole('region', { name: 'API keys' }));
-    expect((await card.findByRole('link', { name: '2 active keys' })).parentElement?.textContent).toBe('2 active keys.');
+    expect(await card.findByText('2 active keys.')).toBeTruthy();
   });
 
   it('still shows the records when the key list is refused', async () => {
@@ -671,7 +835,7 @@ describe('HomePage', () => {
     vi.spyOn(demoApi, 'listKeys').mockResolvedValueOnce([]).mockRejectedValueOnce(new ApiError(403, 'Denied'));
     renderApp(<HomePage />);
     expect(await screen.findByText('3 BLOCKED records')).toBeTruthy();
-    expect(await screen.findByRole('link', { name: '0 active keys' })).toBeTruthy();
+    expect(await screen.findByRole('link', { name: 'Open the API keys' })).toBeTruthy();
 
     refocus();
 
@@ -679,7 +843,7 @@ describe('HomePage', () => {
     expect(await screen.findByText(/The key list could not be refreshed/)).toBeTruthy();
     // Both cards still show what loaded.
     expect(screen.getByText('3 BLOCKED records')).toBeTruthy();
-    expect(screen.getByRole('link', { name: '0 active keys' })).toBeTruthy();
+    expect(screen.getByText('0 active keys.')).toBeTruthy();
     expect(screen.queryByText('The records could not be loaded')).toBeNull();
 
     await user.click(screen.getByRole('button', { name: 'Try again' }));
@@ -688,7 +852,7 @@ describe('HomePage', () => {
     expect(screen.getByText(/The key list could not be refreshed/)).toBeTruthy();
 
     await user.click(screen.getByRole('button', { name: 'Try the key list again' }));
-    expect(await screen.findByRole('link', { name: '2 active keys' })).toBeTruthy();
+    expect(await screen.findByText('2 active keys.')).toBeTruthy();
     expect(screen.queryByText(/The key list could not be refreshed/)).toBeNull();
   });
 });

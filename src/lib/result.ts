@@ -327,7 +327,8 @@ export function toRecord(log: AuditLog): LedgerRecord {
     query: log.request_input,
     domain: log.engine_used,
     createdAt: log.created_at,
-    apiKeyId: log.api_key_id,
+    // An empty id names no key: read it as none, as every count and filter does (#90).
+    apiKeyId: log.api_key_id === '' ? null : log.api_key_id,
     latencyMs: typeof log.latency_ms === 'number' && Number.isFinite(log.latency_ms) && log.latency_ms > 0 ? log.latency_ms : null,
     result,
     raw: log.verification_result,
