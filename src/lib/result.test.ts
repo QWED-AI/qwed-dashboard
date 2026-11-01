@@ -208,6 +208,13 @@ describe('toRecord', () => {
     ...extra,
   });
 
+  it('reads an empty API key id as none, as the counts and the ledger filter do (#90)', () => {
+    expect(toRecord(log({ api_key_id: '' })).apiKeyId).toBeNull();
+    expect(toRecord(log({ api_key_id: null })).apiKeyId).toBeNull();
+    expect(toRecord(log({ api_key_id: '7' })).apiKeyId).toBe('7');
+    expect(toRecord(log({})).apiKeyId).toBeUndefined();
+  });
+
   it('keeps the time the server measured, and counts 0 or none as not measured (#53, #528)', () => {
     expect(toRecord(log({ latency_ms: 412 })).latencyMs).toBe(412);
     // A server before #528 sends a fixed 0 for every row.

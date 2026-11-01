@@ -270,7 +270,8 @@ export function HomePage() {
 
 /**
  * Each tile opens the ledger on the records it counts (#90): the same range,
- * read by the same rule as the ledger's filters, so the ledger lists as many.
+ * read by the same rule as the ledger's filters, so the ledger's first page
+ * lists as many. Older records it loads on request may add to them.
  */
 function RecordTiles({ win }: Readonly<{ win: OverviewWindow }>) {
   const t = win.totals;
@@ -390,11 +391,19 @@ function Breakdowns({ win, keys }: Readonly<{ win: OverviewWindow; keys: KeysQue
   const count = plural(win.totals.total, 'record', 'records');
   const range = periodParams(win);
   // Each bar opens the ledger on its records (#90). The ledger matches the
-  // verifier as stored, so the link keeps its case; the label shows it lower.
-  const verifiers = countBy(win.records, (r) => r.domain).map(
+  // verifier as stored, so the link keeps its case. The label shows it lower,
+  // as the other cards do, unless two stored names differ only in case: then
+  // each shows as stored, so the two rows can be told apart.
+  const byVerifier = countBy(win.records, (r) => r.domain);
+  const clash = new Set(
+    countBy(byVerifier, (v) => v.key.toLowerCase())
+      .filter((v) => v.n > 1)
+      .map((v) => v.key),
+  );
+  const verifiers = byVerifier.map(
     ({ key, n }): BarRow => ({
       key,
-      label: <span className="mono">{key.toLowerCase()}</span>,
+      label: <span className="mono">{clash.has(key.toLowerCase()) ? key : key.toLowerCase()}</span>,
       n,
       to: `/ledger?verifier=${encodeURIComponent(key)}&${range}`,
     }),

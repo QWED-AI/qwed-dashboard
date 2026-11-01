@@ -165,7 +165,7 @@ Each event's **User** is named by email from the members list (`GET /auth/users`
 
 The Overview counts the newest 200 records the server returns, over the 24 hours or 7 days up to the newest record. When older records in that range are not loaded, it says how far back the counts reach. It groups the stored verdicts and admissions; it never works either out.
 
-Each count opens the decision ledger on the records behind it, over the same range, so the ledger lists as many as the count says: a tile (Records, Not admitted, BLOCKED, UNVERIFIABLE, No verdict recorded), a bar of **By verifier** or **By API key**, and the chart below. The API keys tile opens the key list.
+Each count opens the decision ledger with the same filter and the same range: a tile (Records, Not admitted, BLOCKED, UNVERIFIABLE, No verdict recorded), a bar of **By verifier** or **By API key**, and the chart below. The ledger first loads the same newest records, so it lists as many as the count says; once you load older records, it can list more in the range. The API keys tile opens the key list.
 
 A VERIFIED verdict means the check ran to a proof, not that the claim holds, so the stored admission is counted beside it:
 - **Not admitted (DENY):** counts the records the server stored DENY for, a stored BLOCKED included, whatever their verdict.

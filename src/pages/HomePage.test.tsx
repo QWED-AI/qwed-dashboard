@@ -393,6 +393,32 @@ describe('HomePage', () => {
         expect(link('By API key', 'Not recorded').getAttribute('href')).toBe(`/ledger?key=none&${range}`);
       });
 
+      it('shows verifiers stored in two cases as stored, so their bars differ', async () => {
+        vi.spyOn(demoApi, 'listLogs').mockResolvedValue({
+          logs: [row('3', 'MATH', 'ADMIT'), row('2', 'math', 'ADMIT'), row('1', 'SQL', 'ADMIT')],
+          nextBefore: null,
+        });
+        renderApp(<HomePage />);
+        await screen.findByRole('region', { name: 'By verifier' });
+        expect(link('By verifier', 'MATH').getAttribute('href')).toBe(`/ledger?verifier=MATH&${range}`);
+        expect(link('By verifier', 'math').getAttribute('href')).toBe(`/ledger?verifier=math&${range}`);
+        // One with no twin still reads lower case.
+        expect(link('By verifier', 'sql').getAttribute('href')).toBe(`/ledger?verifier=SQL&${range}`);
+      });
+
+      it('counts a record with an empty key id as no key, as the ledger does', async () => {
+        vi.spyOn(demoApi, 'listLogs').mockResolvedValue({
+          logs: [row('2', 'MATH', 'ADMIT', { api_key_id: '' }), row('1', 'MATH', 'ADMIT')],
+          nextBefore: null,
+        });
+        const user = userEvent.setup();
+        renderApp(<App />);
+        const byKey = within(await screen.findByRole('region', { name: 'By API key' }));
+        expect(byKey.getByRole('link', { name: 'Not recorded' }).closest('li')?.querySelector('.num')?.textContent).toBe('2');
+        await user.click(byKey.getByRole('link', { name: 'Not recorded' }));
+        expect(await ledgerRows()).toBe(2);
+      });
+
       it('opens it on a column of the chart, for that hour', async () => {
         vi.spyOn(demoApi, 'listLogs').mockResolvedValue({ logs, nextBefore: null });
         const user = userEvent.setup();
@@ -597,6 +623,18 @@ describe('HomePage', () => {
       await user.tab();
       expect(columns()).not.toContain(document.activeElement);
       expect(chart.getByText('All 24 hours')).toBeTruthy();
+    });
+
+    it('leaves a modified arrow key to the browser, such as Alt+Left for Back', async () => {
+      const user = userEvent.setup();
+      renderApp(<HomePage />);
+      const chart = within(await screen.findByRole('region', { name: 'Records by verdict' }));
+      const eight = chart.getByRole('link', { name: /^20 Oct, 08:00 to 09:00 UTC, / });
+      act(() => eight.focus());
+      await user.keyboard('{Alt>}{ArrowRight}{/Alt}');
+      expect(document.activeElement).toBe(eight);
+      await user.keyboard('{ArrowRight}');
+      expect(document.activeElement).not.toBe(eight);
     });
 
     it('shows the same counts as a table', async () => {

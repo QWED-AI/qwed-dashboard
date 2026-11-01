@@ -115,6 +115,8 @@ export function VerdictChart({ win }: Readonly<{ win: OverviewWindow }>) {
   const [rover, setRover] = useState<number | null>(null);
   const tabStop = win.buckets.some((b) => b.start === rover) ? rover : (win.buckets.at(-1)?.start ?? null);
   function move(e: KeyboardEvent<HTMLAnchorElement>) {
+    // With a modifier the key is the browser's or the screen reader's, such as Alt+Left for Back.
+    if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
     const cols = [...(e.currentTarget.parentElement?.children ?? [])] as HTMLElement[];
     const i = cols.indexOf(e.currentTarget);
     const keys: Record<string, number> = { ArrowLeft: i - 1, ArrowUp: i - 1, ArrowRight: i + 1, ArrowDown: i + 1, Home: 0, End: cols.length - 1 };
