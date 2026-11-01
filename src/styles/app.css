@@ -682,6 +682,17 @@ a.btn {
 .tbl.compact {
   min-width: 760px;
 }
+/* Four short columns (#88). A stacked table drops it on a phone, below. */
+.tbl.latency-tbl {
+  min-width: 560px;
+}
+/* A card that takes two columns of the Overview's grid. A phone's grid has
+   one, and spanning two there would add a column, so it spans only above. */
+@media (min-width: 641px) {
+  .card-span-2 {
+    grid-column: span 2;
+  }
+}
 .tbl th {
   height: 36px;
   padding: 0 12px;
