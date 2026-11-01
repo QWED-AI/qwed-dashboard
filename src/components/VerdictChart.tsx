@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type KeyboardEvent } from 'react';
 import { Link } from 'react-router';
 import {
   bucketLabel,
@@ -109,6 +109,20 @@ export function VerdictChart({ win }: Readonly<{ win: OverviewWindow }>) {
   // its counts in the legend can be followed to the ledger.
   const [hovered, setHovered] = useState<number | null>(null);
   const [focusedAt, setFocusedAt] = useState<number | null>(null);
+  // The columns are one tab stop, and the arrow keys move between them, so
+  // Tab leaves the chart at once and Shift+Tab reaches the legend with the
+  // chosen column kept (#90). The newest column takes the stop at first.
+  const [rover, setRover] = useState<number | null>(null);
+  const tabStop = win.buckets.some((b) => b.start === rover) ? rover : (win.buckets.at(-1)?.start ?? null);
+  function move(e: KeyboardEvent<HTMLAnchorElement>) {
+    const cols = [...(e.currentTarget.parentElement?.children ?? [])] as HTMLElement[];
+    const i = cols.indexOf(e.currentTarget);
+    const keys: Record<string, number> = { ArrowLeft: i - 1, ArrowUp: i - 1, ArrowRight: i + 1, ArrowDown: i + 1, Home: 0, End: cols.length - 1 };
+    const to = keys[e.key];
+    if (to === undefined) return;
+    e.preventDefault();
+    cols[Math.max(0, Math.min(cols.length - 1, to))]?.focus();
+  }
   const { top, step } = niceScale(Math.max(...win.buckets.map((b) => b.total)));
   const ticks: number[] = [];
   for (let v = top; v >= 0; v -= step) ticks.push(v);
@@ -129,8 +143,8 @@ export function VerdictChart({ win }: Readonly<{ win: OverviewWindow }>) {
         <div style={{ flex: '1 1 200px', minWidth: 0 }}>
           <h2 id="by-verdict-title">{grouping === 'verdict' ? 'Records by verdict' : 'Records by admission'}</h2>
           <p className="hint" style={{ margin: 0 }}>
-            {win.range === '24h' ? 'Per hour, UTC.' : 'Per day, UTC.'} Hover or focus a column for its counts; open
-            it for its records.
+            {win.range === '24h' ? 'Per hour, UTC.' : 'Per day, UTC.'} Hover or focus a column for its counts (the
+            arrow keys move between them); open it for its records.
           </p>
         </div>
         <fieldset className="seg">
@@ -202,11 +216,14 @@ export function VerdictChart({ win }: Readonly<{ win: OverviewWindow }>) {
                       className="vc-col"
                       aria-label={`${bucketName(b, win.range)}, ${describe(b, series)}. Open its records in the ledger.`}
                       style={{ gap, opacity: focused && focused.start !== b.start ? 0.45 : 1 }}
+                      tabIndex={b.start === tabStop ? 0 : -1}
+                      onKeyDown={move}
                       onMouseEnter={() => setHovered(b.start)}
                       onFocus={() => {
                         // A new focus wins over a pointer resting elsewhere.
                         setHovered(null);
                         setFocusedAt(b.start);
+                        setRover(b.start);
                       }}
                     >
                       {segs.map((s) => (

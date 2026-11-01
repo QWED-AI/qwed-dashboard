@@ -558,6 +558,7 @@ describe('HomePage', () => {
     });
 
     it('keeps a column chosen for the legend, and opens the ledger on its counts (#90)', async () => {
+      const user = userEvent.setup();
       renderApp(<HomePage />);
       const chart = within(await screen.findByRole('region', { name: 'Records by verdict' }));
       const eight = chart.getByRole('link', { name: /^20 Oct, 08:00 to 09:00 UTC, / });
@@ -576,12 +577,25 @@ describe('HomePage', () => {
       expect(chart.getByText('All 24 hours')).toBeTruthy();
       expect(chart.getByRole('link', { name: 'VERIFIED 9' }).getAttribute('href')).toMatch(/^\/ledger\?verdict=VERIFIED&from=/);
 
-      // The keyboard too: focus moves from the column to the legend and keeps it.
+      // The keyboard: the columns are one tab stop, and the arrow keys move
+      // between them, so Shift+Tab reaches the legend with the column kept.
+      const columns = () => chart.getAllByRole('link', { name: /^\d\d Oct, \d\d:00 to \d\d:00 UTC, / });
       act(() => eight.focus());
-      act(() => chart.getByRole('link', { name: 'BLOCKED 1' }).focus());
-      expect(chart.getByText('20 Oct, 08:00 to 09:00 UTC')).toBeTruthy();
-      expect(chart.getByRole('link', { name: 'BLOCKED 1' }).getAttribute('href')).toBe(`/ledger?verdict=BLOCKED&${hour}`);
-      act(() => chart.getByRole('button', { name: 'Table' }).focus());
+      await user.keyboard('{ArrowRight}');
+      const nine = chart.getByRole('link', { name: /^20 Oct, 09:00 to 10:00 UTC, / });
+      expect(document.activeElement).toBe(nine);
+      expect(columns().filter((c) => c.tabIndex === 0)).toEqual([nine]);
+      await user.tab({ shift: true });
+      expect(document.activeElement?.closest('.vc-legend')).toBeTruthy();
+      expect(chart.getByText('20 Oct, 09:00 to 10:00 UTC')).toBeTruthy();
+      expect(document.activeElement?.getAttribute('href')).toBe(
+        '/ledger?verdict=none&from=2026-10-20T09:00:00.000Z&to=2026-10-20T10:00:00.000Z',
+      );
+      // Tab goes back to that column, and once more out of the chart.
+      await user.tab();
+      expect(document.activeElement).toBe(nine);
+      await user.tab();
+      expect(columns()).not.toContain(document.activeElement);
       expect(chart.getByText('All 24 hours')).toBeTruthy();
     });
 
