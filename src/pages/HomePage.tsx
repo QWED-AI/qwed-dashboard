@@ -277,8 +277,11 @@ function RecordTiles({ win }: Readonly<{ win: OverviewWindow }>) {
   const name = RANGES[win.range].name;
   const series = (key: 'total' | 'blocked' | 'unverifiable' | 'none' | 'denied') => win.buckets.map((b) => b[key]);
   const range = periodParams(win);
-  const open = (n: number, what: string, which = '') =>
-    `Open the ${plural(n, `${what}record`, `${what}records`)}${which} in the ledger`;
+  const open = (n: number, what: string, which = '') => {
+    const one = `${what}record`;
+    const many = `${what}records`;
+    return `Open the ${plural(n, one, many)}${which} in the ledger`;
+  };
   return (
     <>
       <StatTile

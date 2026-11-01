@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link } from 'react-router';
 import {
   bucketLabel,
   bucketName,
@@ -61,7 +61,10 @@ const FILTER: Record<Key, string> = {
 };
 
 /** The ledger on a period's records, of one series or all of them. */
-const ledgerOf = (period: Period, key?: Key) => `/ledger?${key ? `${FILTER[key]}&` : ''}${periodParams(period)}`;
+function ledgerOf(period: Period, key?: Key): string {
+  const filter = key ? `${FILTER[key]}&` : '';
+  return `/ledger?${filter}${periodParams(period)}`;
+}
 
 const PLOT = 200;
 const GAP = 2;
@@ -96,13 +99,14 @@ export function columnSegments(
  * chart; the table view holds the same numbers.
  */
 export function VerdictChart({ win }: Readonly<{ win: OverviewWindow }>) {
-  const navigate = useNavigate();
   const [view, setView] = useState<'chart' | 'table'>('chart');
   const [grouping, setGrouping] = useState<Grouping>('verdict');
   const series = SERIES[grouping];
   // Columns are known by their start time, which a refresh does not move,
   // and pointer and keyboard are kept apart: the pointer leaving a column
-  // does not clear the one that has focus.
+  // does not clear the one that has focus. A column stays chosen until the
+  // pointer or the focus leaves the readout and the chart together (#90), so
+  // its counts in the legend can be followed to the ledger.
   const [hovered, setHovered] = useState<number | null>(null);
   const [focusedAt, setFocusedAt] = useState<number | null>(null);
   const { top, step } = niceScale(Math.max(...win.buckets.map((b) => b.total)));
@@ -149,72 +153,80 @@ export function VerdictChart({ win }: Readonly<{ win: OverviewWindow }>) {
         </fieldset>
       </div>
 
-      <div className="vc-readout" aria-live="polite">
-        <strong>{focused ? bucketName(focused, win.range) : `All ${name}`}</strong>
-        <span className="mono num">
-          {shown.total} {shown.total === 1 ? 'record' : 'records'}
-        </span>
-        <ul className="vc-legend">
-          {series.map((s) => (
-            <li key={s.key}>
-              <span className={`sw ${s.swatch}`} aria-hidden="true" />
-              {/* The count and the link go together: a column's while one is hovered or focused, else the range's. */}
-              <Link to={ledgerOf(focused ?? win, s.key)}>
-                {s.label} <b>{shown[s.key]}</b>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </div>
+      <div
+        className="vc-pick"
+        onMouseLeave={() => setHovered(null)}
+        onBlur={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFocusedAt(null);
+        }}
+      >
+        <div className="vc-readout" aria-live="polite">
+          <strong>{focused ? bucketName(focused, win.range) : `All ${name}`}</strong>
+          <span className="mono num">
+            {shown.total} {shown.total === 1 ? 'record' : 'records'}
+          </span>
+          <ul className="vc-legend">
+            {series.map((s) => (
+              <li key={s.key}>
+                <span className={`sw ${s.swatch}`} aria-hidden="true" />
+                {/* The count and the link go together: the chosen column's, else the range's. */}
+                <Link to={ledgerOf(focused ?? win, s.key)}>
+                  {s.label} <b>{shown[s.key]}</b>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
 
-      {view === 'chart' ? (
-        <div className="vc-plot">
-          <div className="vc-axis" aria-hidden="true">
-            {ticks.map((v) => (
-              <span key={v} style={{ top: (1 - v / top) * PLOT }}>
-                {v}
-              </span>
-            ))}
-          </div>
-          <div className="vc-area">
-            {ticks.map((v) => (
-              <span key={v} className="vc-grid" aria-hidden="true" style={{ top: (1 - v / top) * PLOT }} />
-            ))}
-            <div className="vc-cols">
-              {win.buckets.map((b) => {
-                const { gap, segs } = columnSegments(b, top, grouping);
-                return (
-                  <button
-                    key={b.start}
-                    type="button"
-                    className="vc-col"
-                    aria-label={`${bucketName(b, win.range)}, ${describe(b, series)}. Open its records in the ledger.`}
-                    style={{ gap, opacity: focused && focused.start !== b.start ? 0.45 : 1 }}
-                    onMouseEnter={() => setHovered(b.start)}
-                    onMouseLeave={() => setHovered(null)}
-                    onFocus={() => {
-                      // A new focus wins over a pointer resting elsewhere.
-                      setHovered(null);
-                      setFocusedAt(b.start);
-                    }}
-                    onBlur={() => setFocusedAt(null)}
-                    onClick={() => void navigate(ledgerOf(b))}
-                  >
-                    {segs.map((s) => (
-                      <span key={s.key} className="vc-seg" style={{ height: s.h, background: FILL[s.key] }} />
-                    ))}
-                  </button>
-                );
-              })}
+        {view === 'chart' ? (
+          <div className="vc-plot">
+            <div className="vc-axis" aria-hidden="true">
+              {ticks.map((v) => (
+                <span key={v} style={{ top: (1 - v / top) * PLOT }}>
+                  {v}
+                </span>
+              ))}
+            </div>
+            <div className="vc-area">
+              {ticks.map((v) => (
+                <span key={v} className="vc-grid" aria-hidden="true" style={{ top: (1 - v / top) * PLOT }} />
+              ))}
+              <div className="vc-cols">
+                {win.buckets.map((b) => {
+                  const { gap, segs } = columnSegments(b, top, grouping);
+                  // A link, as any way to another page is: it opens in a new tab and copies as an address.
+                  return (
+                    <Link
+                      key={b.start}
+                      to={ledgerOf(b)}
+                      className="vc-col"
+                      aria-label={`${bucketName(b, win.range)}, ${describe(b, series)}. Open its records in the ledger.`}
+                      style={{ gap, opacity: focused && focused.start !== b.start ? 0.45 : 1 }}
+                      onMouseEnter={() => setHovered(b.start)}
+                      onFocus={() => {
+                        // A new focus wins over a pointer resting elsewhere.
+                        setHovered(null);
+                        setFocusedAt(b.start);
+                      }}
+                    >
+                      {segs.map((s) => (
+                        <span key={s.key} className="vc-seg" style={{ height: s.h, background: FILL[s.key] }} />
+                      ))}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="vc-ticks" aria-hidden="true">
+              {win.buckets.map((b, i) => (
+                <span key={b.start}>{tick(b, i)}</span>
+              ))}
             </div>
           </div>
-          <div className="vc-ticks" aria-hidden="true">
-            {win.buckets.map((b, i) => (
-              <span key={b.start}>{tick(b, i)}</span>
-            ))}
-          </div>
-        </div>
-      ) : (
+        ) : null}
+      </div>
+
+      {view === 'table' && (
         <div className="table-wrap vc-table">
           <table className="tbl" style={{ minWidth: 520 }}>
             <thead>

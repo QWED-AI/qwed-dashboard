@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { focusManager } from '@tanstack/react-query';
-import { act, cleanup, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { demoApi } from '../api/demo';
@@ -303,7 +303,7 @@ describe('HomePage', () => {
       const byAdmission = within(screen.getByRole('region', { name: 'Records by admission' }));
       const legend = byAdmission.getAllByRole('listitem').map((li) => li.textContent);
       expect(legend).toEqual(['ADMIT 1', 'DENY 3', 'Admission not recorded 1']);
-      expect(byAdmission.getByRole('button', { name: /^21 Oct, 10:00 to 11:00 UTC, 5 records: 1 ADMIT, 3 DENY, 1 Admission not recorded\. Open its records in the ledger\.$/ })).toBeTruthy();
+      expect(byAdmission.getByRole('link', { name: /^21 Oct, 10:00 to 11:00 UTC, 5 records: 1 ADMIT, 3 DENY, 1 Admission not recorded\. Open its records in the ledger\.$/ })).toBeTruthy();
     });
 
     it('lists the denials by verifier and by API key, each opening the ledger on them', async () => {
@@ -398,7 +398,7 @@ describe('HomePage', () => {
         const user = userEvent.setup();
         renderApp(<App />);
         const chart = within(await screen.findByRole('region', { name: 'Records by verdict' }));
-        await user.click(chart.getByRole('button', { name: /^21 Oct, 10:00 to 11:00 UTC, 5 records: / }));
+        await user.click(chart.getByRole('link', { name: /^21 Oct, 10:00 to 11:00 UTC, 5 records: / }));
         expect(await ledgerRows()).toBe(5);
       });
 
@@ -500,7 +500,7 @@ describe('HomePage', () => {
       expect(screen.getByRole('button', { name: '7 days' }).getAttribute('aria-pressed')).toBe('true');
       expect(screen.getByText(/^The 7 days up to the newest record/)).toBeTruthy();
       expect(screen.getByText('All 7 days')).toBeTruthy();
-      expect(screen.getAllByRole('button', { name: /^\d\d Oct UTC, / })).toHaveLength(7);
+      expect(screen.getAllByRole('link', { name: /^\d\d Oct UTC, / })).toHaveLength(7);
     });
 
     it('opens on seven days from the address', async () => {
@@ -521,7 +521,7 @@ describe('HomePage', () => {
       expect(chart.getByText('All 24 hours')).toBeTruthy();
       expect(legend()).toEqual(['VERIFIED 9', 'UNVERIFIABLE 2', 'BLOCKED 3', 'No verdict recorded 1']);
 
-      const eight = chart.getByRole('button', { name: /^20 Oct, 08:00 to 09:00 UTC, 4 records: / });
+      const eight = chart.getByRole('link', { name: /^20 Oct, 08:00 to 09:00 UTC, 4 records: / });
       await user.hover(eight);
       expect(chart.getByText('20 Oct, 08:00 to 09:00 UTC')).toBeTruthy();
       expect(legend()).toEqual(['VERIFIED 2', 'UNVERIFIABLE 1', 'BLOCKED 1', 'No verdict recorded 0']);
@@ -536,8 +536,8 @@ describe('HomePage', () => {
       const user = userEvent.setup();
       renderApp(<HomePage />);
       const chart = within(await screen.findByRole('region', { name: 'Records by verdict' }));
-      const eight = chart.getByRole('button', { name: /^20 Oct, 08:00 to 09:00 UTC, / });
-      const nine = chart.getByRole('button', { name: /^20 Oct, 09:00 to 10:00 UTC, / });
+      const eight = chart.getByRole('link', { name: /^20 Oct, 08:00 to 09:00 UTC, / });
+      const nine = chart.getByRole('link', { name: /^20 Oct, 09:00 to 10:00 UTC, / });
       act(() => eight.focus());
       await user.hover(nine);
       expect(chart.getByText('20 Oct, 09:00 to 10:00 UTC')).toBeTruthy();
@@ -550,11 +550,39 @@ describe('HomePage', () => {
       const user = userEvent.setup();
       renderApp(<HomePage />);
       const chart = within(await screen.findByRole('region', { name: 'Records by verdict' }));
-      const eight = chart.getByRole('button', { name: /^20 Oct, 08:00 to 09:00 UTC, / });
-      const nine = chart.getByRole('button', { name: /^20 Oct, 09:00 to 10:00 UTC, / });
+      const eight = chart.getByRole('link', { name: /^20 Oct, 08:00 to 09:00 UTC, / });
+      const nine = chart.getByRole('link', { name: /^20 Oct, 09:00 to 10:00 UTC, / });
       await user.hover(nine);
       act(() => eight.focus());
       expect(chart.getByText('20 Oct, 08:00 to 09:00 UTC')).toBeTruthy();
+    });
+
+    it('keeps a column chosen for the legend, and opens the ledger on its counts (#90)', async () => {
+      renderApp(<HomePage />);
+      const chart = within(await screen.findByRole('region', { name: 'Records by verdict' }));
+      const eight = chart.getByRole('link', { name: /^20 Oct, 08:00 to 09:00 UTC, / });
+      const hour = 'from=2026-10-20T08:00:00.000Z&to=2026-10-20T09:00:00.000Z';
+      // From the column to the legend, the pointer stays over the chart. A
+      // browser names where the pointer went (relatedTarget), and React reads
+      // it to tell that the chart was not left; user-event leaves it out.
+      fireEvent.mouseOver(eight);
+      const verified = chart.getByRole('link', { name: 'VERIFIED 2' });
+      fireEvent.mouseOut(eight, { relatedTarget: verified });
+      fireEvent.mouseOver(verified, { relatedTarget: eight });
+      expect(chart.getByText('20 Oct, 08:00 to 09:00 UTC')).toBeTruthy();
+      expect(verified.getAttribute('href')).toBe(`/ledger?verdict=VERIFIED&${hour}`);
+      // Leaving the chart gives the whole window back.
+      fireEvent.mouseOut(verified, { relatedTarget: document.body });
+      expect(chart.getByText('All 24 hours')).toBeTruthy();
+      expect(chart.getByRole('link', { name: 'VERIFIED 9' }).getAttribute('href')).toMatch(/^\/ledger\?verdict=VERIFIED&from=/);
+
+      // The keyboard too: focus moves from the column to the legend and keeps it.
+      act(() => eight.focus());
+      act(() => chart.getByRole('link', { name: 'BLOCKED 1' }).focus());
+      expect(chart.getByText('20 Oct, 08:00 to 09:00 UTC')).toBeTruthy();
+      expect(chart.getByRole('link', { name: 'BLOCKED 1' }).getAttribute('href')).toBe(`/ledger?verdict=BLOCKED&${hour}`);
+      act(() => chart.getByRole('button', { name: 'Table' }).focus());
+      expect(chart.getByText('All 24 hours')).toBeTruthy();
     });
 
     it('shows the same counts as a table', async () => {
