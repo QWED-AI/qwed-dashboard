@@ -132,3 +132,56 @@ describe('checkAttestation', () => {
     expect(r.problem).toBe('This browser checks signatures only on HTTPS or on localhost.');
   });
 });
+
+// A natural-language verdict covers the expression the model translated the
+// request into, and qwed-verification signs that expression (core/trust.py).
+// Seen on a staging server: for "What is 15% of 240?" the sub was the hash of
+// "0.15 * 240" (#85).
+describe('checkAttestation, on a natural-language verdict', () => {
+  const QUESTION = 'What is 15% of 240?';
+  const EXPRESSION = '0.15 * 240';
+  const NL: StoredFacts = { ...STORED, request: QUESTION, translatedExpression: EXPRESSION };
+
+  it('compares the attestation with the translated expression, not the request', async () => {
+    const { privateKey, jwk } = await keyPair(KID);
+    const token = await signAttestation(privateKey, { kid: KID, request: EXPRESSION, now: NOW });
+    const r = await checkAttestation(token, { keys: [jwk] }, NL, NOW);
+    const item = r.items.find((i) => i.id === 'request');
+    expect(item).toEqual({
+      id: 'request',
+      label: 'About the translated expression',
+      state: 'pass',
+      detail: `${await sha256Ref(EXPRESSION)}, the expression 0.15 * 240, which the model translated the request into. The server verified and signed this expression, not the request.`,
+    });
+    expect(attestationHeadline(r)).toBe('The attestation checks out: the server signed it, and it matches this record.');
+    // Compared with the request, the same token would not match.
+    const asRequest = await checkAttestation(token, { keys: [jwk] }, { ...NL, translatedExpression: null }, NOW);
+    expect(states(asRequest).request).toBe('fail');
+  });
+
+  it('says the server signed the expression only when the signature checks out', async () => {
+    const { privateKey } = await keyPair(KID);
+    const token = await signAttestation(privateKey, { kid: KID, request: EXPRESSION, now: NOW });
+    // Checked with another key under the same kid, then with no key for it.
+    const other = await keyPair(KID);
+    for (const jwks of [{ keys: [other.jwk] }, { keys: [] }]) {
+      const r = await checkAttestation(token, jwks, NL, NOW);
+      expect(states(r).signature).not.toBe('pass');
+      const item = r.items.find((i) => i.id === 'request');
+      expect(item?.state).toBe('pass');
+      expect(item?.detail).toBe(
+        `${await sha256Ref(EXPRESSION)}, the expression 0.15 * 240, which the model translated the request into. The server verified this expression, not the request.`,
+      );
+    }
+  });
+
+  it('fails an attestation about another statement', async () => {
+    const { privateKey, jwk } = await keyPair(KID);
+    const token = await signAttestation(privateKey, { kid: KID, request: QUESTION, now: NOW });
+    const r = await checkAttestation(token, { keys: [jwk] }, NL, NOW);
+    const item = r.items.find((i) => i.id === 'request');
+    expect(item?.label).toBe('About the translated expression');
+    expect(item?.state).toBe('fail');
+    expect(item?.detail).toBe(`The attestation says ${await sha256Ref(QUESTION)}; the record stored ${await sha256Ref(EXPRESSION)}.`);
+  });
+});
