@@ -845,10 +845,9 @@ a.btn {
   /* Its cards ask how wide it is (.card-span-2). */
   container: ov-grid / inline-size;
 }
-.ov-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+/* A long unbroken line, such as a sha256, wraps in its card rather than
+   widening the column. */
+.ov-grid > * {
   min-width: 0;
 }
 .card-head {

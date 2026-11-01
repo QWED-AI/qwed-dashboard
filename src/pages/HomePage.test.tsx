@@ -793,6 +793,15 @@ describe('HomePage', () => {
     expect(alert.textContent).toMatch(/Insufficient permissions/);
   });
 
+  it('puts each card that asks the server for itself in a cell of the grid (#92)', async () => {
+    renderApp(<HomePage />);
+    // Stacked in one cell, they left the cells beside them empty.
+    for (const name of ['Last 90 days', 'Audit chain', 'Security events']) {
+      const card = await screen.findByRole('region', { name });
+      expect(card.parentElement?.classList.contains('ov-grid')).toBe(true);
+    }
+  });
+
   it('keeps the cards that ask the server for themselves when the records cannot be loaded', async () => {
     vi.spyOn(demoApi, 'listLogs').mockRejectedValue(new ApiError(403, 'Insufficient permissions'));
     renderApp(<HomePage />);
