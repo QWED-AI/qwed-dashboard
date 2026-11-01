@@ -686,9 +686,11 @@ a.btn {
 .tbl.latency-tbl {
   min-width: 560px;
 }
-/* A card that takes two columns of the Overview's grid. A phone's grid has
-   one, and spanning two there would add a column, so it spans only above. */
-@media (min-width: 641px) {
+/* A card that takes two columns of the Overview's grid, when the grid has
+   two: spanning two in a grid of one would add a column. The grid's own width
+   decides, not the viewport's, which also holds the sidebar and a scrollbar:
+   two 280px columns and the 16px gap need 576px. */
+@container ov-grid (min-width: 576px) {
   .card-span-2 {
     grid-column: span 2;
   }
@@ -840,6 +842,8 @@ a.btn {
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 16px;
   align-items: start;
+  /* Its cards ask how wide it is (.card-span-2). */
+  container: ov-grid / inline-size;
 }
 .ov-stack {
   display: flex;
