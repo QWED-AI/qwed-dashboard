@@ -31,6 +31,7 @@ export function AttestationCheck({ record }: Readonly<{ record: LedgerRecord }>)
           verdict: record.result.verdict,
           proofRef: record.result.proofRef,
           admissionWord: record.result.admissionStored ?? record.result.admission,
+          translatedExpression: record.result.translatedExpression,
         },
         Date.now() / 1000,
       );

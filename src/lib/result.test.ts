@@ -375,3 +375,24 @@ describe('the attestation check (qwed-verification #320)', () => {
     expect(toRecord(row(null)).result.attestationBlock).toBeNull();
   });
 });
+
+describe('the translated expression of a natural-language verdict (#85)', () => {
+  const nl = (fields: object) =>
+    JSON.stringify({ status: 'VERIFIED', agent_message: 'Expression verified successfully', developer_fields: fields, attestation: 'h.p.s' });
+
+  it('reads it only where the server says the verdict covers it', () => {
+    const scoped = { verification_scope: 'translated_expression_only', translated_expression: '0.15 * 240', query_semantics_verified: false };
+    expect(parseResult(nl(scoped)).translatedExpression).toBe('0.15 * 240');
+    expect(parseResult(nl({ translated_expression: '0.15 * 240' })).translatedExpression).toBeNull();
+    expect(parseResult(nl({ ...scoped, translated_expression: '' })).translatedExpression).toBeNull();
+    expect(parseResult(nl({ ...scoped, translated_expression: 36 })).translatedExpression).toBeNull();
+    expect(parseResult(nl(scoped).replace('"developer_fields"', '"other_fields"')).translatedExpression).toBeNull();
+  });
+
+  it('reads it from a batch item too', () => {
+    const item = JSON.parse(nl({ verification_scope: 'translated_expression_only', translated_expression: '0.2 * 50' })) as object;
+    const r = parseResult(JSON.stringify({ batch_job_id: 'j', batch_item_id: 'j-0', batch_item_type: 'natural_language', item_status: 'completed', details: { result: item } }));
+    expect(r.shape).toBe('batch-item');
+    expect(r.translatedExpression).toBe('0.2 * 50');
+  });
+});

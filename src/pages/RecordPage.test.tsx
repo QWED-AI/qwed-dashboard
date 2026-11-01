@@ -249,6 +249,31 @@ describe('RecordPage', () => {
         expect(card.getByRole('button', { name: 'Check again' })).toBeTruthy();
       });
 
+      it('checks a natural-language attestation against the translated expression (#85)', async () => {
+        const { privateKey, jwk } = await keyPair(KID);
+        const token = await signAttestation(privateKey, { kid: KID, request: '0.15 * 240', now: Date.now() / 1000 });
+        vi.spyOn(demoApi, 'getLog').mockResolvedValue({
+          ...olderServerRow,
+          request_input: 'What is 15% of 240?',
+          verification_result: JSON.stringify({
+            status: 'VERIFIED',
+            agent_message: 'Expression verified successfully',
+            developer_fields: { translated_expression: '0.15 * 240', verification_scope: 'translated_expression_only', query_semantics_verified: false },
+            proof_ref: 'sha256:7fa3',
+            attestation: token,
+          }),
+          admission: 'BLOCKED',
+        });
+        vi.spyOn(demoApi, 'getJwks').mockResolvedValue({ keys: [jwk] });
+        const user = userEvent.setup();
+        renderApp(<App />, { route: '/records/1' });
+        const card = await region('Attestation');
+        await user.click(card.getByRole('button', { name: 'Check attestation' }));
+        expect(await card.findByText('The attestation checks out: the server signed it, and it matches this record.')).toBeTruthy();
+        expect(card.getByText('About the translated expression')).toBeTruthy();
+        expect(card.getByText(/the expression 0\.15 \* 240, which the model translated the request into/)).toBeTruthy();
+      });
+
       it('says when the server no longer has the key', async () => {
         const { row } = await attestedRow();
         vi.spyOn(demoApi, 'getLog').mockResolvedValue(row);
