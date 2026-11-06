@@ -29,7 +29,7 @@ An open-source web dashboard for [QWED verification](https://github.com/QWED-AI/
 
 ## Run it
 
-You need Node.js 22.12 or later and a running QWED server (`qwed-verification`).
+You need Node.js 22.22.2 or later, the version `package.json` requires, and a running QWED server (`qwed-verification`).
 
 ```bash
 npm ci
