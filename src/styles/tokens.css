@@ -1,7 +1,8 @@
 /* Colour tokens, matched to qwedai.tech: a bone ground, forest green for
    buttons and proof, ember #C8461A as the one accent. Green, amber and red
-   are kept for verdicts and severity only; the chart fills below were checked
-   for colour-blind separation and are unchanged. */
+   only ever mean a state: verdicts and admissions, severity, the server
+   status pill, check results and error alerts. The chart fills below were
+   checked for colour-blind separation and are unchanged. */
 
 :root {
   color-scheme: light;
