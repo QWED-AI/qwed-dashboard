@@ -70,57 +70,71 @@ export function LoginPage() {
 
   return (
     <div className="login">
-      <div className="login-card">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span className="brand-tile">
-            <Mark />
+      <div className="login-wrap">
+        <aside className="login-brand" aria-labelledby="login-pitch">
+          <span className="login-mark">
+            <Mark width={40} />
           </span>
-          <span className="brand-name">
-            <strong>QWED Dashboard</strong>
-            <span>Sign in to your QWED server</span>
-          </span>
-        </div>
+          <h1 id="login-pitch">Every decision your QWED server recorded, with its evidence.</h1>
+          <p>Review the records, check their signatures, and see what is waiting for a person.</p>
+          <ul>
+            <li>The decision ledger, with each record’s evidence</li>
+            <li>Signature and audit-chain checks in your browser</li>
+            <li>API keys, members and security events</li>
+          </ul>
+        </aside>
+        <div className="login-card">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span className="brand-tile">
+              <Mark />
+            </span>
+            <span className="brand-name">
+              <strong>QWED Dashboard</strong>
+              <span>Sign in to your QWED server</span>
+            </span>
+          </div>
 
-        <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <label className="field">
-            <span>Email</span>
-            <input
-              className="input"
-              type="email"
-              autoComplete="username"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </label>
-          <label className="field">
-            <span>Password</span>
-            <input
-              className="input"
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </label>
-          {error && (
-            <p className="alert" role="alert">
-              {error}
-            </p>
-          )}
-          <button type="submit" className="btn btn-primary" disabled={busy}>
-            {busy ? 'Signing in…' : 'Sign in'}
+          <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <label className="field">
+              <span>Email</span>
+              <input
+                className="input"
+                type="email"
+                autoComplete="username"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </label>
+            <label className="field">
+              <span>Password</span>
+              <input
+                className="input"
+                type="password"
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </label>
+            {error && (
+              <p className="alert" role="alert">
+                {error}
+              </p>
+            )}
+            <button type="submit" className="btn btn-primary" disabled={busy}>
+              {busy ? 'Signing in…' : 'Sign in'}
+            </button>
+          </form>
+
+          <div className="divider">or</div>
+          <button type="button" className="btn" onClick={demo}>
+            Explore with sample data
           </button>
-        </form>
-
-        <div className="divider">or</div>
-        <button type="button" className="btn" onClick={demo}>
-          Explore with sample data
-        </button>
-        <p className="hint" style={{ margin: 0 }}>
-          Sample data runs in your browser only. Nothing is sent to a server.
-        </p>
+          <p className="hint" style={{ margin: 0 }}>
+            Sample data runs in your browser only. Nothing is sent to a server.
+          </p>
+        </div>
       </div>
     </div>
   );

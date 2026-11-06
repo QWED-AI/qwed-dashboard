@@ -124,7 +124,7 @@ function FindRecord() {
 }
 
 export function Shell({ crumbs, children }: Readonly<{ crumbs: Crumb[]; children: ReactNode }>) {
-  const { user, mode, signOut } = useSession();
+  const { user, signOut } = useSession();
   const server = useServerStatus();
   const pill = statusPill(server);
   const [theme, cycleTheme] = useTheme();
@@ -178,12 +178,6 @@ export function Shell({ crumbs, children }: Readonly<{ crumbs: Crumb[]; children
           </nav>
 
           <div className="side-foot">
-            {mode === 'demo' && (
-              <span className="tag" style={{ alignSelf: 'flex-start' }}>
-                <span className="dot d-mute" aria-hidden="true" />
-                <span>Sample data, not a server</span>
-              </span>
-            )}
             <div className="who">
               <span className="avatar" aria-hidden="true">
                 {initial}
@@ -228,9 +222,6 @@ export function Shell({ crumbs, children }: Readonly<{ crumbs: Crumb[]; children
               {pill.label}
             </output>
           </Link>
-          <a className="btn btn-sm" href="https://docs.qwedai.tech" target="_blank" rel="noreferrer">
-            Docs
-          </a>
         </div>
         {/* Each screen already says what it could not load; the pill says the
             server is down. Only an older server needs more words. */}

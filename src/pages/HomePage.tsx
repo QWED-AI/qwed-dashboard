@@ -235,7 +235,10 @@ export function HomePage() {
                     <VerdictChart win={win} />
                   </div>
                 )}
-                <section className="card narrow" aria-labelledby="attention-title">
+                <section
+                  className={items.length > 0 ? 'card narrow attention' : 'card narrow'}
+                  aria-labelledby="attention-title"
+                >
                   <div className="card-head">
                     <h2 id="attention-title">Needs attention</h2>
                     <Link to="/ledger">Ledger</Link>

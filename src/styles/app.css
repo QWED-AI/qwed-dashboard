@@ -115,8 +115,8 @@ select {
   background: var(--sunk);
   box-shadow: inset 0 0 0 1px var(--line);
   color: var(--muted);
-  flex: 0 1 300px;
-  min-width: 180px;
+  flex: 0 1 280px;
+  min-width: 150px;
 }
 .find:focus-within {
   box-shadow: inset 0 0 0 1px var(--line-strong);
@@ -621,11 +621,42 @@ a.btn {
   color: var(--bad);
 }
 
+/* The chip's ground says what happens next, as on qwedai.tech: solid green
+   goes ahead (ADMIT), hatched is stopped (DENY), dashed is held (no
+   admission). The dot and the words still say the verdict, so colour is
+   never the only cue. */
+.chip.st-go {
+  background: var(--go);
+  box-shadow: none;
+  color: #ffffff;
+}
+.chip.st-go .sep,
+.chip.st-go .a-ADMIT {
+  color: rgba(255, 255, 255, 0.86);
+}
+.chip.st-go .dot {
+  background: #ffffff;
+  box-shadow: none;
+}
+.chip.st-stop {
+  background: repeating-linear-gradient(
+    -45deg,
+    color-mix(in srgb, var(--ink) 11%, transparent) 0 1px,
+    var(--sheet) 1px 5px
+  );
+}
+.chip.st-held {
+  box-shadow: none;
+  outline: 1px dashed var(--muted);
+  outline-offset: -1px;
+}
+
 /* Facets and tables ---------------------------------------------------- */
 
 .facets {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  /* One row when there is room, so no facet is left alone on a line. */
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
   gap: 10px;
   padding: 0 24px 18px;
   /* The ledger's facets are a fieldset; drop its default frame. */
@@ -819,6 +850,15 @@ a.btn {
 
 /* Overview ------------------------------------------------------------- */
 
+/* "Needs attention" is what the dashboard is for: when something waits for a
+   person, its tile takes the accent ground. */
+.card.attention {
+  background: var(--accent-soft);
+}
+.card.attention .card-head h2 {
+  color: var(--accent-text);
+}
+
 .overview {
   display: flex;
   flex-direction: column;
@@ -827,8 +867,15 @@ a.btn {
 }
 .tiles {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  /* Six tiles: two rows of three, or three rows of two (also on phones,
+     below), never one left alone. */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
+}
+@media (min-width: 1000px) {
+  .tiles {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 .ov-row {
   display: flex;
@@ -946,7 +993,7 @@ a.btn {
   position: relative;
 }
 .tile-link:hover {
-  box-shadow: 0 1px 2px rgba(19, 32, 28, 0.06), 0 0 0 1px var(--line-strong);
+  background: var(--tile-hover);
 }
 .tile-link .tile-value a::after {
   content: '';
@@ -1336,9 +1383,8 @@ a.btn {
   font-weight: 500;
 }
 .card {
-  border-radius: 12px;
-  box-shadow: var(--shadow);
-  background: var(--raise);
+  border-radius: 14px;
+  background: var(--tile);
   padding: 16px;
   display: flex;
   flex-direction: column;
@@ -1445,6 +1491,70 @@ a.btn {
   display: grid;
   place-items: center;
   padding: 24px 16px;
+}
+.login-wrap {
+  width: 100%;
+  max-width: 880px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 400px);
+  gap: 12px;
+}
+/* The site's dusk gradient: forest into ember. */
+.login-brand {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: 14px;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  color: #ffffff;
+  background:
+    radial-gradient(90% 75% at 0% 0%, #22705e 0, transparent 60%),
+    radial-gradient(85% 75% at 100% 100%, #f0682c 0, transparent 58%),
+    radial-gradient(70% 60% at 28% 105%, #f3a65c 0, transparent 52%),
+    #0f2f29;
+}
+.login-brand h1 {
+  margin: 8px 0 0;
+  font-family: var(--font-display);
+  font-size: 26px;
+  line-height: 1.15;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: #ffffff;
+}
+.login-brand p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.86);
+}
+.login-brand ul {
+  list-style: none;
+  margin: auto 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+.login-brand li {
+  padding: 8px 12px;
+  border-radius: 9px;
+  background: rgba(15, 47, 41, 0.55);
+}
+.login-mark {
+  color: #ffffff;
+}
+@media (max-width: 760px) {
+  .login-wrap {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .login-brand ul {
+    display: none;
+  }
 }
 .login-card {
   width: 100%;
