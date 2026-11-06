@@ -446,6 +446,9 @@ function LatencyCard({ win }: Readonly<{ win: OverviewWindow }>) {
   const range = periodParams(win);
   const name = RANGES[win.range].name;
   const rows = latencyBy(win.records, (r) => r.domain);
+  // One scale for every row: the slowest 95th percentile spans the cell.
+  const top = Math.max(1, ...rows.map((r) => r.p95));
+  const pct = (ms: number) => `${((ms / top) * 100).toFixed(1)}%`;
   let none = `No record in these ${name} has a time the server measured. A server before qwed-verification #528 measures none.`;
   if (win.reachesBackTo !== null) {
     none = `No loaded record in these ${name} has a time the server measured. Older records in the range are not loaded.`;
@@ -471,6 +474,9 @@ function LatencyCard({ win }: Readonly<{ win: OverviewWindow }>) {
                   <th scope="col">Median</th>
                   <th scope="col">95th percentile</th>
                   <th scope="col">Measured</th>
+                  <th scope="col" className="cell-spread">
+                    <span className="sr-only">Median to 95th percentile, on one scale</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -489,6 +495,13 @@ function LatencyCard({ win }: Readonly<{ win: OverviewWindow }>) {
                     </td>
                     <td className="num muted cell-small" data-label="Measured">
                       {r.measured} of {plural(r.of, 'record', 'records')}
+                    </td>
+                    {/* Drawn only: the two cells before it give the same in words. */}
+                    <td className="cell-spread" aria-hidden="true">
+                      <span className="spread">
+                        <span className="spread-range" style={{ left: pct(r.median), width: pct(r.p95 - r.median) }} />
+                        <span className="spread-mid" style={{ left: pct(r.median) }} />
+                      </span>
                     </td>
                   </tr>
                 ))}
@@ -558,13 +571,13 @@ function DeniedCards({ win, keys }: Readonly<{ win: OverviewWindow; keys: KeysQu
         <div className="card-head">
           <h2 id="denied-verifier-title">Not admitted, by verifier</h2>
         </div>
-        {byVerifier.length > 0 ? <BarList rows={byVerifier} /> : none}
+        {byVerifier.length > 0 ? <BarList rows={byVerifier} tone="deny" /> : none}
       </section>
       <section className="card" aria-labelledby="denied-key-title">
         <div className="card-head">
           <h2 id="denied-key-title">Not admitted, by API key</h2>
         </div>
-        {byKey.length > 0 ? <BarList rows={byKey} /> : none}
+        {byKey.length > 0 ? <BarList rows={byKey} tone="deny" /> : none}
       </section>
     </>
   );
@@ -663,18 +676,23 @@ function AttentionList({
   );
 }
 
+/**
+ * One row per group, as an inbox lists them: the mark, what waits, the
+ * newest record's lines, and a chevron. The link is stretched over the row,
+ * so the whole row opens the ledger; its name still says what it does.
+ */
 function Items({ items }: Readonly<{ items: Attention[] }>) {
   return (
     <ul className="attn compact">
       {items.map((it) => (
-        <li key={it.id}>
+        <li key={it.id} className="attn-row">
           <span className={`dot ${it.dot}`} aria-hidden="true" />
           <div className="attn-text">
             <strong>{it.title}</strong>
             {typeof it.detail === 'string' ? <span>{it.detail}</span> : it.detail}
           </div>
-          <Link className="btn btn-sm" to={it.to} aria-label={`${it.action}: ${it.title}`}>
-            {it.action}
+          <Link className="attn-go" to={it.to} aria-label={`${it.action}: ${it.title}`}>
+            <span className="chev" aria-hidden="true" />
           </Link>
         </li>
       ))}

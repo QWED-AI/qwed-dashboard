@@ -725,6 +725,47 @@ a.btn {
 .tbl.latency-tbl {
   min-width: 560px;
 }
+.latency-tbl th:not(:first-child),
+.latency-tbl td.num {
+  text-align: right;
+}
+.latency-tbl td {
+  height: 40px;
+}
+.latency-tbl a {
+  color: var(--text);
+}
+.latency-tbl .cell-spread {
+  width: 24%;
+  min-width: 80px;
+  padding-left: 20px;
+}
+/* Median (dot) to 95th percentile (bar's end), every row on one scale. */
+.spread {
+  position: relative;
+  display: block;
+  height: 6px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+}
+.spread-range {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  min-width: 2px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--go) 45%, transparent);
+}
+.spread-mid {
+  position: absolute;
+  top: 50%;
+  width: 9px;
+  height: 9px;
+  margin: -4.5px 0 0 -4.5px;
+  border-radius: 50%;
+  background: var(--go);
+  box-shadow: 0 0 0 2px var(--tile);
+}
 /* A card that takes two columns of the Overview's grid, when the grid has
    two: spanning two in a grid of one would add a column. The grid's own width
    decides, not the viewport's, which also holds the sidebar and a scrollbar:
@@ -858,13 +899,99 @@ a.btn {
 
 /* Overview ------------------------------------------------------------- */
 
-/* "Needs attention" is what the dashboard is for: when something waits for a
-   person, its tile takes the accent ground. */
-.card.attention {
-  background: var(--accent-soft);
+/* "Needs attention" is what the dashboard is for. When something waits for
+   a person, its heading carries an accent mark; the tile stays neutral, so
+   the rows inside it are what you read. */
+.card.attention .card-head h2::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin: 0 8px 1px 0;
+  border-radius: 50%;
+  background: var(--accent);
+  vertical-align: middle;
 }
-.card.attention .card-head h2 {
-  color: var(--accent-text);
+/* Inbox rows: the mark on the title's line, the record's lines cut to one
+   line each, and a chevron. The link is stretched over the whole row. */
+.attn.compact li.attn-row {
+  position: relative;
+  grid-template-columns: 10px minmax(0, 1fr) 16px;
+  align-items: start;
+  gap: 12px;
+  margin: 0 -10px;
+  padding: 12px 10px;
+  border-radius: 10px;
+  border-bottom: 0;
+  transition: background-color 0.15s ease;
+}
+.attn.compact li.attn-row + li.attn-row {
+  box-shadow: 0 -1px 0 var(--line);
+}
+.attn.compact li.attn-row:hover {
+  background: var(--tile-hover);
+  box-shadow: none;
+}
+.attn.compact li.attn-row:hover + li.attn-row {
+  box-shadow: none;
+}
+.attn-row > .dot {
+  margin-top: 6px;
+}
+.attn-row .attn-text {
+  gap: 2px;
+}
+.attn-row .attn-text strong {
+  font-size: 13.5px;
+  margin-bottom: 2px;
+}
+.attn-row .attn-text > span {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+/* The request is what the row is about; the time is a footnote. */
+.attn-row .attn-text > span:first-of-type {
+  color: var(--text);
+}
+.attn-row .attn-text > span:last-child {
+  font-size: 11.5px;
+}
+.attn-go {
+  align-self: center;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  color: var(--muted);
+}
+.attn-go::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+.attn-go:focus-visible {
+  outline: none;
+}
+.attn.compact li.attn-row:has(.attn-go:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.attn-row:hover .attn-go {
+  color: var(--ink);
+}
+.chev {
+  width: 7px;
+  height: 7px;
+  margin-left: -3px;
+  border-top: 1.5px solid currentColor;
+  border-right: 1.5px solid currentColor;
+  transform: rotate(45deg);
 }
 
 .overview {
@@ -907,7 +1034,8 @@ a.btn {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 16px;
-  align-items: start;
+  /* Cards in a row share its height, so no row leaves a hole. */
+  align-items: stretch;
   /* Its cards ask how wide it is (.card-span-2). */
   container: ov-grid / inline-size;
 }
@@ -927,6 +1055,17 @@ a.btn {
 }
 .card-head a {
   font-size: 12.5px;
+  font-weight: 500;
+  color: var(--muted);
+}
+.card-head a::after {
+  content: " \2192";
+  /* Drawn, not read: the link's words are its name. */
+  content: " \2192" / "";
+}
+.card-head a:hover {
+  color: var(--ink);
+  text-decoration: none;
 }
 .card.flush {
   padding: 0;
@@ -1088,6 +1227,9 @@ a.btn {
   align-items: center;
   gap: 7px;
 }
+.vc-legend a {
+  color: var(--text);
+}
 .vc-legend b {
   color: var(--ink);
   font-weight: 600;
@@ -1211,7 +1353,7 @@ a.btn {
 .bars {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 14px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -1219,8 +1361,8 @@ a.btn {
 .bars li {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  font-size: 12.5px;
+  gap: 6px;
+  font-size: 13px;
 }
 .bars-head {
   display: flex;
@@ -1232,18 +1374,35 @@ a.btn {
   min-width: 0;
   overflow-wrap: anywhere;
 }
+/* Labels read as text, not as a row of accent links. */
+.bars-label a {
+  color: var(--ink);
+}
+.bars-label .mono,
+.bars-label a.mono {
+  font-size: 12.5px;
+  color: var(--text);
+}
+.bars .hint {
+  font-size: 11.5px;
+}
 .bars-head .num {
   font-weight: 600;
 }
 .bars-track {
   display: block;
-  height: 8px;
+  height: 6px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
 }
 .bars-track span {
   display: block;
-  height: 8px;
+  height: 6px;
   min-width: 2px;
-  border-radius: 0 4px 4px 0;
+  border-radius: 3px;
+  background: var(--go);
+}
+.bars-deny .bars-track span {
   background: var(--accent);
 }
 /* In the narrow attention card the button sits under its text. */
@@ -1656,6 +1815,9 @@ a.btn {
   }
   .tbl.tbl-stack td.cell-end {
     order: 2;
+  }
+  .tbl.tbl-stack .cell-spread {
+    display: none;
   }
   .tbl-stack td[data-label]::before {
     content: attr(data-label) ' ';
