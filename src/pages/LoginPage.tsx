@@ -1,10 +1,8 @@
 import { useState, type SubmitEvent } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router';
 import { ApiError } from '../api/http';
-import type { Admission, Verdict } from '../api/types';
 import { useSession } from '../auth/session';
 import { Mark } from '../components/Mark';
-import { VerdictChip } from '../components/VerdictChip';
 
 /** The most of a password bcrypt, the server's password hash, reads (qwed-verification #548). */
 export const MAX_PASSWORD_BYTES = 72;
@@ -71,110 +69,62 @@ export function LoginPage() {
   }
 
   return (
-    <div className="login">
-      <aside className="login-brand" aria-labelledby="login-pitch">
+    <main className="login">
+      <div className="login-card">
         <span className="login-mark">
-          <Mark width={44} />
+          <Mark width={40} />
         </span>
-        <h1 id="login-pitch">Every decision your QWED server recorded, with its evidence.</h1>
-        <p>Review the records, check their signatures, and see what is waiting for a person.</p>
-        <DecisionFeed />
-      </aside>
-      <main className="login-main">
-        <div className="login-card">
-          <div>
-            <h2 className="login-title">Sign in</h2>
-            <p className="sub" style={{ margin: 0 }}>
-              to your QWED server
+        <h1 className="login-title">Sign in to QWED Dashboard</h1>
+
+        <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <label className="field">
+            <span>Email</span>
+            <input
+              className="input"
+              type="email"
+              autoComplete="username"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </label>
+          <label className="field">
+            <span>Password</span>
+            <input
+              className="input"
+              type="password"
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </label>
+          {error && (
+            <p className="alert" role="alert">
+              {error}
             </p>
-          </div>
-
-          <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <label className="field">
-              <span>Email</span>
-              <input
-                className="input"
-                type="email"
-                autoComplete="username"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </label>
-            <label className="field">
-              <span>Password</span>
-              <input
-                className="input"
-                type="password"
-                autoComplete="current-password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </label>
-            {error && (
-              <p className="alert" role="alert">
-                {error}
-              </p>
-            )}
-            <button type="submit" className="btn btn-primary" disabled={busy}>
-              {busy ? 'Signing in…' : 'Sign in'}
-            </button>
-          </form>
-
-          <div className="divider">or</div>
-          <button type="button" className="btn" onClick={demo}>
-            Explore with sample data
+          )}
+          <button type="submit" className="btn btn-primary" disabled={busy}>
+            {busy ? 'Signing in…' : 'Sign in'}
           </button>
-          <p className="hint" style={{ margin: 0 }}>
-            Sample data runs in your browser only. Nothing is sent to a server.
-          </p>
-          <p className="hint" style={{ margin: 0 }}>
-            New server, no user yet?{' '}
-            <a href={FIRST_OWNER} target="_blank" rel="noreferrer">
-              Create the first owner
-            </a>
-          </p>
-        </div>
-      </main>
-    </div>
+        </form>
+
+        <div className="divider">or</div>
+        <button type="button" className="btn" onClick={demo}>
+          Explore with sample data
+        </button>
+        <p className="hint" style={{ margin: 0 }}>
+          Sample data runs in your browser only. Nothing is sent to a server.
+        </p>
+        <p className="hint" style={{ margin: 0 }}>
+          New server, no user yet?{' '}
+          <a href={FIRST_OWNER} target="_blank" rel="noreferrer">
+            Create the first owner
+          </a>
+        </p>
+      </div>
+    </main>
   );
 }
 
 const FIRST_OWNER = 'https://github.com/QWED-AI/qwed-dashboard#first-sign-in-on-a-new-server';
-
-// Made-up decisions that show what the ledger holds. None is a real record,
-// and the panel says so.
-const SAMPLE: { claim: string; verdict: Verdict; admission: Admission | null }[] = [
-  { claim: 'Refund the tax: 4,500 × 0.18 = 810', verdict: 'VERIFIED', admission: 'ADMIT' },
-  { claim: 'rm -rf /srv/refunds/*', verdict: 'BLOCKED', admission: 'DENY' },
-  { claim: 'Invoice: 4 × 249.00 + 18% GST = 1,175.28', verdict: 'VERIFIED', admission: 'ADMIT' },
-  { claim: 'SELECT * FROM users WHERE id = 88 OR 1 = 1', verdict: 'VERIFIED', admission: 'DENY' },
-  { claim: 'The refund is within the 30-day window', verdict: 'UNVERIFIABLE', admission: null },
-];
-
-/**
- * Sample decisions rising slowly through the panel. The list is drawn twice
- * so the loop has no seam; the copy is hidden from screen readers. With
- * reduced motion it is one still list.
- */
-function DecisionFeed() {
-  const rows = (copy: boolean) =>
-    SAMPLE.map((d) => (
-      <li key={`${copy ? 'b' : 'a'}-${d.claim}`}>
-        <code>{d.claim}</code>
-        <VerdictChip verdict={d.verdict} admission={d.admission} />
-      </li>
-    ));
-  return (
-    <div className="feed">
-      <p className="feed-label">Sample decisions</p>
-      <div className="feed-window">
-        <div className="feed-track">
-          <ul>{rows(false)}</ul>
-          <ul aria-hidden="true">{rows(true)}</ul>
-        </div>
-      </div>
-    </div>
-  );
-}

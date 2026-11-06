@@ -1498,184 +1498,44 @@ a.btn {
 
 /* Login ---------------------------------------------------------------- */
 
-/* Two halves, edge to edge: the brand panel in the site's dusk gradient, and
-   the form on the ground. Below 760px the panel is a short header. */
+/* One narrow column on the ground, as tool sign-ins are: the mark, the
+   form, and the ways in for a demo or a new server. */
 .login {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-}
-.login-brand {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  padding: 56px clamp(32px, 5vw, 80px);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 16px;
-  color: #ffffff;
-  background: #0f2f29;
-}
-/* The gradient sits on a layer larger than the panel, so it can drift. The
-   ember and amber glows stay in the lower corners, away from the text: at
-   these sizes the text sits only on the dark ground and the green glow. */
-.login-brand::before {
-  content: '';
-  position: absolute;
-  inset: -20%;
-  z-index: -1;
-  background:
-    radial-gradient(45% 40% at 10% 10%, #22705e 0, transparent 70%),
-    radial-gradient(45% 40% at 90% 90%, #f0682c 0, transparent 70%),
-    radial-gradient(35% 30% at 30% 95%, #f3a65c 0, transparent 70%);
-}
-.login-brand h1 {
-  margin: 8px 0 0;
-  max-width: 18em;
-  font-family: var(--font-display);
-  font-size: clamp(26px, 2.6vw, 38px);
-  line-height: 1.1;
-  font-weight: 600;
-  letter-spacing: -0.035em;
-  color: #ffffff;
-}
-.login-brand > p {
-  margin: 0;
-  max-width: 34em;
-  font-size: 15px;
-  line-height: 1.55;
-  color: rgba(255, 255, 255, 0.86);
-}
-.login-mark {
-  color: #ffffff;
-}
-.login-main {
-  display: grid;
   place-items: center;
-  padding: 40px 24px;
+  padding: 40px 20px;
 }
 .login-card {
   width: 100%;
-  max-width: 380px;
+  max-width: 360px;
   display: flex;
   flex-direction: column;
   gap: 18px;
 }
+.login-mark {
+  color: var(--accent);
+}
 .login-title {
-  margin: 0;
+  margin: 0 0 4px;
   font-family: var(--font-display);
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 600;
   letter-spacing: -0.03em;
   color: var(--ink);
 }
-
-/* Sample decisions: a short window onto a list that rises slowly. */
-.feed {
-  margin-top: 24px;
-  max-width: 34em;
-}
-.feed-label {
-  margin: 0 0 10px;
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.02em;
-  color: rgba(255, 255, 255, 0.74);
-}
-.feed-window {
-  height: 228px;
-  overflow: hidden;
-  -webkit-mask-image: linear-gradient(transparent, #000 18%, #000 82%, transparent);
-  mask-image: linear-gradient(transparent, #000 18%, #000 82%, transparent);
-}
-.feed ul {
-  list-style: none;
-  margin: 0;
-  padding: 0 0 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.feed li {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: rgba(15, 47, 41, 0.6);
-}
-.feed code {
-  min-width: 0;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.92);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.feed .chip {
-  flex: none;
-}
-/* Without motion, one still list. */
-.feed ul[aria-hidden='true'] {
-  display: none;
-}
-
+/* The mark draws itself in, once. */
 @media (prefers-reduced-motion: no-preference) {
-  .feed ul[aria-hidden='true'] {
-    display: flex;
-  }
-  /* Two copies, so moving up by one copy loops without a seam. */
-  .feed-track {
-    animation: feed-rise 26s linear infinite;
-  }
-  .feed-window:hover .feed-track {
-    animation-play-state: paused;
-  }
-  .login-brand::before {
-    animation: dusk-drift 24s ease-in-out infinite alternate;
-  }
-  /* The mark draws itself in, once. */
   .login-mark path,
   .login-mark circle {
     stroke-dasharray: 1;
     stroke-dashoffset: 1;
-    animation: mark-draw 1.4s cubic-bezier(0.65, 0, 0.35, 1) 0.15s forwards;
-  }
-}
-@keyframes feed-rise {
-  to {
-    transform: translateY(-50%);
-  }
-}
-@keyframes dusk-drift {
-  to {
-    transform: translate(6%, -5%) scale(1.06);
+    animation: mark-draw 1.2s cubic-bezier(0.65, 0, 0.35, 1) 0.1s forwards;
   }
 }
 @keyframes mark-draw {
   to {
     stroke-dashoffset: 0;
-  }
-}
-
-@media (max-width: 760px) {
-  .login {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .login-brand {
-    padding: 28px 24px;
-    gap: 10px;
-  }
-  /* The short header puts the text where the ember and amber glows would
-     be, so only the green glow stays: white text keeps 5:1 or more. */
-  .login-brand::before {
-    background: radial-gradient(60% 80% at 0% 0%, #22705e 0, transparent 70%);
-  }
-  .feed {
-    display: none;
   }
 }
 .divider {
