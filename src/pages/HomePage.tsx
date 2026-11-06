@@ -406,7 +406,7 @@ function Breakdowns({ win, keys }: Readonly<{ win: OverviewWindow; keys: KeysQue
   const verifiers = byVerifier.map(
     ({ key, n }): BarRow => ({
       key,
-      label: <span className="mono">{clash.has(key.toLowerCase()) ? key : key.toLowerCase()}</span>,
+      label: <span>{clash.has(key.toLowerCase()) ? key : key.toLowerCase()}</span>,
       n,
       to: `/ledger?verifier=${encodeURIComponent(key)}&${range}`,
     }),
@@ -483,7 +483,7 @@ function LatencyCard({ win }: Readonly<{ win: OverviewWindow }>) {
                 {rows.map((r) => (
                   <tr key={r.key}>
                     <td>
-                      <Link className="mono" to={`/ledger?verifier=${encodeURIComponent(r.key)}&${range}`}>
+                      <Link to={`/ledger?verifier=${encodeURIComponent(r.key)}&${range}`}>
                         {r.key.toLowerCase()}
                       </Link>
                     </td>
@@ -497,8 +497,8 @@ function LatencyCard({ win }: Readonly<{ win: OverviewWindow }>) {
                       {r.measured} of {plural(r.of, 'record', 'records')}
                     </td>
                     {/* Drawn only: the two cells before it give the same in words. */}
-                    <td className="cell-spread" aria-hidden="true">
-                      <span className="spread">
+                    <td className="cell-spread">
+                      <span className="spread" aria-hidden="true">
                         <span className="spread-range" style={{ left: pct(r.median), width: pct(r.p95 - r.median) }} />
                         <span className="spread-mid" style={{ left: pct(r.median) }} />
                       </span>
@@ -534,7 +534,7 @@ function DeniedCards({ win, keys }: Readonly<{ win: OverviewWindow; keys: KeysQu
     ({ key, denied, of }): BarRow => ({
       key,
       label: (
-        <Link className="mono" to={`/ledger?verifier=${encodeURIComponent(key)}&admission=DENY&${range}`}>
+        <Link to={`/ledger?verifier=${encodeURIComponent(key)}&admission=DENY&${range}`}>
           {key.toLowerCase()}
         </Link>
       ),

@@ -35,6 +35,12 @@ select {
 .mono {
   font-family: var(--font-mono);
 }
+/* As on qwedai.tech, mono is for real code and identifiers (ids, hashes, key
+   previews). Times, dates and figures marked .mono.num read in Geist with
+   tabular figures instead. */
+.mono.num {
+  font-family: var(--font-body);
+}
 .num {
   font-variant-numeric: tabular-nums;
 }
@@ -237,8 +243,9 @@ select {
   margin: 0;
   font-family: var(--font-display);
   font-weight: 600;
-  font-size: 22px;
-  letter-spacing: -0.02em;
+  font-size: 26px;
+  line-height: 1.15;
+  letter-spacing: -0.035em;
   color: var(--ink);
 }
 .sub {
@@ -552,16 +559,17 @@ a.btn {
   border-radius: 6px;
   background: var(--sheet);
   box-shadow: inset 0 0 0 1px var(--line-strong);
-  font-family: var(--font-mono);
-  font-size: 10.5px;
+  /* Geist, as the site's verdict marks are, not mono. */
+  font-family: var(--font-body);
+  font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.02em;
   color: var(--ink);
   white-space: nowrap;
 }
 .chip.lg {
   height: 26px;
-  font-size: 11.5px;
+  font-size: 12px;
   padding: 0 10px 0 9px;
 }
 .chip .sep {
@@ -696,9 +704,9 @@ a.btn {
 }
 .facet .n {
   font-family: var(--font-display);
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 600;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.035em;
   color: var(--ink);
   font-variant-numeric: tabular-nums;
 }
@@ -1129,10 +1137,10 @@ a.btn {
 }
 /* Proportional figures: a lone big number reads loose in tabular ones. */
 .tile-value {
-  font-size: 28px;
+  font-size: 30px;
   line-height: 1.1;
   font-weight: 600;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.04em;
   color: var(--ink);
 }
 .tile-value a {
@@ -1278,8 +1286,8 @@ a.btn {
   position: absolute;
   right: 0;
   transform: translateY(-50%);
-  font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
   color: var(--muted);
 }
 .vc-grid {
@@ -1335,8 +1343,8 @@ a.btn {
   min-width: 0;
   text-align: center;
   white-space: nowrap;
-  font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
   color: var(--muted);
 }
 .vc-table {
@@ -1377,11 +1385,6 @@ a.btn {
 /* Labels read as text, not as a row of accent links. */
 .bars-label a {
   color: var(--ink);
-}
-.bars-label .mono,
-.bars-label a.mono {
-  font-size: 12.5px;
-  color: var(--text);
 }
 .bars .hint {
   font-size: 11.5px;
@@ -1476,7 +1479,7 @@ a.btn {
   font-weight: 600;
   font-size: 22px;
   line-height: 1.3;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.025em;
   color: var(--ink);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -1563,8 +1566,9 @@ a.btn {
 }
 .card h2 {
   margin: 0;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
+  letter-spacing: -0.015em;
   color: var(--ink);
 }
 .check {
@@ -1615,7 +1619,7 @@ a.btn {
   font-family: var(--font-display);
   font-weight: 600;
   font-size: 19px;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.025em;
   color: var(--ink);
 }
 .state-icon {
