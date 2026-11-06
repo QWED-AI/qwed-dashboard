@@ -1,8 +1,8 @@
-/** The QWED mark in white, for the cobalt tile. */
-export function Mark({ width = 20 }: Readonly<{ width?: number }>) {
+/** The QWED mark, drawn in the current colour (the ember accent in the brand tile). */
+export function Mark({ width = 28 }: Readonly<{ width?: number }>) {
   return (
     <svg viewBox="0 0 80 64" width={width} height={(width * 64) / 80} aria-hidden="true">
-      <g fill="none" stroke="#FFFFFF" strokeLinecap="round" strokeLinejoin="round">
+      <g fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
         <path d="M2 32 L13 32" strokeWidth="7" />
         <path d="M67 32 L78 32" strokeWidth="7" />
         <circle cx="40" cy="32" r="26" strokeWidth="5" />
