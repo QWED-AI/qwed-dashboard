@@ -262,7 +262,7 @@ export function VerdictChart({ win }: Readonly<{ win: OverviewWindow }>) {
             <tbody>
               {win.buckets.map((b) => (
                 <tr key={b.start}>
-                  <th scope="row" className="mono" style={{ fontWeight: 400 }}>
+                  <th scope="row" className="num" style={{ fontWeight: 400 }}>
                     {bucketName(b, win.range).replace(' UTC', '')}
                   </th>
                   {series.map((s) => (

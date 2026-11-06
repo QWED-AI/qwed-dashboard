@@ -77,11 +77,15 @@ export interface BarRow {
   to?: string;
 }
 
-/** Counts as bars on one scale, most first. */
-export function BarList({ rows }: Readonly<{ rows: readonly BarRow[] }>) {
+/**
+ * Counts as bars on one scale, most first, each on a track that stands for
+ * the largest. `tone="deny"` draws the bars in the accent, for counts of
+ * records that were not admitted; plain counts are neutral.
+ */
+export function BarList({ rows, tone }: Readonly<{ rows: readonly BarRow[]; tone?: 'deny' }>) {
   const max = Math.max(1, ...rows.map((r) => r.n));
   return (
-    <ul className="bars">
+    <ul className={tone === 'deny' ? 'bars bars-deny' : 'bars'}>
       {rows.map((r) => (
         <li key={r.key}>
           <span className="bars-head">

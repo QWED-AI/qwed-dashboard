@@ -69,17 +69,12 @@ export function LoginPage() {
   }
 
   return (
-    <div className="login">
+    <main className="login">
       <div className="login-card">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span className="brand-tile">
-            <Mark />
-          </span>
-          <span className="brand-name">
-            <strong>QWED Dashboard</strong>
-            <span>Sign in to your QWED server</span>
-          </span>
-        </div>
+        <span className="login-mark">
+          <Mark width={40} />
+        </span>
+        <h1 className="login-title">Sign in to QWED Dashboard</h1>
 
         <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <label className="field">
@@ -121,7 +116,15 @@ export function LoginPage() {
         <p className="hint" style={{ margin: 0 }}>
           Sample data runs in your browser only. Nothing is sent to a server.
         </p>
+        <p className="hint" style={{ margin: 0 }}>
+          New server, no user yet?{' '}
+          <a href={FIRST_OWNER} target="_blank" rel="noreferrer">
+            Create the first owner
+          </a>
+        </p>
       </div>
-    </div>
+    </main>
   );
 }
+
+const FIRST_OWNER = 'https://github.com/QWED-AI/qwed-dashboard#first-sign-in-on-a-new-server';

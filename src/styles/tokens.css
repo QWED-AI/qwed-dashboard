@@ -28,6 +28,11 @@
   --btn: #134e40;
   --btn-text: #ffffff;
   --skel: #eceeea;
+  /* Tiles sit a step darker than the sheet, separated by space, as on the site. */
+  --tile: #f2f4f0;
+  --tile-hover: #eaede8;
+  /* Solid green for what goes ahead (ADMIT), with white text. */
+  --go: #134e40;
   --shadow: 0 1px 2px rgba(19, 32, 28, 0.06), 0 0 0 1px rgba(19, 32, 28, 0.08);
   /* Chart fills for the four stored verdicts, checked for colour-blind
      separation against this surface; the dots keep their shapes as a second cue. */
@@ -67,6 +72,9 @@
     --btn: #edf2ef;
     --btn-text: #0e1714;
     --skel: #1b2a25;
+    --tile: #1b2a25;
+    --tile-hover: #22332d;
+    --go: #1f6b57;
     --shadow: 0 0 0 1px rgba(255, 255, 255, 0.07);
     --v-ok: #1f7b4c;
     --v-un: #bd8a2f;
@@ -100,6 +108,9 @@
   --btn: #edf2ef;
   --btn-text: #0e1714;
   --skel: #1b2a25;
+  --tile: #1b2a25;
+  --tile-hover: #22332d;
+  --go: #1f6b57;
   --shadow: 0 0 0 1px rgba(255, 255, 255, 0.07);
   --v-ok: #1f7b4c;
   --v-un: #bd8a2f;

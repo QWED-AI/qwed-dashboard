@@ -26,12 +26,16 @@ export function VerdictChip({
   large?: boolean;
 }>) {
   const label = `${verdict ?? 'No verdict recorded'}, ${admissionWords(admission, admissionStored)}`;
+  // What happens next sets the chip's ground: goes ahead, stopped, or held.
+  let state = 'st-held';
+  if (admission === 'ADMIT') state = 'st-go';
+  else if (admission === 'DENY') state = 'st-stop';
   const dot = verdict ? `d-${verdict}` : 'd-none';
   let shown = <span className="none">not recorded</span>;
   if (admission) shown = <span className={`a-${admission}`}>{admission}</span>;
   else if (admissionStored) shown = <span className="none">{admissionStored}</span>;
   return (
-    <span className={large ? 'chip lg' : 'chip'} aria-label={label} title={label}>
+    <span className={`chip ${state}${large ? ' lg' : ''}`} aria-label={label} title={label}>
       <span className={`dot ${dot}`} aria-hidden="true" />
       {verdict ?? <span className="none">no verdict</span>}
       <span className="sep" aria-hidden="true">
