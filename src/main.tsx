@@ -1,10 +1,6 @@
-import '@fontsource-variable/bricolage-grotesque';
-import '@fontsource/instrument-sans/400.css';
-import '@fontsource/instrument-sans/500.css';
-import '@fontsource/instrument-sans/600.css';
-import '@fontsource/jetbrains-mono/400.css';
-import '@fontsource/jetbrains-mono/500.css';
-import '@fontsource/jetbrains-mono/600.css';
+// Geist and Geist Mono, the same fonts and versions as qwedai.tech.
+import '@fontsource-variable/geist/wght.css';
+import '@fontsource-variable/geist-mono/wght.css';
 import './styles/tokens.css';
 import './styles/app.css';
 

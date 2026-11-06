@@ -303,7 +303,7 @@ select {
   width: 30px;
   height: 30px;
   border-radius: 8px;
-  background: #2340d9;
+  color: var(--accent);
   display: grid;
   place-items: center;
   flex: none;
@@ -404,7 +404,7 @@ a.btn {
 }
 .btn:hover {
   text-decoration: none;
-  box-shadow: 0 1px 2px rgba(15, 21, 48, 0.06), 0 0 0 1px var(--line-strong);
+  box-shadow: 0 1px 2px rgba(19, 32, 28, 0.06), 0 0 0 1px var(--line-strong);
 }
 .btn-primary {
   background: var(--btn);
@@ -649,7 +649,7 @@ a.btn {
   min-height: 76px;
 }
 .facet:hover {
-  box-shadow: 0 1px 2px rgba(15, 21, 48, 0.06), 0 0 0 1px var(--line-strong);
+  box-shadow: 0 1px 2px rgba(19, 32, 28, 0.06), 0 0 0 1px var(--line-strong);
 }
 .facet[aria-pressed='true'] {
   background: var(--sel);
@@ -946,7 +946,7 @@ a.btn {
   position: relative;
 }
 .tile-link:hover {
-  box-shadow: 0 1px 2px rgba(15, 21, 48, 0.06), 0 0 0 1px var(--line-strong);
+  box-shadow: 0 1px 2px rgba(19, 32, 28, 0.06), 0 0 0 1px var(--line-strong);
 }
 .tile-link .tile-value a::after {
   content: '';
