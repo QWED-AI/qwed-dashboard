@@ -224,7 +224,7 @@ export function HomePage() {
                 </p>
               )}
 
-              <div className="tiles">
+              <div className="tiles tiles-six">
                 {win && <RecordTiles win={win} />}
                 <KeysTile keys={keys} />
               </div>
@@ -687,7 +687,7 @@ function HomeSkeleton() {
     <div className="overview" aria-busy="true" aria-live="polite">
       <span className="sr-only">Loading</span>
       {/* As many as load (RecordTiles and the keys tile), so the page does not shift. */}
-      <div className="tiles" aria-hidden="true">
+      <div className="tiles tiles-six" aria-hidden="true">
         {Array.from({ length: 6 }, (_, i) => (
           <div key={i} className="card tile">
             <span className="sk" style={{ width: '50%' }} />

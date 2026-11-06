@@ -631,12 +631,20 @@ a.btn {
   color: #ffffff;
 }
 .chip.st-go .sep,
-.chip.st-go .a-ADMIT {
+.chip.st-go .a-ADMIT,
+.chip.st-go .none {
   color: rgba(255, 255, 255, 0.86);
 }
-.chip.st-go .dot {
+/* On the green ground each dot turns white but keeps its verdict's shape:
+   solid for VERIFIED and BLOCKED, hollow for UNVERIFIABLE and none. */
+.chip.st-go .d-VERIFIED,
+.chip.st-go .d-BLOCKED {
   background: #ffffff;
-  box-shadow: none;
+}
+.chip.st-go .d-UNVERIFIABLE,
+.chip.st-go .d-none {
+  background: none;
+  box-shadow: inset 0 0 0 1.5px #ffffff;
 }
 .chip.st-stop {
   background: repeating-linear-gradient(
@@ -867,13 +875,17 @@ a.btn {
 }
 .tiles {
   display: grid;
-  /* Six tiles: two rows of three, or three rows of two (also on phones,
-     below), never one left alone. */
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 12px;
 }
+/* The Overview's six tiles: two rows of three, or three rows of two (also on
+   phones, below), never one left alone. Other pages keep the fitted grid,
+   which suits their two to four tiles. */
+.tiles.tiles-six {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
 @media (min-width: 1000px) {
-  .tiles {
+  .tiles.tiles-six {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
@@ -1505,7 +1517,9 @@ a.btn {
   color: #ffffff;
   background: #0f2f29;
 }
-/* The gradient sits on a layer larger than the panel, so it can drift. */
+/* The gradient sits on a layer larger than the panel, so it can drift. The
+   ember and amber glows stay in the lower corners, away from the text: at
+   these sizes the text sits only on the dark ground and the green glow. */
 .login-brand::before {
   content: '';
   position: absolute;
@@ -1654,6 +1668,11 @@ a.btn {
   .login-brand {
     padding: 28px 24px;
     gap: 10px;
+  }
+  /* The short header puts the text where the ember and amber glows would
+     be, so only the green glow stays: white text keeps 5:1 or more. */
+  .login-brand::before {
+    background: radial-gradient(60% 80% at 0% 0%, #22705e 0, transparent 70%);
   }
   .feed {
     display: none;
