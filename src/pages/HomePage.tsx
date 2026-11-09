@@ -224,6 +224,8 @@ export function HomePage() {
                 </p>
               )}
 
+              {/* The site's still lake at dawn; the figures stand on its shore. */}
+              <div className="ov-lake" aria-hidden="true" />
               <div className="tiles tiles-six">
                 {win && <RecordTiles win={win} />}
                 <KeysTile keys={keys} />

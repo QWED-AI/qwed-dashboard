@@ -43,6 +43,9 @@
   --v-un: #bf8418;
   --v-bad: #a3241b;
   --v-none: #7c8494;
+  /* What went ahead is hatched, as on the site's evidence chart: a second cue
+     beside the colour. It follows the theme's green and its soft ground. */
+  --v-ok-fill: repeating-linear-gradient(135deg, var(--v-ok) 0 1.5px, var(--ok-soft) 1.5px 4px);
   --spark: #c9c9c2;
 
   /* The site's corners: small for marks, then buttons, boxes and panels. */

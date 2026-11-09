@@ -40,11 +40,11 @@ const SERIES: Readonly<Record<Grouping, readonly Series[]>> = {
 };
 
 const FILL: Record<Key, string> = {
-  verified: 'var(--v-ok)',
+  verified: 'var(--v-ok-fill)',
   unverifiable: 'var(--v-un)',
   blocked: 'var(--v-bad)',
   none: 'var(--v-none)',
-  admitted: 'var(--v-ok)',
+  admitted: 'var(--v-ok-fill)',
   denied: 'var(--v-bad)',
   noAdmission: 'var(--v-none)',
 };
@@ -229,7 +229,12 @@ export function VerdictChart({ win }: Readonly<{ win: OverviewWindow }>) {
                       }}
                     >
                       {segs.map((s) => (
-                        <span key={s.key} className="vc-seg" style={{ height: s.h, background: FILL[s.key] }} />
+                        <span
+                          key={s.key}
+                          className="vc-seg"
+                          data-k={s.key}
+                          style={{ height: s.h, background: FILL[s.key] }}
+                        />
                       ))}
                     </Link>
                   );
