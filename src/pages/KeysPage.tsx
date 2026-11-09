@@ -284,8 +284,7 @@ export function KeysPage() {
           <table className="tbl compact tbl-stack">
             <thead>
               <tr>
-                <th scope="col">Name</th>
-                <th scope="col">Key</th>
+                <th scope="col">Name · key</th>
                 {showOwner && <th scope="col">Owner</th>}
                 <th scope="col">Created (UTC)</th>
                 {showExpiry && <th scope="col">Expires (UTC)</th>}
@@ -298,19 +297,22 @@ export function KeysPage() {
             <tbody>
               {keys.data.map((k) => (
                 <tr key={k.id}>
-                  <td style={{ color: 'var(--ink)', fontWeight: 500 }}>
-                    {k.name}
+                  {/* The key's preview sits under its name, as the ledger puts
+                      the verifier's words under a request: one column fewer,
+                      so the table fits beside the sidebar. */}
+                  <td className="cell-wrap" style={{ color: 'var(--ink)', fontWeight: 500 }}>
+                    {k.name}{' '}
+                    <span className="row-note mono" style={{ fontWeight: 400 }}>
+                      {k.key_preview}
+                    </span>
                     {k.rotation_required && (
-                      <span className="row-note">
+                      <span className="row-note" style={{ fontWeight: 400 }}>
                         <span className="tag">Rotation required</span> The server asks for this key to be rotated.
                       </span>
                     )}
                   </td>
-                  <td className="mono" style={{ fontSize: 12 }}>
-                    {k.key_preview}
-                  </td>
                   {showOwner && (
-                    <td className="cell-small" style={{ fontSize: 12.5 }} data-label="Owner">
+                    <td className="cell-small cell-wrap" style={{ fontSize: 12.5 }} data-label="Owner">
                       <Owner owner={k.owner} self={user?.id} />
                     </td>
                   )}
@@ -318,7 +320,7 @@ export function KeysPage() {
                     {formatUtcLong(k.created_at)}
                   </td>
                   {showExpiry && (
-                    <td className="mono num muted cell-small" style={{ fontSize: 12 }} data-label="Expires">
+                    <td className="mono num muted cell-small cell-wrap" style={{ fontSize: 12 }} data-label="Expires">
                       <Expiry at={k.expires_at} now={now} />
                     </td>
                   )}

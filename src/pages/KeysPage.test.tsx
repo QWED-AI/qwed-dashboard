@@ -20,16 +20,21 @@ async function createKey(user: ReturnType<typeof userEvent.setup>, name: string)
   await screen.findByText(`${name} is ready.`);
 }
 
+/** A key's cell: its name, then the preview of its key (qwed_…). */
+function keyCell(name: string): RegExp {
+  return new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} qwed_`);
+}
+
 describe('KeysPage', () => {
   it('lists the active keys with when each was last used', async () => {
     renderApp(<KeysPage />);
-    const row = (await screen.findByRole('cell', { name: 'payments-agent prod' })).closest('tr');
+    const row = (await screen.findByRole('cell', { name: keyCell('payments-agent prod') })).closest('tr');
     expect(row?.textContent).toMatch(/2026-10-20 09:41:12 UTC/);
   });
 
   it('names the column of each small cell, for the stacked rows on a phone', async () => {
     renderApp(<KeysPage />);
-    await screen.findByRole('cell', { name: 'payments-agent prod' });
+    await screen.findByRole('cell', { name: keyCell('payments-agent prod') });
     expectStackedTable(screen.getByRole('table'));
   });
 
@@ -38,7 +43,7 @@ describe('KeysPage', () => {
       { id: '9', name: 'fresh', key_preview: 'qwed_live_****abcd', created_at: '2026-10-21T10:00:00', last_used_at: null, is_revoked: false },
     ]);
     renderApp(<KeysPage />);
-    const row = (await screen.findByRole('cell', { name: 'fresh' })).closest('tr');
+    const row = (await screen.findByRole('cell', { name: keyCell('fresh') })).closest('tr');
     expect(row?.textContent).toMatch(/No use recorded/);
     expect(screen.queryByText('Not recorded')).toBeNull();
   });
@@ -50,7 +55,7 @@ describe('KeysPage', () => {
     await createKey(user, 'ci runner');
 
     expect(screen.getByText(/^qwed_test_[A-Za-z0-9]{36}$/)).toBeTruthy();
-    expect(await screen.findByRole('cell', { name: 'ci runner' })).toBeTruthy();
+    expect(await screen.findByRole('cell', { name: keyCell('ci runner') })).toBeTruthy();
 
     await user.click(screen.getByRole('button', { name: 'I have saved it' }));
     expect(screen.queryByText('ci runner is ready.')).toBeNull();
@@ -92,7 +97,7 @@ describe('KeysPage', () => {
     expect(screen.getByText('Calls with this key will fail.')).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Revoke' }));
 
-    await waitFor(() => expect(screen.queryByRole('cell', { name: 'temp key' })).toBeNull());
+    await waitFor(() => expect(screen.queryByRole('cell', { name: keyCell('temp key') })).toBeNull());
     expect(screen.queryByText('temp key is ready.')).toBeNull();
   });
 
@@ -229,8 +234,8 @@ describe('KeysPage', () => {
       expect(await screen.findByText('nightly was rotated. The old key no longer works.')).toBeTruthy();
       expect(screen.getByText(/^qwed_test_[A-Za-z0-9]{36}$/)).toBeTruthy();
       expect(screen.getByRole('button', { name: 'Copy' })).toBeTruthy();
-      expect(await screen.findByRole('cell', { name: 'nightly (Rotated)' })).toBeTruthy();
-      await waitFor(() => expect(screen.queryByRole('cell', { name: 'nightly' })).toBeNull());
+      expect(await screen.findByRole('cell', { name: keyCell('nightly (Rotated)') })).toBeTruthy();
+      await waitFor(() => expect(screen.queryByRole('cell', { name: keyCell('nightly') })).toBeNull());
     });
 
     it('drops a key it showed when that key is rotated', async () => {

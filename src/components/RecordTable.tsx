@@ -18,7 +18,9 @@ export function RecordTable({
         <tr>
           <th scope="col">Received (UTC)</th>
           <th scope="col">Verdict · admission</th>
-          <th scope="col">Request · what the verifier said</th>
+          <th scope="col" className="cell-main">
+            Request · what the verifier said
+          </th>
           <th scope="col">Verifier</th>
           <th scope="col">Record</th>
         </tr>
@@ -32,7 +34,9 @@ export function RecordTable({
             <td>
               <VerdictChip verdict={r.result.verdict} admission={r.result.admission} admissionStored={r.result.admissionStored} />
             </td>
-            <td>
+            {/* The request takes the room the other columns leave, so the
+                table fits its box; a long line is cut short with an ellipsis. */}
+            <td className="cell-main">
               <Link className="row-link" to={`/records/${encodeURIComponent(r.id)}`}>
                 <bdi>{r.query.split('\n')[0]}</bdi>
               </Link>

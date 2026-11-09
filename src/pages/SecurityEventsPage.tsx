@@ -51,7 +51,9 @@ function EventRow({
       <td className="cell-small" data-label="Severity">
         <span className={`tag sev-${event.severity}`}>{event.severity}</span>
       </td>
-      <td>
+      {/* A reason may hold a long address; it breaks anywhere rather than
+          widen the table. */}
+      <td className="cell-wrap" style={{ overflowWrap: 'anywhere' }}>
         <span className="row-link" style={{ whiteSpace: 'normal' }}>
           <bdi>{event.query}</bdi>
         </span>
