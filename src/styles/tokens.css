@@ -1,46 +1,55 @@
-/* Colour tokens, matched to qwedai.tech: a bone ground, forest green for
-   buttons and proof, ember #C8461A as the one accent. Green, amber and red
-   only ever mean a state: verdicts and admissions, severity, the server
-   status pill, check results and error alerts. The chart fills below were
-   checked for colour-blind separation and are unchanged. */
+/* Colour, shape and type tokens, matched to qwedai.tech as it is now: a white
+   ground, neutral greys, hairlines, dark buttons and ember #C8461A as the one
+   accent. Green, amber and red only ever mean a state: verdicts and
+   admissions, severity, the server status pill, check results and error
+   alerts. The chart fills below were checked for colour-blind separation and
+   are unchanged. */
 
 :root {
   color-scheme: light;
-  --canvas: #f6f7f5;
+  --canvas: #ffffff;
   --sheet: #ffffff;
   --raise: #ffffff;
-  --sunk: #f1f3ef;
-  --ink: #13201c;
-  --text: #45524d;
-  --muted: #59655f;
-  --line: rgba(19, 32, 28, 0.08);
-  --line-strong: rgba(19, 32, 28, 0.15);
-  --hover: rgba(19, 32, 28, 0.035);
+  /* Wells and tiles: half-way from white to the site's panel grey (#efeeea). */
+  --sunk: #f4f4f1;
+  --ink: #141414;
+  --text: #4a4a46;
+  --muted: #6b6b66;
+  --line: #e4e4df;
+  --line-strong: #d3d3cc;
+  --hover: rgba(20, 20, 20, 0.04);
   --accent: #c8461a;
   --accent-text: #b03b13;
   --accent-soft: #fbebe3;
-  --sel: #eceeea;
-  --ok: #0f5a48;
-  --ok-soft: #e3efe9;
+  --sel: #efeeea;
+  --ok: #136b4f;
+  --ok-soft: #e2f2ea;
   --un: #8f5600;
   --bad: #b0231a;
   --bad-soft: #fbeceb;
-  --btn: #134e40;
+  /* The site's dark button. */
+  --btn: #2e2e2c;
   --btn-text: #ffffff;
-  --skel: #eceeea;
-  /* Tiles sit a step darker than the sheet, separated by space, as on the site. */
-  --tile: #f2f4f0;
-  --tile-hover: #eaede8;
+  --skel: #efeeea;
+  --tile: #f4f4f1;
+  --tile-hover: #efeeea;
   /* Solid green for what goes ahead (ADMIT), with white text. */
-  --go: #134e40;
-  --shadow: 0 1px 2px rgba(19, 32, 28, 0.06), 0 0 0 1px rgba(19, 32, 28, 0.08);
+  --go: #136b4f;
+  /* A hairline, as the site draws its boxes. */
+  --shadow: 0 0 0 1px #e4e4df;
   /* Chart fills for the four stored verdicts, checked for colour-blind
      separation against this surface; the dots keep their shapes as a second cue. */
   --v-ok: #1f7a4a;
   --v-un: #bf8418;
   --v-bad: #a3241b;
   --v-none: #7c8494;
-  --spark: #b7c2bb;
+  --spark: #c9c9c2;
+
+  /* The site's corners: small for marks, then buttons, boxes and panels. */
+  --r-1: 4px;
+  --r-2: 6px;
+  --r-3: 10px;
+  --r-4: 14px;
 
   --font-display: 'Geist Variable', system-ui, sans-serif;
   --font-body: 'Geist Variable', system-ui, sans-serif;
@@ -50,71 +59,71 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     color-scheme: dark;
-    --canvas: #0e1714;
-    --sheet: #15211d;
-    --raise: #1b2a25;
-    --sunk: #111c18;
-    --ink: #edf2ef;
-    --text: #c2ccc7;
-    --muted: #a9b7b1;
-    --line: rgba(255, 255, 255, 0.07);
-    --line-strong: rgba(255, 255, 255, 0.14);
+    --canvas: #0f1110;
+    --sheet: #0f1110;
+    --raise: #151716;
+    --sunk: #151716;
+    --ink: #f1f1ee;
+    --text: #bdbdb7;
+    --muted: #8d8d86;
+    --line: #26282a;
+    --line-strong: #34373a;
     --hover: rgba(255, 255, 255, 0.04);
-    --accent: #ff9a6b;
+    --accent: #e2531f;
     --accent-text: #ff9a6b;
-    --accent-soft: #2b1c14;
-    --sel: rgba(255, 255, 255, 0.05);
-    --ok: #7fd6b7;
-    --ok-soft: rgba(127, 214, 183, 0.12);
+    --accent-soft: #2a1710;
+    --sel: #1a1c1b;
+    --ok: #6fd2ac;
+    --ok-soft: #12261e;
     --un: #f4c46e;
     --bad: #ff867b;
     --bad-soft: rgba(255, 134, 123, 0.12);
-    --btn: #edf2ef;
-    --btn-text: #0e1714;
-    --skel: #1b2a25;
-    --tile: #1b2a25;
-    --tile-hover: #22332d;
+    --btn: #dcdcd6;
+    --btn-text: #0f1110;
+    --skel: #1a1c1b;
+    --tile: #151716;
+    --tile-hover: #1a1c1b;
     --go: #1f6b57;
-    --shadow: 0 0 0 1px rgba(255, 255, 255, 0.07);
+    --shadow: 0 0 0 1px #26282a;
     --v-ok: #1f7b4c;
     --v-un: #bd8a2f;
     --v-bad: #c23d33;
     --v-none: #7a8292;
-    --spark: #2f423c;
+    --spark: #34373a;
   }
 }
 
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --canvas: #0e1714;
-  --sheet: #15211d;
-  --raise: #1b2a25;
-  --sunk: #111c18;
-  --ink: #edf2ef;
-  --text: #c2ccc7;
-  --muted: #a9b7b1;
-  --line: rgba(255, 255, 255, 0.07);
-  --line-strong: rgba(255, 255, 255, 0.14);
+  --canvas: #0f1110;
+  --sheet: #0f1110;
+  --raise: #151716;
+  --sunk: #151716;
+  --ink: #f1f1ee;
+  --text: #bdbdb7;
+  --muted: #8d8d86;
+  --line: #26282a;
+  --line-strong: #34373a;
   --hover: rgba(255, 255, 255, 0.04);
-  --accent: #ff9a6b;
+  --accent: #e2531f;
   --accent-text: #ff9a6b;
-  --accent-soft: #2b1c14;
-  --sel: rgba(255, 255, 255, 0.05);
-  --ok: #7fd6b7;
-  --ok-soft: rgba(127, 214, 183, 0.12);
+  --accent-soft: #2a1710;
+  --sel: #1a1c1b;
+  --ok: #6fd2ac;
+  --ok-soft: #12261e;
   --un: #f4c46e;
   --bad: #ff867b;
   --bad-soft: rgba(255, 134, 123, 0.12);
-  --btn: #edf2ef;
-  --btn-text: #0e1714;
-  --skel: #1b2a25;
-  --tile: #1b2a25;
-  --tile-hover: #22332d;
+  --btn: #dcdcd6;
+  --btn-text: #0f1110;
+  --skel: #1a1c1b;
+  --tile: #151716;
+  --tile-hover: #1a1c1b;
   --go: #1f6b57;
-  --shadow: 0 0 0 1px rgba(255, 255, 255, 0.07);
+  --shadow: 0 0 0 1px #26282a;
   --v-ok: #1f7b4c;
   --v-un: #bd8a2f;
   --v-bad: #c23d33;
   --v-none: #7a8292;
-  --spark: #2f423c;
+  --spark: #34373a;
 }
