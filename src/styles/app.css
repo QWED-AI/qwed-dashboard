@@ -251,13 +251,38 @@ select {
   flex-direction: column;
   gap: 6px;
 }
+/* A screen's heading on its own halftone mist, as qwedai.tech sets its
+   reading pages: dawn in the light theme, a lake at dusk in the dark one
+   (src/lib/mist.ts). Only the heading sits on it; the screen's data stays
+   on the plain ground below. */
+.page-head.mist {
+  margin: 20px 24px 18px;
+  padding: 30px 28px 30px;
+  border-radius: var(--r-4);
+  background: #eef2f1 var(--mist-dawn) left center / cover no-repeat;
+}
+/* The words stay in the clear patch on the left, off the busier mist. */
+.page-head.mist .sub {
+  max-width: 64ch;
+  color: var(--text);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .page-head.mist {
+    background-color: #0e1a21;
+    background-image: var(--mist-lake);
+  }
+}
+:root[data-theme='dark'] .page-head.mist {
+  background-color: #0e1a21;
+  background-image: var(--mist-lake);
+}
 .h1 {
   margin: 0;
   font-family: var(--font-display);
   font-weight: 500;
-  font-size: 26px;
-  line-height: 1.15;
-  letter-spacing: -0.035em;
+  font-size: 34px;
+  line-height: 1.1;
+  letter-spacing: -0.04em;
   color: var(--ink);
 }
 .sub {
@@ -1784,6 +1809,13 @@ a.btn {
   /* Phones: the rails 8px in from the edge, as on the site. */
   .app {
     width: calc(100% - 16px);
+  }
+  .page-head.mist {
+    margin: 12px 12px 14px;
+    padding: 24px 18px;
+  }
+  .h1 {
+    font-size: 28px;
   }
   .facets {
     grid-template-columns: repeat(2, minmax(0, 1fr));

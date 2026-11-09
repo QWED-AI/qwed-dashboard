@@ -9,6 +9,7 @@ import { downloadLedgerCsv } from '../lib/csv';
 import { formatUtc, parseUtc } from '../lib/format';
 import { toRecord } from '../lib/result';
 import { describeError, useAuthedQuery, useLedgerPages } from '../lib/useAuthedQuery';
+import { mist } from '../lib/mist';
 
 // One /verify/batch job's records together (#57). The server writes one audit
 // row per item, with the job's id (#477), so the job is the loaded rows that
@@ -60,7 +61,7 @@ export function BatchPage() {
 
   return (
     <Shell crumbs={[{ label: 'Decision ledger', to: '/ledger' }, { label: 'Batch job' }]}>
-      <div className="page-head">
+      <div className="page-head mist" style={mist('batch')}>
         <div style={{ minWidth: 0 }}>
           <h1 className="h1">
             Batch job <span className="mono" style={{ fontSize: '0.75em', overflowWrap: 'anywhere' }}>{jobId}</span>

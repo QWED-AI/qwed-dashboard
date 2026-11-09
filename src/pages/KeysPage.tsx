@@ -7,6 +7,7 @@ import { Icon } from '../components/Icon';
 import { Shell } from '../components/Shell';
 import { formatUtcLong, parseUtc } from '../lib/format';
 import { describeError, useAuthedQuery } from '../lib/useAuthedQuery';
+import { mist } from '../lib/mist';
 
 const NAME_MAX = 80;
 
@@ -196,7 +197,7 @@ export function KeysPage() {
 
   return (
     <Shell crumbs={[{ label: 'Settings' }, { label: 'API keys' }]}>
-      <div className="page-head">
+      <div className="page-head mist" style={mist('keys')}>
         <div>
           <h1 className="h1">API keys</h1>
           <p className="sub">

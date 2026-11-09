@@ -8,6 +8,7 @@ import { formatUtc } from '../lib/format';
 import { FEATURES, NEEDED_VERSION, useServerHealth, useServerStatus, type ServerStatus } from '../lib/server';
 import { compareKeys, readSeenKeys, writeSeenKeys, type SeenKeys } from '../lib/signingKeys';
 import { describeError } from '../lib/useAuthedQuery';
+import { mist } from '../lib/mist';
 
 // Settings › Server (#55): the QWED server this dashboard talks to, the keys
 // it signs with and what its version supports. Everything here comes from
@@ -253,7 +254,7 @@ export function ServerPage() {
   const busy = health.isFetching || jwks.isFetching;
   return (
     <Shell crumbs={[{ label: 'Settings' }, { label: 'Server' }]}>
-      <div className="page-head">
+      <div className="page-head mist" style={mist('server')}>
         <div>
           <h1 className="h1">Server</h1>
           <p className="sub">

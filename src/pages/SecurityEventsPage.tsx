@@ -9,6 +9,7 @@ import { ThreatSummary } from '../components/ThreatSummary';
 import { formatUtc } from '../lib/format';
 import { securityEventsError, TYPE_LABEL, typeLabel } from '../lib/securityEvents';
 import { describeError, useAuthedQuery, useDataUnlessRefused, useSecurityEventPages } from '../lib/useAuthedQuery';
+import { mist } from '../lib/mist';
 
 const LIMIT = 50;
 
@@ -110,7 +111,7 @@ export function SecurityEventsPage() {
 
   return (
     <Shell crumbs={[{ label: 'Settings' }, { label: 'Security events' }]}>
-      <div className="page-head">
+      <div className="page-head mist" style={mist('security')}>
         <div>
           <h1 className="h1">Security events</h1>
           <p className="sub">

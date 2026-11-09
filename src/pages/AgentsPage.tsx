@@ -5,6 +5,7 @@ import { Shell } from '../components/Shell';
 import { agentsError, NO_AGENT_LIST, statusClass } from '../lib/agents';
 import { formatUtcLong } from '../lib/format';
 import { useAuthedQuery, useDataUnlessRefused } from '../lib/useAuthedQuery';
+import { mist } from '../lib/mist';
 
 // The organisation's agents (#72), from GET /agents (qwed-verification
 // #527): read only, oldest first, every status listed.
@@ -20,7 +21,7 @@ export function AgentsPage() {
 
   return (
     <Shell crumbs={[{ label: 'Agents' }]}>
-      <div className="page-head">
+      <div className="page-head mist" style={mist('agents')}>
         <div>
           <h1 className="h1">Agents</h1>
           <p className="sub">
