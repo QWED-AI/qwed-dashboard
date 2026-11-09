@@ -58,37 +58,41 @@ select {
 
 /* Layout ------------------------------------------------------------- */
 
+/* The frame, as on qwedai.tech: one column between two rails, 16px in from
+   the screen edge (8px on phones). The sidebar and the page share it,
+   divided by a hairline. */
 .app {
+  width: min(1680px, calc(100% - 32px));
   min-height: 100vh;
+  margin: 0 auto;
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  padding: 8px;
+  border-left: 1px solid var(--line);
+  border-right: 1px solid var(--line);
 }
 .side {
-  flex: 1 0 236px;
+  flex: 1 0 248px;
   max-width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 6px 4px 8px;
+  gap: 18px;
+  padding: 14px 16px 16px;
+  border-right: 1px solid var(--line);
 }
 .sheet {
   flex: 999 1 560px;
   min-width: 0;
   background: var(--sheet);
-  border-radius: var(--r-3);
-  box-shadow: var(--shadow);
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 .topbar {
-  min-height: 52px;
+  min-height: 64px;
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 8px 24px;
+  padding: 10px 24px;
   border-bottom: 1px solid var(--line);
   flex-wrap: wrap;
 }
@@ -96,7 +100,8 @@ select {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
   color: var(--muted);
   min-width: 0;
 }
@@ -115,17 +120,23 @@ select {
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 34px;
-  padding: 0 10px;
+  height: 37px;
+  padding: 0 8px 0 12px;
   border-radius: var(--r-2);
-  background: var(--sunk);
+  background: var(--sheet);
   box-shadow: inset 0 0 0 1px var(--line);
   color: var(--muted);
-  flex: 0 1 280px;
+  flex: 0 1 300px;
   min-width: 150px;
 }
 .find:focus-within {
-  box-shadow: inset 0 0 0 1px var(--line-strong);
+  box-shadow: inset 0 0 0 1px var(--muted);
+}
+/* The "/" key means nothing on a touch screen. */
+@media (hover: none), (max-width: 640px) {
+  .find .kbd {
+    display: none;
+  }
 }
 .find input {
   flex: 1;
@@ -142,8 +153,8 @@ select {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  height: 30px;
-  padding: 0 11px;
+  height: 37px;
+  padding: 0 12px;
   border-radius: var(--r-2);
   font-family: var(--font-mono);
   background: var(--sunk);
@@ -304,8 +315,11 @@ select {
   align-items: center;
   gap: 10px;
   min-height: 44px;
-  padding: 6px 8px;
+  padding: 4px 8px;
   color: var(--ink);
+}
+.brand:hover {
+  text-decoration: none;
 }
 .brand-tile {
   width: 30px;
@@ -323,18 +337,22 @@ select {
   min-width: 0;
 }
 .brand-name strong {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
+  letter-spacing: -0.02em;
 }
 .brand-name span {
+  font-family: var(--font-mono);
   font-size: 12px;
   color: var(--muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* The site's menu: group names and items in Geist Mono. */
 .grp {
-  font-size: 11.5px;
+  font-family: var(--font-mono);
+  font-size: 12px;
   font-weight: 500;
   color: var(--muted);
   padding: 0 10px 6px;
@@ -343,29 +361,31 @@ select {
   display: flex;
   align-items: center;
   gap: 10px;
-  height: 34px;
+  height: 36px;
   padding: 0 10px;
   border-radius: var(--r-2);
-  color: var(--muted);
+  color: var(--text);
+  font-family: var(--font-mono);
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 400;
 }
 .nav:hover {
   color: var(--ink);
   background: var(--hover);
   text-decoration: none;
 }
+/* The open screen: light grey, with an ember edge. */
 .nav.active {
   color: var(--ink);
-  background: var(--sheet);
-  box-shadow: var(--shadow);
+  background: var(--sel);
+  box-shadow: inset 2px 0 0 var(--accent);
 }
 .side-foot {
   margin-top: auto;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 10px 6px 0;
+  padding: 14px 4px 0;
   border-top: 1px solid var(--line);
 }
 .who {
@@ -375,15 +395,16 @@ select {
   min-width: 0;
 }
 .avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--r-2);
   background: var(--sheet);
-  box-shadow: var(--shadow);
+  box-shadow: inset 0 0 0 1px var(--line);
   display: grid;
   place-items: center;
-  font-size: 11px;
-  font-weight: 600;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
   color: var(--ink);
   flex: none;
 }
@@ -1726,9 +1747,9 @@ a.btn {
 @media (min-width: 900px) {
   .side {
     position: sticky;
-    top: 8px;
+    top: 0;
     align-self: flex-start;
-    height: calc(100vh - 16px);
+    height: 100vh;
     overflow-y: auto;
   }
 }
@@ -1744,7 +1765,9 @@ a.btn {
   .side {
     flex-basis: 100%;
     gap: 0;
-    padding: 0 4px;
+    padding: 8px 16px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
   }
   .btn.menu-btn {
     display: inline-flex;
@@ -1758,6 +1781,10 @@ a.btn {
 }
 
 @media (max-width: 640px) {
+  /* Phones: the rails 8px in from the edge, as on the site. */
+  .app {
+    width: calc(100% - 16px);
+  }
   .facets {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

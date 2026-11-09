@@ -119,6 +119,10 @@ function FindRecord() {
         placeholder="Record id or proof_ref"
         aria-keyshortcuts="/"
       />
+      {/* The shortcut, shown as the site shows its search key; aria-keyshortcuts says it to screen readers. */}
+      <kbd className="kbd" aria-hidden="true">
+        /
+      </kbd>
     </form>
   );
 }
