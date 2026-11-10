@@ -329,6 +329,18 @@ describe('RecordPage', () => {
         expect(card.queryByText(/carries no signature/)).toBeNull();
         expect(card.queryByRole('button', { name: 'Check attestation' })).toBeNull();
       });
+
+      it('draws one Attestation card for a VERIFIED record, also after the page draws again', async () => {
+        renderApp(<App />, { route: '/records/1022' });
+        await region('Audit chain entry');
+        expect(document.querySelector('.chip.lg')?.getAttribute('aria-label')).toMatch(/^VERIFIED/);
+        expect(screen.getAllByRole('heading', { name: 'Attestation' })).toHaveLength(1);
+        // Changing tab draws the page again. The attestation and chain checks once shared a key,
+        // so React kept the old Attestation card and added a new one next to it.
+        await openAuditEntry();
+        expect(screen.getAllByRole('heading', { name: 'Attestation' })).toHaveLength(1);
+        expect(screen.getAllByRole('heading', { name: 'Audit chain entry' })).toHaveLength(1);
+      });
     });
 
     it('shows no attestation note when the verifier itself blocked the result', async () => {
