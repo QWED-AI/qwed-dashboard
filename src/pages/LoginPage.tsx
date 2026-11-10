@@ -2,7 +2,7 @@ import { useState, type SubmitEvent } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router';
 import { ApiError } from '../api/http';
 import { useSession } from '../auth/session';
-import { Mark } from '../components/Mark';
+import { LakeFrame } from '../components/LakeFrame';
 
 /** The most of a password bcrypt, the server's password hash, reads (qwed-verification #548). */
 export const MAX_PASSWORD_BYTES = 72;
@@ -37,6 +37,35 @@ function signInReason(err: unknown): string {
   return 'Sign-in failed.';
 }
 
+/** What the dashboard is, on the card at the lake's edge. */
+function AboutCard() {
+  return (
+    <aside className="lake-card" aria-label="About QWED Dashboard">
+      <p className="lake-card-k">Early release</p>
+      <ul>
+        <li>
+          <strong>Your server</strong>
+          <span>The dashboard talks only to the QWED server you run.</span>
+        </li>
+        <li>
+          <strong>The decision ledger</strong>
+          <span>Each verdict your server records, and what the verifier said.</span>
+        </li>
+        <li>
+          <strong>Open source</strong>
+          <span>
+            Apache-2.0,{' '}
+            <a href={REPO} target="_blank" rel="noreferrer">
+              on GitHub
+            </a>
+            .
+          </span>
+        </li>
+      </ul>
+    </aside>
+  );
+}
+
 export function LoginPage() {
   const { token, signIn, signInDemo } = useSession();
   const navigate = useNavigate();
@@ -69,62 +98,61 @@ export function LoginPage() {
   }
 
   return (
-    <main className="login">
-      <div className="login-card">
-        <span className="login-mark">
-          <Mark width={40} />
-        </span>
-        <h1 className="login-title">Sign in to QWED Dashboard</h1>
-
-        <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <label className="field">
-            <span>Email</span>
-            <input
-              className="input"
-              type="email"
-              autoComplete="username"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </label>
-          <label className="field">
-            <span>Password</span>
-            <input
-              className="input"
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </label>
-          {error && (
-            <p className="alert" role="alert">
-              {error}
-            </p>
-          )}
-          <button type="submit" className="btn btn-primary" disabled={busy}>
-            {busy ? 'Signing in…' : 'Sign in'}
-          </button>
-        </form>
-
-        <div className="divider">or</div>
-        <button type="button" className="btn" onClick={demo}>
-          Explore with sample data
-        </button>
-        <p className="hint" style={{ margin: 0 }}>
-          Sample data runs in your browser only. Nothing is sent to a server.
-        </p>
-        <p className="hint" style={{ margin: 0 }}>
-          New server, no user yet?{' '}
-          <a href={FIRST_OWNER} target="_blank" rel="noreferrer">
-            Create the first owner
-          </a>
-        </p>
+    <LakeFrame card={<AboutCard />}>
+      <div>
+        <p className="login-kicker">Sign in</p>
+        <h1 className="login-title">See what your server decided, and why.</h1>
       </div>
-    </main>
+
+      <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <label className="field">
+          <span>Email</span>
+          <input
+            className="input"
+            type="email"
+            autoComplete="username"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </label>
+        <label className="field">
+          <span>Password</span>
+          <input
+            className="input"
+            type="password"
+            autoComplete="current-password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </label>
+        {error && (
+          <p className="alert" role="alert">
+            {error}
+          </p>
+        )}
+        <button type="submit" className="btn btn-primary" disabled={busy}>
+          {busy ? 'Signing in…' : 'Sign in'}
+        </button>
+      </form>
+
+      <div className="divider">or</div>
+      <button type="button" className="btn" onClick={demo}>
+        Explore with sample data
+      </button>
+      <p className="hint" style={{ margin: 0 }}>
+        Sample data runs in your browser only. Nothing is sent to a server.
+      </p>
+      <p className="hint" style={{ margin: 0 }}>
+        New server, no user yet?{' '}
+        <a href={FIRST_OWNER} target="_blank" rel="noreferrer">
+          Create the first owner
+        </a>
+      </p>
+    </LakeFrame>
   );
 }
 
-const FIRST_OWNER = 'https://github.com/QWED-AI/qwed-dashboard#first-sign-in-on-a-new-server';
+const REPO = 'https://github.com/QWED-AI/qwed-dashboard';
+const FIRST_OWNER = `${REPO}#first-sign-in-on-a-new-server`;
