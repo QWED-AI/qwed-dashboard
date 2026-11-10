@@ -39,5 +39,6 @@ describe('formatRelative', () => {
   it('says so under a minute', () => {
     expect(formatRelative(now - 20_000, now)).toBe('just now');
     expect(formatRelative(now + 20_000, now)).toBe('in under a minute');
+    expect(formatRelative(now, now)).toBe('just now');
   });
 });

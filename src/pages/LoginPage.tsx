@@ -4,6 +4,9 @@ import { ApiError } from '../api/http';
 import { useSession } from '../auth/session';
 import { LakeFrame } from '../components/LakeFrame';
 
+const REPO = 'https://github.com/QWED-AI/qwed-dashboard';
+const FIRST_OWNER = `${REPO}#first-sign-in-on-a-new-server`;
+
 /** The most of a password bcrypt, the server's password hash, reads (qwed-verification #548). */
 export const MAX_PASSWORD_BYTES = 72;
 
@@ -153,6 +156,3 @@ export function LoginPage() {
     </LakeFrame>
   );
 }
-
-const REPO = 'https://github.com/QWED-AI/qwed-dashboard';
-const FIRST_OWNER = `${REPO}#first-sign-in-on-a-new-server`;

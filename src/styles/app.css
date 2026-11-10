@@ -2108,13 +2108,18 @@ a.btn {
   .side.open .side-menu {
     padding: 12px 0 8px;
   }
+}
 
-  /* Without the sidebar's room, a table of many columns would scroll
-     sideways, so each row of a stacked table becomes a block: the main cells
-     one under the other, then the small ones (time, ids) on a line at the
-     end. The header row is hidden from sight but kept for screen readers,
-     which still read each cell with its column header; a small cell names
-     its column on screen with data-label. */
+/* Stacked tables -------------------------------------------------- */
+@media (max-width: 1099px) {
+  /* Below 1100px a table of many columns has too little room (beside the
+     sidebar down to 900px, and without it below): its main column would be
+     squeezed to nothing, or the table would scroll sideways. So each row of
+     a stacked table becomes a block: the main cells one under the other,
+     then the small ones (time, ids) on a line at the end. The header row is
+     hidden from sight but kept for screen readers, which still read each
+     cell with its column header; a small cell names its column on screen
+     with data-label. */
   .tbl.tbl-stack {
     min-width: 0;
   }
@@ -2204,6 +2209,8 @@ a.btn {
   }
   .facets {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-left: 16px;
+    margin-right: 16px;
   }
   .facet {
     min-height: 0;
@@ -2251,10 +2258,6 @@ a.btn {
   .overview {
     padding-left: 16px;
     padding-right: 16px;
-  }
-  .facets {
-    margin-left: 16px;
-    margin-right: 16px;
   }
   .split > .main,
   .split > .aside {

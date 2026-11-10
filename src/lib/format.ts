@@ -70,7 +70,7 @@ export function formatRelative(ms: number, now: number): string {
       return diff < 0 ? `${span} ago` : `in ${span}`;
     }
   }
-  return diff < 0 ? 'just now' : 'in under a minute';
+  return diff <= 0 ? 'just now' : 'in under a minute';
 }
 
 /** "sha256:86a6c8a8…7c21" */

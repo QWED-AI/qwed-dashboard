@@ -10,6 +10,9 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router';
 import { App } from './App';
 import { SessionProvider } from './auth/session';
+import { applySavedTheme } from './lib/theme';
+
+applySavedTheme();
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 15_000, refetchOnWindowFocus: true } },

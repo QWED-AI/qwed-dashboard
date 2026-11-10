@@ -167,16 +167,18 @@ describe('KeysPage', () => {
       vi.useFakeTimers({ shouldAdvanceTime: true });
       try {
         vi.setSystemTime(new Date('2030-01-01T00:00:00Z'));
+        // The key expires half a minute in, between two ticks of the minute
+        // clock, so only the expiry's own timer can mark it in time.
         vi.spyOn(demoApi, 'listKeys').mockResolvedValue([
-          key('1', { expires_at: '2030-01-01T00:01:00Z', rotation_required: false, owner: null }),
+          key('1', { expires_at: '2030-01-01T00:00:30Z', rotation_required: false, owner: null }),
         ]);
         renderApp(<KeysPage />);
         const row = await rowOf('key 1');
-        expect(row.getByRole('cell', { name: /^2030-01-01 00:01:00 UTC in (1 minute|under a minute)$/ })).toBeTruthy();
+        expect(row.getByRole('cell', { name: '2030-01-01 00:00:30 UTC in under a minute' })).toBeTruthy();
         await act(async () => {
-          await vi.advanceTimersByTimeAsync(61_000);
+          await vi.advanceTimersByTimeAsync(31_000);
         });
-        expect(row.getByRole('cell', { name: 'Expired 2030-01-01 00:01:00 UTC' })).toBeTruthy();
+        expect(row.getByRole('cell', { name: 'Expired 2030-01-01 00:00:30 UTC' })).toBeTruthy();
       } finally {
         vi.useRealTimers();
       }

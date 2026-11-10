@@ -10,8 +10,16 @@ const files = import.meta.glob<string>('../assets/mist/*.webp', { eager: true, q
 
 export type MistScreen = 'ledger' | 'agents' | 'agent' | 'batch' | 'keys' | 'members' | 'security' | 'server';
 
-/** The style that gives a `.mist` heading its screen's pictures. */
+/**
+ * The style that gives a `.mist` heading its screen's pictures. A picture
+ * missing from src/assets/mist (a screen added here but not to the script)
+ * is none, so the heading keeps its plain ground rather than ask for a bad
+ * address.
+ */
 export function mist(screen: MistScreen): CSSProperties {
-  const url = (look: 'dawn' | 'lake') => files[`../assets/mist/${screen}-${look}.webp`];
-  return { '--mist-dawn': `url("${url('dawn')}")`, '--mist-lake': `url("${url('lake')}")` } as CSSProperties;
+  const url = (look: 'dawn' | 'lake') => {
+    const file = files[`../assets/mist/${screen}-${look}.webp`];
+    return file ? `url("${file}")` : 'none';
+  };
+  return { '--mist-dawn': url('dawn'), '--mist-lake': url('lake') } as CSSProperties;
 }
