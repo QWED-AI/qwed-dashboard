@@ -513,13 +513,14 @@ export function RecordPage() {
           <Checks result={result} />
           {/* The server signs VERIFIED results, so a VERIFIED one without a signature says so (#39). A
               Verification Context document carries its own signature instead (#54). */}
-          {/* Keyed by the record, so a check run on one record never shows on another. */}
+          {/* Keyed by the record, so a check run on one record never shows on another. Each key also names
+              its card: siblings that share a key are drawn twice when the page draws again. */}
           {result.shape === 'verification-context' ? (
-            <DocumentSignatureCheck key={r.id} record={r} />
+            <DocumentSignatureCheck key={`signature-${r.id}`} record={r} />
           ) : (
-            (result.attestation || result.verdict === 'VERIFIED') && <AttestationCheck key={r.id} record={r} />
+            (result.attestation || result.verdict === 'VERIFIED') && <AttestationCheck key={`attest-${r.id}`} record={r} />
           )}
-          <ChainCheck key={r.id} logId={r.id} />
+          <ChainCheck key={`chain-${r.id}`} logId={r.id} />
         </aside>
       </div>
     </Shell>
