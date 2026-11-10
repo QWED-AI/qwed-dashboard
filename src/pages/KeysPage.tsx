@@ -5,8 +5,9 @@ import type { ApiKeyItem } from '../api/types';
 import { useSession } from '../auth/session';
 import { Icon } from '../components/Icon';
 import { Shell } from '../components/Shell';
-import { formatUtcLong, parseUtc } from '../lib/format';
+import { DAY, formatRelative, formatUtcLong, parseUtc } from '../lib/format';
 import { describeError, useAuthedQuery } from '../lib/useAuthedQuery';
+import { mist } from '../lib/mist';
 
 const NAME_MAX = 80;
 
@@ -57,17 +58,46 @@ function useNowPast(times: readonly (string | null | undefined)[]): number {
   return now;
 }
 
+/** The time now, moved on each minute, for the "3 days ago" lines. */
+function useMinute(): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+  return now;
+}
+
+/**
+ * How far a key's time is from now, under the UTC time. An expiry within
+ * the 7 days in which the server asks for rotation is marked.
+ */
+function When({ at, now, soon = false }: Readonly<{ at: string; now: number; soon?: boolean }>) {
+  const t = parseUtc(at)?.getTime();
+  if (t === undefined) return null;
+  // The space keeps the two apart when read as one, as a screen reader does.
+  return (
+    <>
+      {' '}
+      <span className={soon ? 'when soon' : 'when'}>{formatRelative(t, now)}</span>
+    </>
+  );
+}
+
 /** When a key stops working (#504). The server refuses a key past its expiry. */
 function Expiry({ at, now }: Readonly<{ at: string | null | undefined; now: number }>) {
   if (at === undefined) return <>Not returned</>;
   if (at === null) return <>Never</>;
-  const expired = (parseUtc(at)?.getTime() ?? Infinity) <= now;
-  return expired ? (
+  const t = parseUtc(at)?.getTime() ?? Infinity;
+  return t <= now ? (
     <>
       <span className="tag">Expired</span> {formatUtcLong(at)}
     </>
   ) : (
-    <>{formatUtcLong(at)}</>
+    <>
+      {formatUtcLong(at)}
+      <When at={at} now={now} soon={t - now <= 7 * DAY} />
+    </>
   );
 }
 
@@ -159,7 +189,11 @@ export function KeysPage() {
   const listed = keys.data ?? [];
   const showOwner = listed.some((k) => 'owner' in k);
   const showExpiry = listed.some((k) => 'expires_at' in k);
-  const now = useNowPast(listed.map((k) => k.expires_at));
+  // The later of two clocks: one moves at each expiry, the other each
+  // minute. Each hook has its own line, so both always run, in this order.
+  const expiryNow = useNowPast(listed.map((k) => k.expires_at));
+  const minuteNow = useMinute();
+  const now = Math.max(expiryNow, minuteNow);
 
   const busy = create.isPending || rotate.isPending;
   const holdsOther = (id: string | null) => created !== null && created.id !== id;
@@ -196,7 +230,7 @@ export function KeysPage() {
 
   return (
     <Shell crumbs={[{ label: 'Settings' }, { label: 'API keys' }]}>
-      <div className="page-head">
+      <div className="page-head mist" style={mist('keys')}>
         <div>
           <h1 className="h1">API keys</h1>
           <p className="sub">
@@ -283,8 +317,7 @@ export function KeysPage() {
           <table className="tbl compact tbl-stack">
             <thead>
               <tr>
-                <th scope="col">Name</th>
-                <th scope="col">Key</th>
+                <th scope="col">Name · key</th>
                 {showOwner && <th scope="col">Owner</th>}
                 <th scope="col">Created (UTC)</th>
                 {showExpiry && <th scope="col">Expires (UTC)</th>}
@@ -297,32 +330,43 @@ export function KeysPage() {
             <tbody>
               {keys.data.map((k) => (
                 <tr key={k.id}>
-                  <td style={{ color: 'var(--ink)', fontWeight: 500 }}>
-                    {k.name}
+                  {/* The key's preview sits under its name, as the ledger puts
+                      the verifier's words under a request: one column fewer,
+                      so the table fits beside the sidebar. */}
+                  <td className="cell-wrap" style={{ color: 'var(--ink)', fontWeight: 500 }}>
+                    {k.name}{' '}
+                    <span className="row-note mono" style={{ fontWeight: 400 }}>
+                      {k.key_preview}
+                    </span>
                     {k.rotation_required && (
-                      <span className="row-note">
+                      <span className="row-note" style={{ fontWeight: 400 }}>
                         <span className="tag">Rotation required</span> The server asks for this key to be rotated.
                       </span>
                     )}
                   </td>
-                  <td className="mono" style={{ fontSize: 12 }}>
-                    {k.key_preview}
-                  </td>
                   {showOwner && (
-                    <td className="cell-small" style={{ fontSize: 12.5 }} data-label="Owner">
+                    <td className="cell-small cell-wrap" style={{ fontSize: 12.5 }} data-label="Owner">
                       <Owner owner={k.owner} self={user?.id} />
                     </td>
                   )}
                   <td className="mono num muted cell-small" style={{ fontSize: 12 }} data-label="Created">
                     {formatUtcLong(k.created_at)}
+                    <When at={k.created_at} now={now} />
                   </td>
                   {showExpiry && (
-                    <td className="mono num muted cell-small" style={{ fontSize: 12 }} data-label="Expires">
+                    <td className="mono num muted cell-small cell-wrap" style={{ fontSize: 12 }} data-label="Expires">
                       <Expiry at={k.expires_at} now={now} />
                     </td>
                   )}
                   <td className="muted cell-small" style={{ fontSize: 12.5 }} data-label="Last used">
-                    {k.last_used_at ? formatUtcLong(k.last_used_at) : 'No use recorded'}
+                    {k.last_used_at ? (
+                      <>
+                        {formatUtcLong(k.last_used_at)}
+                        <When at={k.last_used_at} now={now} />
+                      </>
+                    ) : (
+                      'No use recorded'
+                    )}
                   </td>
                   <td className="cell-end">
                     {confirm?.id === k.id && confirm.action === 'revoke' && (

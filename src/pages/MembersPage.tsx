@@ -5,6 +5,7 @@ import { RefreshError } from '../components/RefreshError';
 import { Shell } from '../components/Shell';
 import { formatUtcLong } from '../lib/format';
 import { describeError, useAuthedQuery, useDataUnlessRefused } from '../lib/useAuthedQuery';
+import { mist } from '../lib/mist';
 
 // The organisation's users (#66), from GET /auth/users (qwed-verification
 // #507): read only, as the route is. Owners and admins may list them.
@@ -41,7 +42,7 @@ export function MembersPage() {
 
   return (
     <Shell crumbs={[{ label: 'Settings' }, { label: 'Members' }]}>
-      <div className="page-head">
+      <div className="page-head mist" style={mist('members')}>
         <div>
           <h1 className="h1">Members</h1>
           <p className="sub">

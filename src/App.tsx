@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link, Navigate, Route, Routes, useLocation } from 'react-router';
 import { useSession } from './auth/session';
+import { LakeFrame } from './components/LakeFrame';
 import { BatchPage } from './pages/BatchPage';
 import { HomePage } from './pages/HomePage';
 import { KeysPage } from './pages/KeysPage';
@@ -22,14 +23,16 @@ function RequireSession({ children }: Readonly<{ children: ReactNode }>) {
 
 function NotFound() {
   return (
-    <div className="login">
-      <div className="login-card">
-        <h1 className="h1">Page not found</h1>
-        <Link className="btn" to="/ledger">
-          Go to the ledger
-        </Link>
+    <LakeFrame>
+      <div>
+        <p className="login-kicker">Not found</p>
+        <h1 className="login-title">Page not found</h1>
+        <p className="login-lead">There is no page at this address. The ledger lists the records your server keeps.</p>
       </div>
-    </div>
+      <Link className="btn" to="/ledger" style={{ alignSelf: 'flex-start' }}>
+        Go to the ledger
+      </Link>
+    </LakeFrame>
   );
 }
 

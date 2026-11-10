@@ -10,6 +10,7 @@ import { downloadLedgerCsv } from '../lib/csv';
 import { inPeriod, periodName, readPeriod } from '../lib/overview';
 import { toRecord, type LedgerRecord } from '../lib/result';
 import { describeError, useAuthedQuery, useLedgerPages } from '../lib/useAuthedQuery';
+import { mist } from '../lib/mist';
 
 type Facet = 'all' | Verdict | 'none';
 
@@ -130,7 +131,7 @@ export function LedgerPage() {
 
   return (
     <Shell crumbs={[{ label: 'Verification' }, { label: 'Decision ledger' }]}>
-      <div className="page-head">
+      <div className="page-head mist" style={mist('ledger')}>
         <div>
           <h1 className="h1">Decision ledger</h1>
           <p className="sub">
@@ -274,7 +275,7 @@ export function LedgerPage() {
           )}
 
           <div className="table-wrap" style={{ borderTop: '1px solid var(--line)' }}>
-            <RecordTable records={shown} />
+            <RecordTable records={shown} keys={keyList.data} />
             {shown.length === 0 && <p className="sub table-empty">No records match these filters.</p>}
           </div>
 

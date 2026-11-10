@@ -1,4 +1,4 @@
-import { useState, type KeyboardEvent } from 'react';
+import { useCallback, useState, type KeyboardEvent } from 'react';
 import { Link } from 'react-router';
 import {
   bucketLabel,
@@ -40,11 +40,11 @@ const SERIES: Readonly<Record<Grouping, readonly Series[]>> = {
 };
 
 const FILL: Record<Key, string> = {
-  verified: 'var(--v-ok)',
+  verified: 'var(--v-ok-fill)',
   unverifiable: 'var(--v-un)',
   blocked: 'var(--v-bad)',
   none: 'var(--v-none)',
-  admitted: 'var(--v-ok)',
+  admitted: 'var(--v-ok-fill)',
   denied: 'var(--v-bad)',
   noAdmission: 'var(--v-none)',
 };
@@ -66,6 +66,7 @@ function ledgerOf(period: Period, key?: Key): string {
   return `/ledger?${filter}${periodParams(period)}`;
 }
 
+/** The plot's least height in px; in a taller card it takes the room there is. */
 const PLOT = 200;
 const GAP = 2;
 
@@ -79,18 +80,39 @@ function describe(c: VerdictCounts, series: readonly Series[]): string {
  * A column's segments, top first, in px. The column's height stays
  * proportional to its total, so a smaller total never draws taller; the
  * gaps between segments fit inside it, and drop out of a column too short
- * to hold them.
+ * to hold them. `plot` is the plot's height in px.
  */
 export function columnSegments(
   c: VerdictCounts,
   top: number,
   grouping: Grouping = 'verdict',
+  plot: number = PLOT,
 ): { gap: number; segs: { key: Key; h: number }[] } {
   const parts = [...SERIES[grouping]].reverse().filter((s) => c[s.key] > 0);
-  const height = (c.total / top) * PLOT;
+  const height = (c.total / top) * plot;
   const gap = parts.length > 1 && height >= parts.length * 4 ? GAP : 0;
   const room = height - gap * (parts.length - 1);
   return { gap, segs: parts.map((s) => ({ key: s.key, h: (c[s.key] / c.total) * room })) };
+}
+
+/**
+ * The height of the plot as drawn, so the columns scale to it: beside a
+ * taller card in the row the plot grows and leaves no hole. Before the first
+ * measure, and where nothing can measure (tests), it is PLOT.
+ */
+function usePlotHeight() {
+  const [height, setHeight] = useState(PLOT);
+  // A callback ref, so a plot drawn again (after the table view) is measured too.
+  const ref = useCallback((el: HTMLDivElement | null) => {
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(([entry]) => {
+      const h = Math.round(entry?.contentRect.height ?? 0);
+      if (h > 0) setHeight(h);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  return [ref, height] as const;
 }
 
 /**
@@ -100,6 +122,7 @@ export function columnSegments(
  */
 export function VerdictChart({ win }: Readonly<{ win: OverviewWindow }>) {
   const [view, setView] = useState<'chart' | 'table'>('chart');
+  const [plotRef, plot] = usePlotHeight();
   const [grouping, setGrouping] = useState<Grouping>('verdict');
   const series = SERIES[grouping];
   // Columns are known by their start time, which a refresh does not move,
@@ -140,7 +163,7 @@ export function VerdictChart({ win }: Readonly<{ win: OverviewWindow }>) {
   };
 
   return (
-    <section className="card" aria-labelledby="by-verdict-title">
+    <section className="card vc-card" aria-labelledby="by-verdict-title">
       <div className="card-head">
         <div style={{ flex: '1 1 200px', minWidth: 0 }}>
           <h2 id="by-verdict-title">{grouping === 'verdict' ? 'Records by verdict' : 'Records by admission'}</h2>
@@ -198,18 +221,18 @@ export function VerdictChart({ win }: Readonly<{ win: OverviewWindow }>) {
           <div className="vc-plot">
             <div className="vc-axis" aria-hidden="true">
               {ticks.map((v) => (
-                <span key={v} style={{ top: (1 - v / top) * PLOT }}>
+                <span key={v} style={{ top: (1 - v / top) * plot }}>
                   {v}
                 </span>
               ))}
             </div>
-            <div className="vc-area">
+            <div className="vc-area" ref={plotRef}>
               {ticks.map((v) => (
-                <span key={v} className="vc-grid" aria-hidden="true" style={{ top: (1 - v / top) * PLOT }} />
+                <span key={v} className="vc-grid" aria-hidden="true" style={{ top: (1 - v / top) * plot }} />
               ))}
               <div className="vc-cols">
                 {win.buckets.map((b) => {
-                  const { gap, segs } = columnSegments(b, top, grouping);
+                  const { gap, segs } = columnSegments(b, top, grouping, plot);
                   // A link, as any way to another page is: it opens in a new tab and copies as an address.
                   return (
                     <Link
@@ -229,7 +252,12 @@ export function VerdictChart({ win }: Readonly<{ win: OverviewWindow }>) {
                       }}
                     >
                       {segs.map((s) => (
-                        <span key={s.key} className="vc-seg" style={{ height: s.h, background: FILL[s.key] }} />
+                        <span
+                          key={s.key}
+                          className="vc-seg"
+                          data-k={s.key}
+                          style={{ height: s.h, background: FILL[s.key] }}
+                        />
                       ))}
                     </Link>
                   );

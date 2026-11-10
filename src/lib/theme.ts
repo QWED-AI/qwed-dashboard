@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { readStorage, writeStorage } from './storage';
 
 export type ThemeChoice = 'system' | 'light' | 'dark';
 const KEY = 'qwed-dashboard.theme';
-const NEXT_THEME: Readonly<Record<ThemeChoice, ThemeChoice>> = { system: 'light', light: 'dark', dark: 'system' };
 
 function apply(choice: ThemeChoice) {
   const { dataset } = document.documentElement;
@@ -11,20 +10,29 @@ function apply(choice: ThemeChoice) {
   else dataset.theme = choice;
 }
 
-export function useTheme(): [ThemeChoice, () => void] {
-  const [choice, setChoice] = useState<ThemeChoice>(() => {
-    const saved = readStorage('local', KEY);
-    return saved === 'light' || saved === 'dark' ? saved : 'system';
-  });
+/** The theme saved in this browser, or system when none is. */
+function savedTheme(): ThemeChoice {
+  const saved = readStorage('local', KEY);
+  return saved === 'light' || saved === 'dark' ? saved : 'system';
+}
+
+/**
+ * Puts the saved theme on the page before the first render, so a screen
+ * outside the shell (sign-in, not found) shows it too, with no flash of the
+ * system's theme first.
+ */
+export function applySavedTheme(): void {
+  apply(savedTheme());
+}
+
+/** The theme chosen (system until one is), and the way to choose another. */
+export function useTheme(): [ThemeChoice, (choice: ThemeChoice) => void] {
+  const [choice, setChoice] = useState<ThemeChoice>(savedTheme);
 
   useEffect(() => {
     apply(choice);
     writeStorage('local', KEY, choice === 'system' ? null : choice);
   }, [choice]);
 
-  const cycle = useCallback(() => {
-    setChoice((c) => NEXT_THEME[c]);
-  }, []);
-
-  return [choice, cycle];
+  return [choice, setChoice];
 }

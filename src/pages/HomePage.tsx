@@ -261,7 +261,7 @@ export function HomePage() {
                 <Link to="/ledger">Open the ledger</Link>
               </div>
               <div className="table-wrap" style={{ borderTop: '1px solid var(--line)' }}>
-                <RecordTable records={records.slice(0, LATEST)} />
+                <RecordTable records={records.slice(0, LATEST)} keys={keys.data} />
               </div>
             </section>
           )}

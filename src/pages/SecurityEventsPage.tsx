@@ -9,6 +9,7 @@ import { ThreatSummary } from '../components/ThreatSummary';
 import { formatUtc } from '../lib/format';
 import { securityEventsError, TYPE_LABEL, typeLabel } from '../lib/securityEvents';
 import { describeError, useAuthedQuery, useDataUnlessRefused, useSecurityEventPages } from '../lib/useAuthedQuery';
+import { mist } from '../lib/mist';
 
 const LIMIT = 50;
 
@@ -50,7 +51,9 @@ function EventRow({
       <td className="cell-small" data-label="Severity">
         <span className={`tag sev-${event.severity}`}>{event.severity}</span>
       </td>
-      <td>
+      {/* A reason may hold a long address; it breaks anywhere rather than
+          widen the table. */}
+      <td className="cell-wrap" style={{ overflowWrap: 'anywhere' }}>
         <span className="row-link" style={{ whiteSpace: 'normal' }}>
           <bdi>{event.query}</bdi>
         </span>
@@ -110,7 +113,7 @@ export function SecurityEventsPage() {
 
   return (
     <Shell crumbs={[{ label: 'Settings' }, { label: 'Security events' }]}>
-      <div className="page-head">
+      <div className="page-head mist" style={mist('security')}>
         <div>
           <h1 className="h1">Security events</h1>
           <p className="sub">

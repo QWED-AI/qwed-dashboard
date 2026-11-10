@@ -45,6 +45,34 @@ export function formatUtcTime(ms: number): string {
   return d.getUTCSeconds() ? `${minutes}:${pad(d.getUTCSeconds())}` : minutes;
 }
 
+const MINUTE = 60_000;
+const HOUR = 60 * MINUTE;
+export const DAY = 24 * HOUR;
+const UNITS: readonly [number, string][] = [
+  [365 * DAY, 'year'],
+  [30 * DAY, 'month'],
+  [DAY, 'day'],
+  [HOUR, 'hour'],
+  [MINUTE, 'minute'],
+];
+
+/**
+ * "3 days ago", "in 4 hours": how far a time (ms) is from now, in its largest
+ * whole unit. It sits beside the UTC time, never in its place.
+ */
+export function formatRelative(ms: number, now: number): string {
+  const diff = ms - now;
+  const abs = Math.abs(diff);
+  for (const [size, unit] of UNITS) {
+    if (abs >= size) {
+      const n = Math.floor(abs / size);
+      const span = `${n} ${unit}${n === 1 ? '' : 's'}`;
+      return diff < 0 ? `${span} ago` : `in ${span}`;
+    }
+  }
+  return diff <= 0 ? 'just now' : 'in under a minute';
+}
+
 /** "sha256:86a6c8a8…7c21" */
 export function shortHash(value: string, head = 15, tail = 4): string {
   return value.length > head + tail + 1 ? `${value.slice(0, head)}…${value.slice(-tail)}` : value;

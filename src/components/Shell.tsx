@@ -14,7 +14,12 @@ export interface Crumb {
   to?: string;
 }
 
-const THEME_LABEL = { system: 'Theme: system', light: 'Theme: light', dark: 'Theme: dark' } as const;
+// The three choices side by side, so one click picks any of them.
+const THEMES = [
+  ['light', 'Light'],
+  ['dark', 'Dark'],
+  ['system', 'System'],
+] as const;
 
 function NavItem({ to, icon, label, onPick }: Readonly<{ to: string; icon: IconName; label: string; onPick: () => void }>) {
   return (
@@ -119,6 +124,10 @@ function FindRecord() {
         placeholder="Record id or proof_ref"
         aria-keyshortcuts="/"
       />
+      {/* The shortcut, shown as the site shows its search key; aria-keyshortcuts says it to screen readers. */}
+      <kbd className="kbd" aria-hidden="true">
+        /
+      </kbd>
     </form>
   );
 }
@@ -127,7 +136,7 @@ export function Shell({ crumbs, children }: Readonly<{ crumbs: Crumb[]; children
   const { user, signOut } = useSession();
   const server = useServerStatus();
   const pill = statusPill(server);
-  const [theme, cycleTheme] = useTheme();
+  const [theme, setTheme] = useTheme();
   // Below 900px the menu folds away behind a button, so the page starts at
   // the top of a phone screen. Wider screens always show it and hide the button.
   const [menuOpen, setMenuOpen] = useState(false);
@@ -187,10 +196,14 @@ export function Shell({ crumbs, children }: Readonly<{ crumbs: Crumb[]; children
                 <span style={{ textTransform: 'capitalize' }}>{user?.role}</span>
               </span>
             </div>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={cycleTheme}>
-              <Icon name="theme" size={14} />
-              {THEME_LABEL[theme]}
-            </button>
+            <fieldset className="seg theme-seg">
+              <legend className="sr-only">Theme</legend>
+              {THEMES.map(([value, label]) => (
+                <button key={value} type="button" aria-pressed={theme === value} onClick={() => setTheme(value)}>
+                  {label}
+                </button>
+              ))}
+            </fieldset>
             <button type="button" className="btn btn-ghost btn-sm" onClick={signOut}>
               <Icon name="out" size={14} />
               Sign out

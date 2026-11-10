@@ -6,6 +6,7 @@ import { Shell } from '../components/Shell';
 import { agentsError, cost, NO_SUCH_AGENT, statusClass } from '../lib/agents';
 import { formatUtcLong } from '../lib/format';
 import { useAuthedQuery, useRefused } from '../lib/useAuthedQuery';
+import { mist } from '../lib/mist';
 
 // One agent's activity (#72), from GET /agents/{agent_id}/activity read with
 // the owner's session (qwed-verification #527), newest first. The route
@@ -52,7 +53,7 @@ function AgentActivity({ agentId }: Readonly<{ agentId: string }>) {
 
   return (
     <Shell crumbs={[{ label: 'Agents', to: '/agents' }, { label: data?.agent_name ?? 'Agent' }]}>
-      <div className="page-head">
+      <div className="page-head mist" style={mist('agent')}>
         <div style={{ minWidth: 0 }}>
           <h1 className="h1" style={{ overflowWrap: 'anywhere' }}>
             {data ? <bdi>{data.agent_name}</bdi> : 'Agent'}

@@ -58,37 +58,41 @@ select {
 
 /* Layout ------------------------------------------------------------- */
 
+/* The frame, as on qwedai.tech: one column between two rails, 16px in from
+   the screen edge (8px on phones). The sidebar and the page share it,
+   divided by a hairline. */
 .app {
+  width: min(1680px, calc(100% - 32px));
   min-height: 100vh;
+  margin: 0 auto;
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  padding: 8px;
+  border-left: 1px solid var(--line);
+  border-right: 1px solid var(--line);
 }
 .side {
-  flex: 1 0 236px;
+  flex: 1 0 248px;
   max-width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 6px 4px 8px;
+  gap: 18px;
+  padding: 14px 16px 16px;
+  border-right: 1px solid var(--line);
 }
 .sheet {
   flex: 999 1 560px;
   min-width: 0;
   background: var(--sheet);
-  border-radius: 12px;
-  box-shadow: var(--shadow);
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 .topbar {
-  min-height: 52px;
+  min-height: 64px;
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 8px 24px;
+  padding: 10px 24px;
   border-bottom: 1px solid var(--line);
   flex-wrap: wrap;
 }
@@ -96,7 +100,8 @@ select {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
   color: var(--muted);
   min-width: 0;
 }
@@ -115,17 +120,23 @@ select {
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 34px;
-  padding: 0 10px;
-  border-radius: 9px;
-  background: var(--sunk);
+  height: 37px;
+  padding: 0 8px 0 12px;
+  border-radius: var(--r-2);
+  background: var(--sheet);
   box-shadow: inset 0 0 0 1px var(--line);
   color: var(--muted);
-  flex: 0 1 280px;
+  flex: 0 1 300px;
   min-width: 150px;
 }
 .find:focus-within {
-  box-shadow: inset 0 0 0 1px var(--line-strong);
+  box-shadow: inset 0 0 0 1px var(--muted);
+}
+/* The "/" key means nothing on a touch screen. */
+@media (hover: none), (max-width: 640px) {
+  .find .kbd {
+    display: none;
+  }
 }
 .find input {
   flex: 1;
@@ -142,9 +153,10 @@ select {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  height: 30px;
-  padding: 0 11px;
-  border-radius: 999px;
+  height: 37px;
+  padding: 0 12px;
+  border-radius: var(--r-2);
+  font-family: var(--font-mono);
   background: var(--sunk);
   box-shadow: inset 0 0 0 1px var(--line);
   font-size: 12px;
@@ -154,7 +166,7 @@ select {
 }
 .status-link {
   display: inline-flex;
-  border-radius: 999px;
+  border-radius: var(--r-2);
   text-decoration: none;
 }
 .status-link:hover .status {
@@ -190,7 +202,7 @@ select {
 .server-note {
   margin: 16px 24px 0;
   padding: 12px 14px;
-  border-radius: 10px;
+  border-radius: var(--r-3);
   background: var(--sunk);
   box-shadow: inset 0 0 0 1px var(--line);
   font-size: 12.5px;
@@ -239,13 +251,38 @@ select {
   flex-direction: column;
   gap: 6px;
 }
+/* A screen's heading on its own halftone mist, as qwedai.tech sets its
+   reading pages: dawn in the light theme, a lake at dusk in the dark one
+   (src/lib/mist.ts). Only the heading sits on it; the screen's data stays
+   on the plain ground below. */
+.page-head.mist {
+  margin: 20px 24px 18px;
+  padding: 30px 28px 30px;
+  border-radius: var(--r-4);
+  background: #eef2f1 var(--mist-dawn) left center / cover no-repeat;
+}
+/* The words stay in the clear patch on the left, off the busier mist. */
+.page-head.mist .sub {
+  max-width: 64ch;
+  color: var(--text);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .page-head.mist {
+    background-color: #0e1a21;
+    background-image: var(--mist-lake);
+  }
+}
+:root[data-theme='dark'] .page-head.mist {
+  background-color: #0e1a21;
+  background-image: var(--mist-lake);
+}
 .h1 {
   margin: 0;
   font-family: var(--font-display);
-  font-weight: 600;
-  font-size: 26px;
-  line-height: 1.15;
-  letter-spacing: -0.035em;
+  font-weight: 500;
+  font-size: 34px;
+  line-height: 1.1;
+  letter-spacing: -0.04em;
   color: var(--ink);
 }
 .sub {
@@ -269,10 +306,12 @@ select {
   flex-direction: column;
   gap: 14px;
 }
+/* The record's checks: white cards on the site's light panel. */
 .split > .aside {
   flex: 1 1 360px;
   min-width: 0;
   border-left: 1px solid var(--line);
+  background: var(--sunk);
   padding: 18px 22px 24px;
   display: flex;
   flex-direction: column;
@@ -303,13 +342,16 @@ select {
   align-items: center;
   gap: 10px;
   min-height: 44px;
-  padding: 6px 8px;
+  padding: 4px 8px;
   color: var(--ink);
+}
+.brand:hover {
+  text-decoration: none;
 }
 .brand-tile {
   width: 30px;
   height: 30px;
-  border-radius: 8px;
+  border-radius: var(--r-2);
   color: var(--accent);
   display: grid;
   place-items: center;
@@ -322,18 +364,22 @@ select {
   min-width: 0;
 }
 .brand-name strong {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
+  letter-spacing: -0.02em;
 }
 .brand-name span {
+  font-family: var(--font-mono);
   font-size: 12px;
   color: var(--muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* The site's menu: group names and items in Geist Mono. */
 .grp {
-  font-size: 11.5px;
+  font-family: var(--font-mono);
+  font-size: 12px;
   font-weight: 500;
   color: var(--muted);
   padding: 0 10px 6px;
@@ -342,29 +388,31 @@ select {
   display: flex;
   align-items: center;
   gap: 10px;
-  height: 34px;
+  height: 36px;
   padding: 0 10px;
-  border-radius: 8px;
-  color: var(--muted);
+  border-radius: var(--r-2);
+  color: var(--text);
+  font-family: var(--font-mono);
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 400;
 }
 .nav:hover {
   color: var(--ink);
   background: var(--hover);
   text-decoration: none;
 }
+/* The open screen: light grey, with an ember edge. */
 .nav.active {
   color: var(--ink);
-  background: var(--sheet);
-  box-shadow: var(--shadow);
+  background: var(--sel);
+  box-shadow: inset 2px 0 0 var(--accent);
 }
 .side-foot {
   margin-top: auto;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 10px 6px 0;
+  padding: 14px 4px 0;
   border-top: 1px solid var(--line);
 }
 .who {
@@ -374,15 +422,16 @@ select {
   min-width: 0;
 }
 .avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--r-2);
   background: var(--sheet);
-  box-shadow: var(--shadow);
+  box-shadow: inset 0 0 0 1px var(--line);
   display: grid;
   place-items: center;
-  font-size: 11px;
-  font-weight: 600;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
   color: var(--ink);
   flex: none;
 }
@@ -395,13 +444,15 @@ select {
   justify-content: center;
   gap: 7px;
   height: 36px;
-  padding: 0 13px;
+  padding: 0 14px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--r-2);
   background: var(--raise);
-  box-shadow: var(--shadow);
+  box-shadow: inset 0 0 0 1px var(--line);
   color: var(--ink);
-  font-size: 13px;
+  /* Geist Mono, as the site's buttons are. */
+  font-family: var(--font-mono);
+  font-size: 12px;
   font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
@@ -411,7 +462,7 @@ a.btn {
 }
 .btn:hover {
   text-decoration: none;
-  box-shadow: 0 1px 2px rgba(19, 32, 28, 0.06), 0 0 0 1px var(--line-strong);
+  box-shadow: inset 0 0 0 1px var(--muted);
 }
 .btn-primary {
   background: var(--btn);
@@ -419,7 +470,7 @@ a.btn {
   box-shadow: none;
 }
 .btn-primary:hover {
-  opacity: 0.88;
+  opacity: 0.9;
   box-shadow: none;
 }
 .btn:disabled {
@@ -428,7 +479,7 @@ a.btn {
 }
 .btn-sm {
   height: 32px;
-  font-size: 12.5px;
+  font-size: 11.5px;
 }
 .btn-ghost {
   background: transparent;
@@ -445,7 +496,7 @@ a.btn {
 .input {
   height: 38px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--r-2);
   background: var(--sheet);
   box-shadow: inset 0 0 0 1px var(--line-strong);
   color: var(--ink);
@@ -464,6 +515,11 @@ a.btn {
   font-weight: 500;
   color: var(--ink);
 }
+/* A field's name in Geist Mono, as column labels are. */
+.field > span:first-child {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
 .hint {
   font-size: 12px;
   font-weight: 400;
@@ -476,7 +532,7 @@ a.btn {
   gap: 8px;
   height: 36px;
   padding: 0 10px;
-  border-radius: 8px;
+  border-radius: var(--r-2);
   background: var(--sheet);
   box-shadow: inset 0 0 0 1px var(--line-strong);
   color: var(--muted);
@@ -501,18 +557,19 @@ a.btn {
   gap: 6px;
   height: 36px;
   padding: 0 10px;
-  border-radius: 8px;
+  border-radius: var(--r-2);
   background: var(--sheet);
-  box-shadow: inset 0 0 0 1px var(--line-strong);
+  box-shadow: inset 0 0 0 1px var(--line);
   color: var(--muted);
-  font-size: 12.5px;
+  font-family: var(--font-mono);
+  font-size: 12px;
   white-space: nowrap;
 }
 .pill select {
   border: 0;
   background: transparent;
   color: var(--ink);
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 500;
   cursor: pointer;
 }
@@ -521,9 +578,10 @@ a.btn {
   align-items: center;
   gap: 6px;
   height: 24px;
-  padding: 0 9px;
-  border-radius: 999px;
+  padding: 0 8px;
+  border-radius: var(--r-1);
   box-shadow: inset 0 0 0 1px var(--line-strong);
+  font-family: var(--font-mono);
   font-size: 11.5px;
   color: var(--muted);
   white-space: nowrap;
@@ -543,7 +601,7 @@ a.btn {
   font-size: 10.5px;
   line-height: 1;
   padding: 3px 5px;
-  border-radius: 4px;
+  border-radius: var(--r-1);
   box-shadow: inset 0 0 0 1px var(--line-strong);
   color: var(--muted);
 }
@@ -556,11 +614,11 @@ a.btn {
   gap: 6px;
   height: 22px;
   padding: 0 8px 0 7px;
-  border-radius: 6px;
+  border-radius: var(--r-2);
   background: var(--sheet);
   box-shadow: inset 0 0 0 1px var(--line-strong);
-  /* Geist, as the site's verdict marks are, not mono. */
-  font-family: var(--font-body);
+  /* Geist Mono, as the site's marks are. */
+  font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -669,15 +727,33 @@ a.btn {
 
 /* Facets and tables ---------------------------------------------------- */
 
+/* Figures and facets sit in one box divided by hairlines, as the site draws
+   its grids. Each cell draws a line around itself, just outside: where two
+   cells meet, the later one's line shows and the earlier one's is covered,
+   so each edge is drawn once. The box's border draws the outside and clips
+   the cells' lines along it. A place left empty at the end of a row stays
+   white, closed off by its neighbours' lines. */
+.tiles,
+.facets {
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  background: var(--raise);
+  overflow: hidden;
+}
+.tiles > .tile,
+.facets > .facet {
+  border-radius: 0;
+  box-shadow: 0 0 0 1px var(--line);
+}
 .facets {
   display: grid;
   /* One row when there is room, so no facet is left alone on a line. */
   grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-  gap: 10px;
-  padding: 0 24px 18px;
-  /* The ledger's facets are a fieldset; drop its default frame. */
-  margin: 0;
-  border: 0;
+  gap: 0;
+  /* The ledger's facets are a fieldset; drop its default padding and keep
+     the page's margins outside the frame. */
+  margin: 0 24px 18px;
+  padding: 0;
   min-width: 0;
 }
 .facet {
@@ -686,9 +762,7 @@ a.btn {
   gap: 8px;
   padding: 12px 14px;
   border: 0;
-  border-radius: 10px;
-  background: var(--sheet);
-  box-shadow: var(--shadow);
+  background: var(--raise);
   color: var(--muted);
   font-size: 12px;
   text-align: left;
@@ -696,16 +770,23 @@ a.btn {
   min-height: 76px;
 }
 .facet:hover {
-  box-shadow: 0 1px 2px rgba(19, 32, 28, 0.06), 0 0 0 1px var(--line-strong);
+  background: var(--tile-hover);
 }
-.facet[aria-pressed='true'] {
+.facet:focus-visible {
+  outline-offset: -2px;
+}
+/* The chosen facet: the light grey and the ink rule of a chosen tab. */
+.facets > .facet[aria-pressed='true'] {
   background: var(--sel);
-  box-shadow: 0 0 0 1.5px var(--ink);
+  color: var(--ink);
+  box-shadow:
+    0 0 0 1px var(--line),
+    inset 0 -2px 0 var(--ink);
 }
 .facet .n {
   font-family: var(--font-display);
   font-size: 24px;
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: -0.035em;
   color: var(--ink);
   font-variant-numeric: tabular-nums;
@@ -717,17 +798,38 @@ a.btn {
   align-items: center;
   padding: 0 24px 14px;
 }
+/* Positioned, so a visually hidden header inside stays inside: placed
+   against the page instead, it would widen the page past the frame. */
 .table-wrap {
+  position: relative;
   overflow-x: auto;
 }
+/* A table takes the width its cells need and no more; a cell of prose
+   (cell-wrap) wraps before the table scrolls sideways, and the ledger's
+   request column (cell-main) takes whatever room is left and cuts its lines
+   short. Below 900px most tables stack, below. */
 .tbl {
   width: 100%;
-  min-width: 820px;
   border-collapse: collapse;
   font-size: 13px;
 }
-.tbl.compact {
-  min-width: 760px;
+/* Wraps at spaces; a word longer than the column breaks only when it must,
+   so an email address or a date keeps its column wide enough for it. */
+.tbl td.cell-wrap {
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+.tbl td.cell-main {
+  width: 100%;
+  max-width: 0;
+}
+/* Its header may wrap too, or its words would set the column's least width. */
+.tbl th.cell-main {
+  white-space: normal;
+}
+.cell-main .row-link,
+.cell-main .row-note {
+  max-width: none;
 }
 /* Four short columns (#88). A stacked table drops it on a phone, below. */
 .tbl.latency-tbl {
@@ -753,7 +855,7 @@ a.btn {
   position: relative;
   display: block;
   height: 6px;
-  border-radius: 3px;
+  border-radius: var(--r-1);
   background: color-mix(in srgb, var(--ink) 7%, transparent);
 }
 .spread-range {
@@ -761,7 +863,7 @@ a.btn {
   top: 0;
   bottom: 0;
   min-width: 2px;
-  border-radius: 3px;
+  border-radius: var(--r-1);
   background: color-mix(in srgb, var(--go) 45%, transparent);
 }
 .spread-mid {
@@ -783,12 +885,14 @@ a.btn {
     grid-column: span 2;
   }
 }
+/* Column names in mono, as the site labels its rows. */
 .tbl th {
   height: 36px;
   padding: 0 12px;
   text-align: left;
+  font-family: var(--font-mono);
   font-weight: 500;
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--muted);
   border-bottom: 1px solid var(--line);
   white-space: nowrap;
@@ -831,6 +935,52 @@ a.btn {
 }
 .row-note.none {
   font-style: italic;
+}
+/* How far a time is from now ("3 days ago"), under the UTC time; an expiry
+   close at hand in the bad colour, as a warning. */
+.when {
+  display: block;
+  margin-top: 2px;
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--muted);
+}
+.when.soon {
+  color: var(--bad);
+}
+/* A table whose rows open a page (the records): the row's link is stretched
+   over the row, a chevron ends it, and the keyboard focus rings the row. */
+.tbl-open tbody tr {
+  position: relative;
+}
+.tbl-open .row-link::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+.tbl-open .row-link:hover {
+  text-decoration: none;
+}
+.tbl-open .row-link:focus-visible {
+  outline: none;
+}
+.tbl-open .row-link:focus-visible::after {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+/* A link of its own in a row (a batch job) sits above the row's link. */
+.tbl-open .row-note a {
+  position: relative;
+  z-index: 1;
+}
+.tbl-open td.cell-go .chev {
+  display: inline-block;
+  margin-left: 12px;
+  vertical-align: 1px;
+  color: var(--muted);
+}
+.tbl-open tbody tr:hover .chev {
+  color: var(--ink);
 }
 .table-empty {
   padding: 18px 24px;
@@ -929,7 +1079,7 @@ a.btn {
   gap: 12px;
   margin: 0 -10px;
   padding: 12px 10px;
-  border-radius: 10px;
+  border-radius: var(--r-3);
   border-bottom: 0;
   transition: background-color 0.15s ease;
 }
@@ -1002,6 +1152,21 @@ a.btn {
   transform: rotate(45deg);
 }
 
+/* The Overview's six figures: one row of the hairline grid on a wide
+   screen. */
+@media (min-width: 1360px) {
+  .overview .tiles.tiles-six {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+  .tiles-six .spark {
+    width: 64px;
+    height: 24px;
+  }
+}
+.vc-seg[data-k='verified'],
+.vc-seg[data-k='admitted'] {
+  box-shadow: inset 0 0 0 1px var(--v-ok);
+}
 .overview {
   display: flex;
   flex-direction: column;
@@ -1010,8 +1175,12 @@ a.btn {
 }
 .tiles {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0;
+}
+/* The box clips what is outside it, so the focus ring goes inside. */
+.tiles > .tile-link:has(a:focus-visible) {
+  outline-offset: -2px;
 }
 /* The Overview's six tiles: two rows of three, or three rows of two (also on
    phones, below), never one left alone. Other pages keep the fitted grid,
@@ -1033,6 +1202,24 @@ a.btn {
 .ov-row > .wide {
   flex: 999 1 520px;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+/* The chart's card takes the row's height, and its plot the room left in
+   it, so a longer Needs attention leaves no hole under the chart. */
+.ov-row > .wide > .card {
+  flex: 1;
+}
+.vc-card > .vc-pick {
+  flex: 1;
+}
+.vc-card .vc-plot {
+  flex: 1;
+  grid-template-rows: minmax(200px, 1fr) auto;
+}
+.vc-card .vc-axis,
+.vc-card .vc-area {
+  height: auto;
 }
 .ov-row > .narrow {
   flex: 1 1 320px;
@@ -1081,12 +1268,21 @@ a.btn {
   overflow: hidden;
 }
 .card.flush > .card-head {
-  padding: 16px 16px 12px;
+  padding: 18px 18px 12px;
 }
 /* A line of text in a flush card, as padded as its head. */
 .card.flush > .card-text {
   margin: 0;
-  padding: 0 16px 16px;
+  padding: 0 18px 18px;
+}
+/* A table in a flush card lines up with the card's heading. */
+.card.flush .tbl :where(th:first-child, td:first-child),
+.card.flush .table-foot {
+  padding-left: 18px;
+}
+.card.flush .tbl :where(th:last-child, td:last-child),
+.card.flush .table-foot {
+  padding-right: 18px;
 }
 /* A fieldset with a hidden legend; the reset drops its default frame. */
 .seg {
@@ -1096,27 +1292,37 @@ a.btn {
   border: 0;
   min-width: 0;
   padding: 3px;
-  border-radius: 9px;
-  background: var(--sunk);
+  border-radius: var(--r-2);
+  background: var(--sheet);
   box-shadow: inset 0 0 0 1px var(--line);
 }
+/* As the site's tabs: mono, the chosen one on a light grey. */
 .seg button {
   height: 28px;
   padding: 0 11px;
   border: 0;
-  border-radius: 7px;
+  border-radius: var(--r-1);
   background: transparent;
   color: var(--muted);
   font: inherit;
-  font-size: 12.5px;
+  font-family: var(--font-mono);
+  font-size: 12px;
   font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
 }
 .seg button[aria-pressed='true'] {
-  background: var(--sheet);
+  background: var(--sel);
   color: var(--ink);
-  box-shadow: var(--shadow);
+}
+/* The theme, in the sidebar's foot: three equal parts across it. */
+.seg.theme-seg {
+  display: flex;
+  width: 100%;
+}
+.theme-seg button {
+  flex: 1 1 0;
+  padding: 0 6px;
 }
 
 .tile {
@@ -1139,7 +1345,7 @@ a.btn {
 .tile-value {
   font-size: 30px;
   line-height: 1.1;
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: -0.04em;
   color: var(--ink);
 }
@@ -1252,7 +1458,8 @@ a.btn {
 }
 .sw-ok {
   border-radius: 50%;
-  background: var(--v-ok);
+  background: var(--v-ok-fill);
+  box-shadow: inset 0 0 0 1px var(--v-ok);
 }
 .sw-un {
   border-radius: 50%;
@@ -1315,7 +1522,7 @@ a.btn {
   gap: 2px;
   padding: 0;
   border: 0;
-  border-radius: 4px;
+  border-radius: var(--r-1);
   background: transparent;
   /* A column opens its records (#90). */
   cursor: pointer;
@@ -1331,7 +1538,7 @@ a.btn {
   max-width: 24px;
 }
 .vc-seg:first-child {
-  border-radius: 4px 4px 0 0;
+  border-radius: var(--r-1) var(--r-1) 0 0;
 }
 .vc-ticks {
   grid-column: 2;
@@ -1350,7 +1557,7 @@ a.btn {
 .vc-table {
   max-height: 260px;
   overflow-y: auto;
-  border-radius: 8px;
+  border-radius: var(--r-2);
   box-shadow: inset 0 0 0 1px var(--line);
 }
 .vc-table .tbl th:first-child,
@@ -1395,14 +1602,14 @@ a.btn {
 .bars-track {
   display: block;
   height: 6px;
-  border-radius: 3px;
+  border-radius: var(--r-1);
   background: color-mix(in srgb, var(--ink) 7%, transparent);
 }
 .bars-track span {
   display: block;
   height: 6px;
   min-width: 2px;
-  border-radius: 3px;
+  border-radius: var(--r-1);
   background: var(--go);
 }
 .bars-deny .bars-track span {
@@ -1441,7 +1648,8 @@ a.btn {
   border-left: 0;
 }
 .meta .k {
-  font-size: 12px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
   color: var(--muted);
 }
 .meta .v {
@@ -1460,14 +1668,15 @@ a.btn {
   margin-bottom: -1px;
   border-bottom: 2px solid transparent;
   font: inherit;
-  font-size: 13px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 500;
   color: var(--muted);
   cursor: pointer;
 }
 .tab[aria-selected='true'] {
   color: var(--ink);
   border-bottom-color: var(--ink);
-  font-weight: 600;
 }
 .tab:focus-visible {
   outline: 2px solid var(--accent);
@@ -1476,7 +1685,7 @@ a.btn {
 .statement {
   margin: 0;
   font-family: var(--font-display);
-  font-weight: 600;
+  font-weight: 500;
   font-size: 22px;
   line-height: 1.3;
   letter-spacing: -0.025em;
@@ -1511,7 +1720,7 @@ a.btn {
   overflow-wrap: anywhere;
 }
 .note {
-  border-radius: 10px;
+  border-radius: var(--r-3);
   background: var(--sunk);
   box-shadow: inset 0 0 0 1px var(--line);
   padding: 12px 14px;
@@ -1525,7 +1734,7 @@ a.btn {
 /* The box does not scroll: long lines wrap and the page scrolls, so a
    keyboard user never needs to focus the box to read all of it. */
 .code-box {
-  border-radius: 10px;
+  border-radius: var(--r-3);
   background: var(--sunk);
   box-shadow: inset 0 0 0 1px var(--line);
   padding: 10px 0;
@@ -1556,18 +1765,20 @@ a.btn {
   color: var(--ink);
   font-weight: 500;
 }
+/* A white box with a hairline, as the site draws its cards. */
 .card {
-  border-radius: 14px;
-  background: var(--tile);
-  padding: 16px;
+  border-radius: var(--r-3);
+  background: var(--raise);
+  box-shadow: inset 0 0 0 1px var(--line);
+  padding: 18px;
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 .card h2 {
   margin: 0;
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 500;
   letter-spacing: -0.015em;
   color: var(--ink);
 }
@@ -1614,10 +1825,30 @@ a.btn {
   gap: 14px;
   max-width: 760px;
 }
+/* An empty screen, or one that could not load, says so on a white card in a
+   hairline, up to 560px wide. A loading screen (aria-busy) keeps the plain
+   ground. */
+.state:not([aria-busy='true']) {
+  max-width: 560px;
+  margin: 20px 24px 28px;
+  padding: 28px 24px;
+  border-radius: var(--r-3);
+  background: var(--raise);
+  box-shadow: 0 0 0 1px var(--line);
+}
+/* Right under a heading on mist, the heading's margin is gap enough. */
+.page-head.mist + .state:not([aria-busy='true']) {
+  margin-top: 0;
+}
+/* Within a screen's padded column (an agent with no activity), the column
+   already keeps the margins. */
+.overview > .state:not([aria-busy='true']) {
+  margin: 0;
+}
 .state h2 {
   margin: 0;
   font-family: var(--font-display);
-  font-weight: 600;
+  font-weight: 500;
   font-size: 19px;
   letter-spacing: -0.025em;
   color: var(--ink);
@@ -1625,7 +1856,7 @@ a.btn {
 .state-icon {
   width: 44px;
   height: 44px;
-  border-radius: 12px;
+  border-radius: var(--r-3);
   background: var(--sunk);
   box-shadow: inset 0 0 0 1px var(--line);
   display: grid;
@@ -1635,7 +1866,7 @@ a.btn {
 .code-block {
   margin: 0;
   padding: 12px 14px;
-  border-radius: 10px;
+  border-radius: var(--r-3);
   background: var(--sunk);
   box-shadow: inset 0 0 0 1px var(--line);
   font-family: var(--font-mono);
@@ -1648,11 +1879,11 @@ a.btn {
 .sk {
   display: block;
   height: 10px;
-  border-radius: 5px;
+  border-radius: var(--r-1);
   background: var(--skel);
 }
 .alert {
-  border-radius: 10px;
+  border-radius: var(--r-3);
   background: var(--bad-soft);
   padding: 11px 13px;
   font-size: 13px;
@@ -1661,31 +1892,139 @@ a.btn {
 
 /* Login ---------------------------------------------------------------- */
 
-/* One narrow column on the ground, as tool sign-ins are: the mark, the
-   form, and the ways in for a demo or a new server. */
+/* The site's dashboard page: inside the same rails as the app, one column
+   with the mark and the form, beside the still lake at dawn. A white card
+   stands at the water's edge; the lake holds no words of its own. */
 .login {
+  width: min(1680px, calc(100% - 32px));
   min-height: 100vh;
+  margin: 0 auto;
   display: grid;
-  place-items: center;
-  padding: 40px 20px;
+  grid-template-columns: minmax(0, 520px) minmax(0, 1fr);
+  border-left: 1px solid var(--line);
+  border-right: 1px solid var(--line);
 }
-.login-card {
-  width: 100%;
-  max-width: 360px;
+.login-col {
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 18px;
+  padding: 48px 56px;
+}
+.login-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 22px;
+  color: var(--ink);
 }
 .login-mark {
+  display: grid;
+  color: var(--accent);
+}
+.login-kicker {
+  margin: 0 0 10px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
   color: var(--accent);
 }
 .login-title {
-  margin: 0 0 4px;
+  margin: 0 0 6px;
   font-family: var(--font-display);
-  font-size: 24px;
-  font-weight: 600;
-  letter-spacing: -0.03em;
+  font-size: 40px;
+  line-height: 1.08;
+  font-weight: 500;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
   color: var(--ink);
+}
+.login-lead {
+  margin: 0;
+  max-width: 44ch;
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--text);
+}
+.login-scene {
+  position: relative;
+  isolation: isolate;
+  margin: 16px 16px 16px 0;
+  border-radius: var(--r-4);
+  overflow: hidden;
+}
+/* The water on its own layer, so dark mode can dim it and leave the card. */
+.login-scene::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background: #74888b url('../assets/lake.webp') center 60% / cover no-repeat;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .login-scene::before {
+    filter: brightness(0.62) saturate(0.9);
+  }
+}
+:root[data-theme='dark'] .login-scene::before {
+  filter: brightness(0.62) saturate(0.9);
+}
+.lake-card {
+  position: absolute;
+  left: 24px;
+  bottom: 24px;
+  width: min(560px, calc(100% - 48px));
+  padding: 16px;
+  border-radius: var(--r-3);
+  background: var(--raise);
+  color: var(--ink);
+  box-shadow:
+    0 0 0 1px var(--line),
+    0 24px 50px -28px rgba(10, 20, 20, 0.6);
+}
+.lake-card-k {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+}
+.lake-card-k::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ok);
+}
+.lake-card ul {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+}
+.lake-card li {
+  padding: 12px 16px;
+  border-top: 1px solid var(--line);
+}
+.lake-card li:first-child {
+  border-top: 0;
+}
+.lake-card strong {
+  display: block;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+.lake-card li span {
+  display: block;
+  margin-top: 2px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--text);
 }
 /* The mark draws itself in, once. */
 @media (prefers-reduced-motion: no-preference) {
@@ -1719,9 +2058,9 @@ a.btn {
 @media (min-width: 900px) {
   .side {
     position: sticky;
-    top: 8px;
+    top: 0;
     align-self: flex-start;
-    height: calc(100vh - 16px);
+    height: 100vh;
     overflow-y: auto;
   }
 }
@@ -1734,10 +2073,31 @@ a.btn {
   .app {
     align-content: flex-start;
   }
+  /* Sign-in: the lake a strip on top, the form under it; the card is left
+     out, as the form says what it needs to. */
+  .login {
+    grid-template-columns: minmax(0, 1fr);
+    align-content: start;
+  }
+  .login-scene {
+    order: -1;
+    height: 180px;
+    margin: 16px 16px 0;
+  }
+  .lake-card {
+    display: none;
+  }
+  .login-col {
+    width: 100%;
+    max-width: 560px;
+    padding: 36px 32px 48px;
+  }
   .side {
     flex-basis: 100%;
     gap: 0;
-    padding: 0 4px;
+    padding: 8px 16px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
   }
   .btn.menu-btn {
     display: inline-flex;
@@ -1750,36 +2110,16 @@ a.btn {
   }
 }
 
-@media (max-width: 640px) {
-  .facets {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .facet {
-    min-height: 0;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 12px;
-  }
-  .facet .n {
-    font-size: 18px;
-  }
-  .tiles {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
-  }
-  .tile-value {
-    font-size: 24px;
-  }
-  .spark {
-    width: 56px;
-    height: 24px;
-  }
-  /* Each row of a stacked table is a block: the main cells one under the
-     other, then the small ones (time, ids) on a line at the end. The header
-     row is hidden from sight but kept for screen readers, which still read
-     each cell with its column header; a small cell names its column on
-     screen with data-label. */
+/* Stacked tables -------------------------------------------------- */
+@media (max-width: 1099px) {
+  /* Below 1100px a table of many columns has too little room (beside the
+     sidebar down to 900px, and without it below): its main column would be
+     squeezed to nothing, or the table would scroll sideways. So each row of
+     a stacked table becomes a block: the main cells one under the other,
+     then the small ones (time, ids) on a line at the end. The header row is
+     hidden from sight but kept for screen readers, which still read each
+     cell with its column header; a small cell names its column on screen
+     with data-label. */
   .tbl.tbl-stack {
     min-width: 0;
   }
@@ -1799,13 +2139,18 @@ a.btn {
     display: flex;
     flex-wrap: wrap;
     gap: 6px 14px;
-    padding: 12px 16px;
+    padding: 12px 24px;
     border-bottom: 1px solid var(--line);
+  }
+  .card.flush .tbl-stack tr {
+    padding: 12px 18px;
   }
   .tbl.tbl-stack td,
   .tbl.tbl-stack td:first-child,
   .tbl.tbl-stack td:last-child {
     flex: 1 1 100%;
+    width: auto;
+    max-width: none;
     height: auto;
     padding: 0;
     border-bottom: 0;
@@ -1834,6 +2179,66 @@ a.btn {
     white-space: normal;
     overflow-wrap: anywhere;
   }
+}
+
+@media (max-width: 640px) {
+  /* Phones: the rails 8px in from the edge, as on the site. */
+  .app,
+  .login {
+    width: calc(100% - 16px);
+  }
+  .login-scene {
+    height: 128px;
+    margin: 8px 8px 0;
+  }
+  .login-col {
+    padding: 28px 16px 40px;
+  }
+  .login-brand {
+    margin-bottom: 8px;
+  }
+  .login-title {
+    font-size: 32px;
+  }
+  .page-head.mist {
+    margin: 12px 12px 14px;
+    padding: 24px 18px;
+  }
+  .h1 {
+    font-size: 28px;
+  }
+  .facets {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-left: 16px;
+    margin-right: 16px;
+  }
+  .facet {
+    min-height: 0;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+  }
+  .facet .n {
+    font-size: 18px;
+  }
+  .tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .tile-value {
+    font-size: 24px;
+  }
+  .spark {
+    width: 56px;
+    height: 24px;
+  }
+  .tbl-stack tr {
+    padding: 12px 16px;
+  }
+  .state:not([aria-busy='true']) {
+    margin: 0 16px 20px;
+    padding: 24px 18px;
+  }
   .meta-row {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1848,7 +2253,6 @@ a.btn {
   .foot,
   .page-head,
   .filters,
-  .facets,
   .table-foot,
   .table-empty,
   .overview {

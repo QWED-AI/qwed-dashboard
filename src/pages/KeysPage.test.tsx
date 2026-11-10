@@ -20,16 +20,21 @@ async function createKey(user: ReturnType<typeof userEvent.setup>, name: string)
   await screen.findByText(`${name} is ready.`);
 }
 
+/** A key's cell: its name, then the preview of its key (qwed_…). */
+function keyCell(name: string): RegExp {
+  return new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} qwed_`);
+}
+
 describe('KeysPage', () => {
   it('lists the active keys with when each was last used', async () => {
     renderApp(<KeysPage />);
-    const row = (await screen.findByRole('cell', { name: 'payments-agent prod' })).closest('tr');
+    const row = (await screen.findByRole('cell', { name: keyCell('payments-agent prod') })).closest('tr');
     expect(row?.textContent).toMatch(/2026-10-20 09:41:12 UTC/);
   });
 
   it('names the column of each small cell, for the stacked rows on a phone', async () => {
     renderApp(<KeysPage />);
-    await screen.findByRole('cell', { name: 'payments-agent prod' });
+    await screen.findByRole('cell', { name: keyCell('payments-agent prod') });
     expectStackedTable(screen.getByRole('table'));
   });
 
@@ -38,7 +43,7 @@ describe('KeysPage', () => {
       { id: '9', name: 'fresh', key_preview: 'qwed_live_****abcd', created_at: '2026-10-21T10:00:00', last_used_at: null, is_revoked: false },
     ]);
     renderApp(<KeysPage />);
-    const row = (await screen.findByRole('cell', { name: 'fresh' })).closest('tr');
+    const row = (await screen.findByRole('cell', { name: keyCell('fresh') })).closest('tr');
     expect(row?.textContent).toMatch(/No use recorded/);
     expect(screen.queryByText('Not recorded')).toBeNull();
   });
@@ -50,7 +55,7 @@ describe('KeysPage', () => {
     await createKey(user, 'ci runner');
 
     expect(screen.getByText(/^qwed_test_[A-Za-z0-9]{36}$/)).toBeTruthy();
-    expect(await screen.findByRole('cell', { name: 'ci runner' })).toBeTruthy();
+    expect(await screen.findByRole('cell', { name: keyCell('ci runner') })).toBeTruthy();
 
     await user.click(screen.getByRole('button', { name: 'I have saved it' }));
     expect(screen.queryByText('ci runner is ready.')).toBeNull();
@@ -92,7 +97,7 @@ describe('KeysPage', () => {
     expect(screen.getByText('Calls with this key will fail.')).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Revoke' }));
 
-    await waitFor(() => expect(screen.queryByRole('cell', { name: 'temp key' })).toBeNull());
+    await waitFor(() => expect(screen.queryByRole('cell', { name: keyCell('temp key') })).toBeNull());
     expect(screen.queryByText('temp key is ready.')).toBeNull();
   });
 
@@ -152,7 +157,7 @@ describe('KeysPage', () => {
       renderApp(<KeysPage />);
       expect((await rowOf('key 1')).getByRole('cell', { name: 'Never' })).toBeTruthy();
       const future = await rowOf('key 2');
-      expect(future.getByRole('cell', { name: '2099-01-02 03:04:05 UTC' })).toBeTruthy();
+      expect(future.getByRole('cell', { name: /^2099-01-02 03:04:05 UTC in \d+ years$/ })).toBeTruthy();
       expect(future.queryByText('Expired')).toBeNull();
       expect((await rowOf('key 3')).getByRole('cell', { name: 'Expired 2020-01-02 03:04:05 UTC' })).toBeTruthy();
       expect(screen.getByRole('columnheader', { name: 'Expires (UTC)' })).toBeTruthy();
@@ -162,16 +167,18 @@ describe('KeysPage', () => {
       vi.useFakeTimers({ shouldAdvanceTime: true });
       try {
         vi.setSystemTime(new Date('2030-01-01T00:00:00Z'));
+        // The key expires half a minute in, between two ticks of the minute
+        // clock, so only the expiry's own timer can mark it in time.
         vi.spyOn(demoApi, 'listKeys').mockResolvedValue([
-          key('1', { expires_at: '2030-01-01T00:01:00Z', rotation_required: false, owner: null }),
+          key('1', { expires_at: '2030-01-01T00:00:30Z', rotation_required: false, owner: null }),
         ]);
         renderApp(<KeysPage />);
         const row = await rowOf('key 1');
-        expect(row.getByRole('cell', { name: '2030-01-01 00:01:00 UTC' })).toBeTruthy();
+        expect(row.getByRole('cell', { name: '2030-01-01 00:00:30 UTC in under a minute' })).toBeTruthy();
         await act(async () => {
-          await vi.advanceTimersByTimeAsync(61_000);
+          await vi.advanceTimersByTimeAsync(31_000);
         });
-        expect(row.getByRole('cell', { name: 'Expired 2030-01-01 00:01:00 UTC' })).toBeTruthy();
+        expect(row.getByRole('cell', { name: 'Expired 2030-01-01 00:00:30 UTC' })).toBeTruthy();
       } finally {
         vi.useRealTimers();
       }
@@ -229,8 +236,8 @@ describe('KeysPage', () => {
       expect(await screen.findByText('nightly was rotated. The old key no longer works.')).toBeTruthy();
       expect(screen.getByText(/^qwed_test_[A-Za-z0-9]{36}$/)).toBeTruthy();
       expect(screen.getByRole('button', { name: 'Copy' })).toBeTruthy();
-      expect(await screen.findByRole('cell', { name: 'nightly (Rotated)' })).toBeTruthy();
-      await waitFor(() => expect(screen.queryByRole('cell', { name: 'nightly' })).toBeNull());
+      expect(await screen.findByRole('cell', { name: keyCell('nightly (Rotated)') })).toBeTruthy();
+      await waitFor(() => expect(screen.queryByRole('cell', { name: keyCell('nightly') })).toBeNull());
     });
 
     it('drops a key it showed when that key is rotated', async () => {

@@ -322,6 +322,60 @@ describe('HomePage', () => {
       expect(byAdmission.getByRole('link', { name: /^21 Oct, 10:00 to 11:00 UTC, 5 records: 1 ADMIT, 3 DENY, 1 Admission not recorded\. Open its records in the ledger\.$/ })).toBeTruthy();
     });
 
+    it('scales its columns to the plot as drawn, and measures the plot again after the table', async () => {
+      // jsdom has no ResizeObserver: this one keeps each observer, so the
+      // test can say how tall the plot is drawn.
+      class FakeObserver {
+        static made: FakeObserver[] = [];
+        target: Element | null = null;
+        connected = true;
+        constructor(readonly report: ResizeObserverCallback) {
+          FakeObserver.made.push(this);
+        }
+        observe(el: Element) {
+          this.target = el;
+        }
+        unobserve() {}
+        disconnect() {
+          this.connected = false;
+        }
+        drawAt(height: number) {
+          act(() => this.report([{ contentRect: { height } } as ResizeObserverEntry], this as unknown as ResizeObserver));
+        }
+      }
+      vi.stubGlobal('ResizeObserver', FakeObserver);
+      try {
+        vi.spyOn(demoApi, 'listLogs').mockResolvedValue({ logs, nextBefore: null });
+        const user = userEvent.setup();
+        renderApp(<HomePage />);
+        const chart = within(await screen.findByRole('region', { name: 'Records by verdict' }));
+        // The column's drawn height: its segments and the gaps between them.
+        const tall = () => {
+          const col = chart.getByRole('link', { name: /^21 Oct, 10:00 to 11:00 UTC, 5 records/ });
+          const segs = [...col.querySelectorAll<HTMLElement>('.vc-seg')].map((s) => Number.parseFloat(s.style.height));
+          return segs.reduce((a, b) => a + b, 0) + (Number.parseFloat(col.style.gap) || 0) * (segs.length - 1);
+        };
+        const before = tall();
+        const first = FakeObserver.made.at(-1);
+        expect(first?.target?.classList.contains('vc-area')).toBe(true);
+
+        first?.drawAt(400);
+        expect(tall()).toBeCloseTo(before * 2);
+
+        // The table view drops the plot and its observer; the chart comes
+        // back with a new plot, measured anew.
+        await user.click(chart.getByRole('button', { name: 'Table' }));
+        expect(first?.connected).toBe(false);
+        await user.click(chart.getByRole('button', { name: 'Chart' }));
+        const second = FakeObserver.made.at(-1);
+        expect(second).not.toBe(first);
+        expect(second?.connected).toBe(true);
+        expect(second?.target?.classList.contains('vc-area')).toBe(true);
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    });
+
     it('lists the denials by verifier and by API key, each opening the ledger on them', async () => {
       vi.spyOn(demoApi, 'listLogs').mockResolvedValue({ logs, nextBefore: null });
       vi.spyOn(demoApi, 'listKeys').mockResolvedValue(keys);
