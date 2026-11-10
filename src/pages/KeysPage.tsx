@@ -5,7 +5,7 @@ import type { ApiKeyItem } from '../api/types';
 import { useSession } from '../auth/session';
 import { Icon } from '../components/Icon';
 import { Shell } from '../components/Shell';
-import { formatUtcLong, parseUtc } from '../lib/format';
+import { DAY, formatRelative, formatUtcLong, parseUtc } from '../lib/format';
 import { describeError, useAuthedQuery } from '../lib/useAuthedQuery';
 import { mist } from '../lib/mist';
 
@@ -58,17 +58,46 @@ function useNowPast(times: readonly (string | null | undefined)[]): number {
   return now;
 }
 
+/** The time now, moved on each minute, for the "3 days ago" lines. */
+function useMinute(): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+  return now;
+}
+
+/**
+ * How far a key's time is from now, under the UTC time. An expiry within
+ * the 7 days in which the server asks for rotation is marked.
+ */
+function When({ at, now, soon = false }: Readonly<{ at: string; now: number; soon?: boolean }>) {
+  const t = parseUtc(at)?.getTime();
+  if (t === undefined) return null;
+  // The space keeps the two apart when read as one, as a screen reader does.
+  return (
+    <>
+      {' '}
+      <span className={soon ? 'when soon' : 'when'}>{formatRelative(t, now)}</span>
+    </>
+  );
+}
+
 /** When a key stops working (#504). The server refuses a key past its expiry. */
 function Expiry({ at, now }: Readonly<{ at: string | null | undefined; now: number }>) {
   if (at === undefined) return <>Not returned</>;
   if (at === null) return <>Never</>;
-  const expired = (parseUtc(at)?.getTime() ?? Infinity) <= now;
-  return expired ? (
+  const t = parseUtc(at)?.getTime() ?? Infinity;
+  return t <= now ? (
     <>
       <span className="tag">Expired</span> {formatUtcLong(at)}
     </>
   ) : (
-    <>{formatUtcLong(at)}</>
+    <>
+      {formatUtcLong(at)}
+      <When at={at} now={now} soon={t - now <= 7 * DAY} />
+    </>
   );
 }
 
@@ -160,7 +189,8 @@ export function KeysPage() {
   const listed = keys.data ?? [];
   const showOwner = listed.some((k) => 'owner' in k);
   const showExpiry = listed.some((k) => 'expires_at' in k);
-  const now = useNowPast(listed.map((k) => k.expires_at));
+  // The later of the two: the expiry clock moves at each expiry, the other each minute.
+  const now = Math.max(useNowPast(listed.map((k) => k.expires_at)), useMinute());
 
   const busy = create.isPending || rotate.isPending;
   const holdsOther = (id: string | null) => created !== null && created.id !== id;
@@ -318,6 +348,7 @@ export function KeysPage() {
                   )}
                   <td className="mono num muted cell-small" style={{ fontSize: 12 }} data-label="Created">
                     {formatUtcLong(k.created_at)}
+                    <When at={k.created_at} now={now} />
                   </td>
                   {showExpiry && (
                     <td className="mono num muted cell-small cell-wrap" style={{ fontSize: 12 }} data-label="Expires">
@@ -325,7 +356,14 @@ export function KeysPage() {
                     </td>
                   )}
                   <td className="muted cell-small" style={{ fontSize: 12.5 }} data-label="Last used">
-                    {k.last_used_at ? formatUtcLong(k.last_used_at) : 'No use recorded'}
+                    {k.last_used_at ? (
+                      <>
+                        {formatUtcLong(k.last_used_at)}
+                        <When at={k.last_used_at} now={now} />
+                      </>
+                    ) : (
+                      'No use recorded'
+                    )}
                   </td>
                   <td className="cell-end">
                     {confirm?.id === k.id && confirm.action === 'revoke' && (

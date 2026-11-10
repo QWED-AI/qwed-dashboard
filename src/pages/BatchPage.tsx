@@ -171,7 +171,7 @@ export function BatchPage() {
 
           <section className="card flush" aria-label="Items">
             <div className="table-wrap">
-              <RecordTable records={shown} batchLinks={false} />
+              <RecordTable records={shown} keys={keyList.data} batchLinks={false} />
               {shown.length === 0 && <p className="sub table-empty">No item of this job was stored with DENY.</p>}
             </div>
             <div className="table-foot">

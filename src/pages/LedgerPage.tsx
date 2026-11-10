@@ -275,7 +275,7 @@ export function LedgerPage() {
           )}
 
           <div className="table-wrap" style={{ borderTop: '1px solid var(--line)' }}>
-            <RecordTable records={shown} />
+            <RecordTable records={shown} keys={keyList.data} />
             {shown.length === 0 && <p className="sub table-empty">No records match these filters.</p>}
           </div>
 

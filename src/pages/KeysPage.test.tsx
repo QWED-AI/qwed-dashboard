@@ -157,7 +157,7 @@ describe('KeysPage', () => {
       renderApp(<KeysPage />);
       expect((await rowOf('key 1')).getByRole('cell', { name: 'Never' })).toBeTruthy();
       const future = await rowOf('key 2');
-      expect(future.getByRole('cell', { name: '2099-01-02 03:04:05 UTC' })).toBeTruthy();
+      expect(future.getByRole('cell', { name: /^2099-01-02 03:04:05 UTC in \d+ years$/ })).toBeTruthy();
       expect(future.queryByText('Expired')).toBeNull();
       expect((await rowOf('key 3')).getByRole('cell', { name: 'Expired 2020-01-02 03:04:05 UTC' })).toBeTruthy();
       expect(screen.getByRole('columnheader', { name: 'Expires (UTC)' })).toBeTruthy();
@@ -172,7 +172,7 @@ describe('KeysPage', () => {
         ]);
         renderApp(<KeysPage />);
         const row = await rowOf('key 1');
-        expect(row.getByRole('cell', { name: '2030-01-01 00:01:00 UTC' })).toBeTruthy();
+        expect(row.getByRole('cell', { name: /^2030-01-01 00:01:00 UTC in (1 minute|under a minute)$/ })).toBeTruthy();
         await act(async () => {
           await vi.advanceTimersByTimeAsync(61_000);
         });

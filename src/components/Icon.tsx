@@ -48,12 +48,6 @@ const paths = {
       <path d="M8 7.5h.01M8 16.5h.01" />
     </>
   ),
-  theme: (
-    <>
-      <circle cx="12" cy="12" r="8" />
-      <path d="M12 4a8 8 0 000 16z" fill="currentColor" />
-    </>
-  ),
   out: <path d="M15 4h3a2 2 0 012 2v12a2 2 0 01-2 2h-3M10 17l5-5-5-5M15 12H4" />,
   plus: <path d="M12 5v14M5 12h14" />,
   copy: (
