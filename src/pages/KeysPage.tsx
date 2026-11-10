@@ -189,8 +189,11 @@ export function KeysPage() {
   const listed = keys.data ?? [];
   const showOwner = listed.some((k) => 'owner' in k);
   const showExpiry = listed.some((k) => 'expires_at' in k);
-  // The later of the two: the expiry clock moves at each expiry, the other each minute.
-  const now = Math.max(useNowPast(listed.map((k) => k.expires_at)), useMinute());
+  // The later of two clocks: one moves at each expiry, the other each
+  // minute. Each hook has its own line, so both always run, in this order.
+  const expiryNow = useNowPast(listed.map((k) => k.expires_at));
+  const minuteNow = useMinute();
+  const now = Math.max(expiryNow, minuteNow);
 
   const busy = create.isPending || rotate.isPending;
   const holdsOther = (id: string | null) => created !== null && created.id !== id;
