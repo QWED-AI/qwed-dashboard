@@ -1,0 +1,10 @@
+# Netlify reads this file; it does nothing when the dashboard runs anywhere else.
+#
+# The dashboard routes in the browser (React Router), so a link straight to a
+# page such as /ledger, or a reload on one, must get index.html. Real files in
+# dist are served first, so assets are not affected.
+#
+# A hosted copy has no QWED server behind it, so /api keeps answering 404, as
+# it does without this file, instead of returning the page as if it were JSON.
+/api/*  /index.html  404
+/*      /index.html  200
