@@ -100,21 +100,28 @@ Check a deployment with `curl -sI https://<dashboard-host>/keys`: both headers s
 
 ### Releases
 
-Each [release](https://github.com/QWED-AI/qwed-dashboard/releases) has the built site as `qwed-dashboard-vX.Y.Z.zip` and its SHA-256 checksum in `SHA256SUMS`. Check the download, then unpack it:
+Each [release](https://github.com/QWED-AI/qwed-dashboard/releases) has the built site as `qwed-dashboard-vX.Y.Z.zip`, an SBOM of the build as `qwed-dashboard-vX.Y.Z.cdx.json` (CycloneDX), and their SHA-256 checksums in `SHA256SUMS`. Check the download, then unpack it:
 
 ```bash
-sha256sum -c SHA256SUMS
+sha256sum -c SHA256SUMS   # on macOS: shasum -a 256 -c SHA256SUMS
 unzip qwed-dashboard-vX.Y.Z.zip
 ```
 
+From 0.2.0 on, the zip also has two signed attestations: its build provenance and its SBOM. With the [GitHub CLI](https://cli.github.com/), check that the zip was built by this repository's release workflow, from the release's tag, on a GitHub-hosted runner:
+
+```bash
+gh attestation verify qwed-dashboard-vX.Y.Z.zip \
+  --repo QWED-AI/qwed-dashboard \
+  --signer-workflow QWED-AI/qwed-dashboard/.github/workflows/release.yml \
+  --source-ref refs/tags/vX.Y.Z \
+  --deny-self-hosted-runners
+```
+
+Add `--predicate-type https://cyclonedx.org/bom` to the same command to check the SBOM attestation. Release 0.1.0 has the checksum only.
+
 The zip holds one folder with the built site. It was built without `VITE_QWED_API_BASE`, so it calls `/api` on its own origin: serve it with `/api` routed to your QWED server, as above. To call the server directly instead, build from source with `VITE_QWED_API_BASE` set.
 
-To make a release, a maintainer:
-1. sets the new version in `package.json` and `package-lock.json` (`npm version X.Y.Z --no-git-tag-version`), and adds a `## [X.Y.Z]` section to `CHANGELOG.md`;
-2. merges that change;
-3. tags the merge commit `vX.Y.Z` and pushes the tag.
-
-The release workflow then checks that the tag matches `package.json`, runs the tests, the build and `npm audit`, and publishes the release with the zip, the checksum and the version's notes from the changelog.
+[RELEASING.md](RELEASING.md) has the steps for making a release, and [SECURITY.md](SECURITY.md) says how to report a vulnerability.
 
 ## How it talks to the server
 
