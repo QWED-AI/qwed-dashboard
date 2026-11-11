@@ -110,7 +110,10 @@ jobs:
           npm sbom --sbom-format cyclonedx --sbom-type application > "$sbom"
           node - "$sbom" <<'EOF'
           const bom = require(require('node:path').resolve(process.argv[2]));
-          const required = new Set(bom.components.filter((c) => c.scope === 'required').map((c) => c.name));
+          // npm writes a scoped package's whole name ("@tanstack/react-query")
+          // in name. Should a tool put the scope in group instead, join them.
+          const fullName = (c) => (c.group && !c.name.startsWith('@') ? `${c.group}/${c.name}` : c.name);
+          const required = new Set(bom.components.filter((c) => c.scope === 'required').map(fullName));
           const missing = Object.keys(require('./package.json').dependencies).filter((d) => !required.has(d));
           if (missing.length) {
             console.log(`::error::The SBOM does not list as required: ${missing.join(', ')}`);

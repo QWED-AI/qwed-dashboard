@@ -103,7 +103,7 @@ Check a deployment with `curl -sI https://<dashboard-host>/keys`: both headers s
 Each [release](https://github.com/QWED-AI/qwed-dashboard/releases) has the built site as `qwed-dashboard-vX.Y.Z.zip`, an SBOM of the build as `qwed-dashboard-vX.Y.Z.cdx.json` (CycloneDX), and their SHA-256 checksums in `SHA256SUMS`. Check the download, then unpack it:
 
 ```bash
-sha256sum -c SHA256SUMS
+sha256sum -c SHA256SUMS   # on macOS: shasum -a 256 -c SHA256SUMS
 unzip qwed-dashboard-vX.Y.Z.zip
 ```
 
