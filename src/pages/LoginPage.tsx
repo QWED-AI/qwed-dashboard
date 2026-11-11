@@ -97,7 +97,9 @@ export function LoginPage() {
 
   async function demo() {
     await signInDemo();
-    void navigate('/', { replace: true });
+    // Back to the page the visitor asked for, as a sign-in does: a shared
+    // link such as /ledger opens its page with the sample data.
+    void navigate(from, { replace: true });
   }
 
   return (
