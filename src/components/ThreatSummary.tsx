@@ -17,7 +17,7 @@ const LEVEL_CLASS: Record<string, string> = {
 
 export function threatSummaryError(err: unknown): string {
   if (sessionNotAccepted(err)) {
-    return 'This server gives the threat summary only for an API key, not a signed-in session. That needs a qwed-verification release with #506.';
+    return 'This server gives the threat summary only for an API key, not a signed-in session. That needs qwed-verification 9.0.0 or later (#506).';
   }
   if (refusedForRole(err)) return 'Only owners and admins can see the threat summary.';
   // Another 403 has its own reason, such as an inactive user or organisation.

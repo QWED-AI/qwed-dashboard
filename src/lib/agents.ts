@@ -13,7 +13,7 @@ export function agentsError(err: unknown, notFound: string): string {
   return describeError(err);
 }
 
-export const NO_AGENT_LIST = 'This server does not list agents. That needs a qwed-verification release with #527.';
+export const NO_AGENT_LIST = 'This server does not list agents. That needs qwed-verification 9.0.0 or later (#527).';
 export const NO_SUCH_AGENT = 'Your organisation has no agent with this id.';
 
 /** A status that stands out: an agent not active, or an activity the server blocked or that failed. */

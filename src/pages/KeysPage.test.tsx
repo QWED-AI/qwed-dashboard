@@ -299,7 +299,7 @@ describe('KeysPage', () => {
       await askToRotate(user, 'invoice pipeline');
       await user.click(screen.getByRole('button', { name: 'Rotate' }));
       expect((await screen.findByRole('alert')).textContent).toBe(
-        'This server rotates a key only with an API key, not a signed-in session. Rotating from the dashboard needs a qwed-verification release with #505.',
+        'This server rotates a key only with an API key, not a signed-in session. Rotating from the dashboard needs qwed-verification 9.0.0 or later (#505).',
       );
       expect(sessionStorage.getItem(SESSION_KEY)).not.toBeNull();
     });

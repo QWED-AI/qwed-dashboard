@@ -12,7 +12,7 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
 /** One sentence for a refused or failed summary, by what the server answered. */
 function refusal(err: unknown): string {
   if (sessionNotAccepted(err)) {
-    return 'This server takes only an API key for the activity summary. A qwed-verification release with #485 takes the session.';
+    return 'This server takes only an API key for the activity summary. qwed-verification 8.0.0 or later takes the session (#485).';
   }
   if (err instanceof ApiError && err.status === 403) {
     return `Only an owner or admin can see the activity summary. The server said: ${err.message}.`;

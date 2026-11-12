@@ -240,9 +240,9 @@ export function Shell({ crumbs, children }: Readonly<{ crumbs: Crumb[]; children
             server is down. Only an older server needs more words. */}
         {server.kind === 'older' && (
           <p className="server-note" role="note">
-            <strong>This server is QWED {server.version}.</strong> The stored admissions, paging, the audit checks with
-            your session, key last-used times and security events need {NEEDED_VERSION}, so some values here read as
-            not recorded.
+            <strong>This server is QWED {server.version}.</strong> Some of what the dashboard shows needs{' '}
+            {NEEDED_VERSION}: <Link to="/server">Server</Link> lists which features this server lacks. Where one is
+            missing, its screen says so or shows the value as not recorded.
           </p>
         )}
         {children}

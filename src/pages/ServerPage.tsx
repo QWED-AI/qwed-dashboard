@@ -5,7 +5,7 @@ import { useSession } from '../auth/session';
 import { Icon } from '../components/Icon';
 import { Shell } from '../components/Shell';
 import { formatUtc } from '../lib/format';
-import { FEATURES, NEEDED_VERSION, useServerHealth, useServerStatus, type ServerStatus } from '../lib/server';
+import { compareVersions, FEATURES, NEEDED_VERSION, useServerHealth, useServerStatus, type ServerStatus } from '../lib/server';
 import { compareKeys, readSeenKeys, writeSeenKeys, type SeenKeys } from '../lib/signingKeys';
 import { describeError } from '../lib/useAuthedQuery';
 import { mist } from '../lib/mist';
@@ -199,34 +199,34 @@ function SigningKeys() {
   );
 }
 
-/** Each feature supported or not, from the server's version only. */
-function support(s: ServerStatus): string {
+/** A feature supported or not, from the server's version only. */
+function support(s: ServerStatus, since: string): string {
   if (s.kind === 'current') return 'Supported';
-  if (s.kind === 'older') return `Needs ${NEEDED_VERSION}`;
+  if (s.kind === 'older') return (compareVersions(s.version, since) ?? -1) >= 0 ? 'Supported' : `Needs ${since}`;
   if (s.kind === 'demo') return 'Sample data';
   return 'Not known';
 }
 
 function Supports() {
   const status = useServerStatus();
-  const word = support(status);
   return (
     <section className="card flush" aria-labelledby="supports-title">
       <div className="card-head">
         <div style={{ flex: '1 1 260px', minWidth: 0 }}>
           <h2 id="supports-title">What this server supports</h2>
           <p className="hint" style={{ margin: 0 }}>
-            The features the dashboard uses that need qwed-verification {NEEDED_VERSION}, read from the server’s
-            version. Where one is missing, its screen shows the value as not recorded.
+            The server features the dashboard uses, with the first qwed-verification release that has each, marked
+            from the server’s version. Where one is missing, its screen says so or shows the value as not recorded.
           </p>
         </div>
       </div>
       <div className="table-wrap" style={{ borderTop: '1px solid var(--line)' }}>
-        <table className="tbl" style={{ minWidth: 640 }}>
+        <table className="tbl" style={{ minWidth: 720 }}>
           <thead>
             <tr>
               <th scope="col">Feature</th>
               <th scope="col">Where it shows</th>
+              <th scope="col">Since</th>
               <th scope="col">On this server</th>
             </tr>
           </thead>
@@ -237,7 +237,8 @@ function Supports() {
                 <td className="muted" style={{ whiteSpace: 'normal' }}>
                   {f.where}
                 </td>
-                <td>{word}</td>
+                <td className="mono">{f.since}</td>
+                <td>{support(status, f.since)}</td>
               </tr>
             ))}
           </tbody>

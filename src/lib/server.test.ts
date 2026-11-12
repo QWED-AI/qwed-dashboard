@@ -27,11 +27,12 @@ describe('compareVersions', () => {
 describe('serverStatus', () => {
   it('names a server at the needed version or later as current', () => {
     expect(serverStatus({ version: NEEDED_VERSION }, null, false)).toEqual({ kind: 'current', version: NEEDED_VERSION });
-    expect(serverStatus({ version: ' 8.2.1 ' }, null, false)).toEqual({ kind: 'current', version: '8.2.1' });
+    expect(serverStatus({ version: ' 9.1.0 ' }, null, false)).toEqual({ kind: 'current', version: '9.1.0' });
   });
 
   it('names an older server as older', () => {
     expect(serverStatus({ status: 'healthy', version: '7.3.0' }, null, false)).toEqual({ kind: 'older', version: '7.3.0' });
+    expect(serverStatus({ version: '8.0.0' }, null, false)).toEqual({ kind: 'older', version: '8.0.0' });
   });
 
   it('says it cannot tell when the server sends no version, or one it cannot read', () => {

@@ -99,7 +99,7 @@ describe('AgentsPage', () => {
     vi.spyOn(demoApi, 'listAgents').mockRejectedValue(new ApiError(404, 'Not Found'));
     renderApp(<App />, { route: '/agents' });
     expect((await screen.findByRole('alert')).textContent).toMatch(
-      /This server does not list agents\. That needs a qwed-verification release with #527\./,
+      /This server does not list agents\. That needs qwed-verification 9\.0\.0 or later \(#527\)\./,
     );
   });
 

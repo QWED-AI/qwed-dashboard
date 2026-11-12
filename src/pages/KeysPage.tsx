@@ -19,7 +19,7 @@ function actionError(err: unknown): string {
 /** Why a rotation failed. The server's 403 says which of its rules refused it, so it is shown as the server wrote it. */
 function rotateError(err: unknown): string {
   if (sessionNotAccepted(err)) {
-    return 'This server rotates a key only with an API key, not a signed-in session. Rotating from the dashboard needs a qwed-verification release with #505.';
+    return 'This server rotates a key only with an API key, not a signed-in session. Rotating from the dashboard needs qwed-verification 9.0.0 or later (#505).';
   }
   if (err instanceof ApiError && err.status === 403) return `The server refused: ${err.message}.`;
   if (err instanceof ApiError && err.status === 404) return 'The server no longer has this key: it was revoked or rotated already.';

@@ -23,7 +23,7 @@ export function membersError(err: unknown): string {
     return `The server refused: ${err.message}.`;
   }
   if (err instanceof ApiError && err.status === 404) {
-    return 'This server does not list members. That needs a qwed-verification release with #507.';
+    return 'This server does not list members. That needs qwed-verification 9.0.0 or later (#507).';
   }
   return describeError(err);
 }
