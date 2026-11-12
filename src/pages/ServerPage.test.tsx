@@ -22,11 +22,11 @@ function serve(version: string | undefined, kids: string[]) {
 
 describe('ServerPage (#55)', () => {
   it('names the server, the dashboard and where it calls', async () => {
-    serve('8.0.0', ['did:qwed:node:local#k1']);
+    serve('9.0.0', ['did:qwed:node:local#k1']);
     renderApp(<ServerPage />, { live: true });
     const connection = await region('Connection');
     expect(await connection.findByText('Connected.')).toBeTruthy();
-    expect(connection.getByText('8.0.0')).toBeTruthy();
+    expect(connection.getByText('9.0.0')).toBeTruthy();
     expect(connection.getByText('/api, on this dashboard’s own origin')).toBeTruthy();
     const dashboard = await region('This dashboard');
     expect(dashboard.getByText(__APP_VERSION__)).toBeTruthy();
@@ -61,18 +61,30 @@ describe('ServerPage (#55)', () => {
     expect(JSON.parse(localStorage.getItem('qwed-dashboard.signing-keys') ?? '{}').gone).toEqual([]);
   });
 
-  it('marks each feature supported on 8.0.0, and as needing 8.0.0 on an older server', async () => {
-    serve('7.3.0', []);
+  it('marks each feature by the release that brought it', async () => {
+    const supportOf = (table: ReturnType<typeof within>, name: RegExp) =>
+      within(table.getByRole('row', { name })).getAllByRole('cell')[2]?.textContent;
+
+    serve('9.0.0', []);
     renderApp(<ServerPage />, { live: true });
-    const supports = await region('What this server supports');
-    expect(await supports.findAllByText('Needs 8.0.0')).toHaveLength(supports.getAllByRole('row').length - 1);
-    expect((await region('Connection')).getByText('Connected, to a version older than 8.0.0.')).toBeTruthy();
+    const current = await region('What this server supports');
+    expect(await current.findAllByText('Supported')).toHaveLength(current.getAllByRole('row').length - 1);
     cleanup();
 
     serve('8.0.0', []);
     renderApp(<ServerPage />, { live: true });
-    const current = await region('What this server supports');
-    expect(await current.findAllByText('Supported')).toHaveLength(current.getAllByRole('row').length - 1);
+    const eight = await region('What this server supports');
+    expect(await eight.findAllByText('Needs 9.0.0')).toHaveLength(7);
+    expect(supportOf(eight, /Paging back through older records/)).toBe('Supported');
+    expect(supportOf(eight, /Agents and their activity/)).toBe('Needs 9.0.0');
+    expect((await region('Connection')).getByText('Connected, to a version older than 9.0.0.')).toBeTruthy();
+    cleanup();
+
+    serve('7.3.0', []);
+    renderApp(<ServerPage />, { live: true });
+    const seven = await region('What this server supports');
+    expect(await seven.findAllByText('Needs 8.0.0')).toHaveLength(6);
+    expect(seven.getAllByText('Needs 9.0.0')).toHaveLength(7);
   });
 
   it('says why when the keys cannot be loaded, or the server publishes none', async () => {

@@ -78,7 +78,7 @@ describe('ThreatSummary', () => {
     renderApp(<SecurityEventsPage />);
     const c = await card();
     expect((await c.findByRole('alert')).textContent).toBe(
-      'This server gives the threat summary only for an API key, not a signed-in session. That needs a qwed-verification release with #506.',
+      'This server gives the threat summary only for an API key, not a signed-in session. That needs qwed-verification 9.0.0 or later (#506).',
     );
     expect(sessionStorage.getItem(SESSION_KEY)).not.toBeNull();
   });

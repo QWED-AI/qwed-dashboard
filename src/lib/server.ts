@@ -9,11 +9,10 @@ import { useSession } from '../auth/session';
 
 /**
  * The qwed-verification release the dashboard is built against: the first
- * with stored admissions and paging (#484, #307), the audit checks with a
- * session (#485), key last-used times and security events (#486), and
- * caller diagnostics kept apart (#321).
+ * with every server feature its screens use. FEATURES names the release that
+ * brought each one, so an older server is told which it lacks.
  */
-export const NEEDED_VERSION = '8.0.0';
+export const NEEDED_VERSION = '9.0.0';
 
 /** A version's numbers, from its leading "major.minor.patch"; null when it has none. */
 function parts(version: string): [number, number, number] | null {
@@ -88,14 +87,21 @@ export function useServerStatus(): ServerStatus {
 }
 
 /**
- * The features the dashboard uses that need qwed-verification NEEDED_VERSION
- * (#55), and the screens that show them.
+ * The server features the dashboard uses (#55), the screens that show them,
+ * and the first qwed-verification release with each.
  */
-export const FEATURES: readonly { name: string; where: string }[] = [
-  { name: 'The stored verdict and admission on every row (#484, #307)', where: 'Overview, Decision ledger' },
-  { name: 'Paging back through older records (#484)', where: 'Decision ledger' },
-  { name: 'Audit chain checks with your session, and the whole-chain check (#485)', where: 'Record, Overview' },
-  { name: 'Key last-used times and security events (#486)', where: 'API keys, Security events' },
-  { name: 'A caller’s diagnostic kept apart from the server’s notice (#321)', where: 'Record, Decision ledger' },
-  { name: 'The attestation the server signs with each VERIFIED result (#319)', where: 'Record' },
+export const FEATURES: readonly { name: string; where: string; since: string }[] = [
+  { name: 'The stored verdict and admission on every row (#484, #307)', where: 'Overview, Decision ledger', since: '8.0.0' },
+  { name: 'Paging back through older records (#484)', where: 'Decision ledger', since: '8.0.0' },
+  { name: 'Audit chain checks with your session, and the whole-chain check (#485)', where: 'Record, Overview', since: '8.0.0' },
+  { name: 'Key last-used times and security events (#486)', where: 'API keys, Security events', since: '8.0.0' },
+  { name: 'A caller’s diagnostic kept apart from the server’s notice (#321)', where: 'Record, Decision ledger', since: '8.0.0' },
+  { name: 'The attestation the server signs with each VERIFIED result (#319)', where: 'Record', since: '8.0.0' },
+  { name: 'Each key’s owner and expiry, and the organisation’s name (#504, #518)', where: 'API keys, side menu', since: '9.0.0' },
+  { name: 'Rotating a key with your session (#505)', where: 'API keys', since: '9.0.0' },
+  { name: 'The threat summary with your session (#506)', where: 'Security events', since: '9.0.0' },
+  { name: 'The organisation’s members (#507)', where: 'Members', since: '9.0.0' },
+  { name: 'Agents and their activity (#527)', where: 'Agents', since: '9.0.0' },
+  { name: 'The time to answer, by verifier (#528)', where: 'Overview', since: '9.0.0' },
+  { name: 'A Verification Context document stored as it was signed (#532)', where: 'Record', since: '9.0.0' },
 ];

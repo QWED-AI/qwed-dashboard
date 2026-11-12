@@ -34,20 +34,22 @@ const footer = () => within(screen.getByRole('contentinfo'));
 
 describe('Shell: the server (#50, #52)', () => {
   it('names a current server in the header and the footer, and the pill opens the Server screen (#55)', async () => {
-    vi.spyOn(httpApi, 'health').mockResolvedValue({ status: 'healthy', service: 'QWED Platform', version: '8.0.0' });
+    vi.spyOn(httpApi, 'health').mockResolvedValue({ status: 'healthy', service: 'QWED Platform', version: '9.0.0' });
     renderShell({ live: true });
-    const pill = await screen.findByText('QWED 8.0.0 · connected');
+    const pill = await screen.findByText('QWED 9.0.0 · connected');
     expect(pill.closest('a')?.getAttribute('href')).toBe('/server');
     expect(pill.tagName).toBe('OUTPUT');
-    expect(footer().getByText('Server: QWED 8.0.0 at /api')).toBeTruthy();
+    expect(footer().getByText('Server: QWED 9.0.0 at /api')).toBeTruthy();
     expect(screen.queryByRole('note')).toBeNull();
   });
 
-  it('says an older server is older, and what needs 8.0.0', async () => {
-    vi.spyOn(httpApi, 'health').mockResolvedValue({ status: 'healthy', version: '7.3.0' });
+  it('says an older server is older, and points to the features it lacks', async () => {
+    vi.spyOn(httpApi, 'health').mockResolvedValue({ status: 'healthy', version: '8.0.0' });
     renderShell({ live: true });
-    expect(await screen.findByText('QWED 7.3.0 · update to 8.0.0')).toBeTruthy();
-    expect(screen.getByRole('note').textContent).toMatch(/^This server is QWED 7\.3\.0\. The stored admissions, paging/);
+    expect(await screen.findByText('QWED 8.0.0 · update to 9.0.0')).toBeTruthy();
+    const note = screen.getByRole('note');
+    expect(note.textContent).toMatch(/^This server is QWED 8\.0\.0\. Some of what the dashboard shows needs 9\.0\.0/);
+    expect(within(note).getByRole('link', { name: 'Server' }).getAttribute('href')).toBe('/server');
   });
 
   it('says so when the server cannot be reached, and adds no note of its own', async () => {

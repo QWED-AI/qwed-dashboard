@@ -15,7 +15,7 @@ export function securityEventsError(err: unknown): string {
     return 'Only owners and admins can see security events.';
   }
   if (err instanceof ApiError && err.status === 404) {
-    return 'This server does not list security events. That needs a qwed-verification release with #486.';
+    return 'This server does not list security events. That needs qwed-verification 8.0.0 or later (#486).';
   }
   return describeError(err);
 }

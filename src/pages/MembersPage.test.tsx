@@ -137,7 +137,7 @@ describe('MembersPage', () => {
     vi.spyOn(demoApi, 'listUsers').mockRejectedValue(new ApiError(404, 'Not Found'));
     renderApp(<MembersPage />);
     expect((await screen.findByRole('alert')).textContent).toMatch(
-      /This server does not list members\. That needs a qwed-verification release with #507\./,
+      /This server does not list members\. That needs qwed-verification 9\.0\.0 or later \(#507\)\./,
     );
   });
 
