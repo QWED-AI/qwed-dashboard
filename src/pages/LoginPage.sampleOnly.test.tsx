@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../App';
 import { useSession } from '../auth/session';
 import { SAMPLE_ONLY_NOTE } from '../lib/sampleOnly';
-import { renderApp } from '../test/render';
+import { renderApp, SESSION_KEY } from '../test/render';
 
 // A build with VITE_SAMPLE_ONLY=true, as the hosted preview is (netlify.toml).
 afterEach(() => {
@@ -53,6 +53,24 @@ describe('a sample-only build', () => {
     renderApp(<TrySignIn />, { signedIn: false });
     await expect(outcome).rejects.toThrow(SAMPLE_ONLY_NOTE);
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('drops a live session left in the tab, and sends its token nowhere', async () => {
+    vi.stubEnv('VITE_SAMPLE_ONLY', 'true');
+    const fetch = vi.fn();
+    vi.stubGlobal('fetch', fetch);
+    // A live session stored by an earlier build of this tab.
+    renderApp(<App />, { route: '/ledger', signedIn: true, live: true });
+    expect(await screen.findByRole('button', { name: 'Explore with sample data' })).toBeTruthy();
+    expect(screen.getByText('Hosted preview')).toBeTruthy();
+    expect(sessionStorage.getItem(SESSION_KEY)).toBeNull();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('keeps a stored sample-data session', async () => {
+    vi.stubEnv('VITE_SAMPLE_ONLY', 'true');
+    renderApp(<App />, { route: '/ledger', signedIn: true });
+    expect(await screen.findByRole('heading', { level: 1, name: 'Decision ledger' })).toBeTruthy();
   });
 
   it('leaves an ordinary build as it was', async () => {
