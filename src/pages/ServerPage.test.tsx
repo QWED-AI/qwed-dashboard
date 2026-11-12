@@ -62,13 +62,17 @@ describe('ServerPage (#55)', () => {
   });
 
   it('marks each feature by the release that brought it', async () => {
-    const supportOf = (table: ReturnType<typeof within>, name: RegExp) =>
-      within(table.getByRole('row', { name })).getAllByRole('cell')[2]?.textContent;
+    const cells = (table: ReturnType<typeof within>, name: RegExp) =>
+      within(table.getByRole('row', { name })).getAllByRole('cell').map((c) => c.textContent);
+    const supportOf = (table: ReturnType<typeof within>, name: RegExp) => cells(table, name)[3];
 
     serve('9.0.0', []);
     renderApp(<ServerPage />, { live: true });
     const current = await region('What this server supports');
     expect(await current.findAllByText('Supported')).toHaveLength(current.getAllByRole('row').length - 1);
+    // Each row names its release, supported or not.
+    expect(cells(current, /Paging back through older records/).slice(2)).toEqual(['8.0.0', 'Supported']);
+    expect(cells(current, /Agents and their activity/).slice(2)).toEqual(['9.0.0', 'Supported']);
     cleanup();
 
     serve('8.0.0', []);

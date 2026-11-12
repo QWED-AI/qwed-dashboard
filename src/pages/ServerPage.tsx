@@ -215,17 +215,18 @@ function Supports() {
         <div style={{ flex: '1 1 260px', minWidth: 0 }}>
           <h2 id="supports-title">What this server supports</h2>
           <p className="hint" style={{ margin: 0 }}>
-            The server features the dashboard uses, each from the first qwed-verification release that has it, read
+            The server features the dashboard uses, with the first qwed-verification release that has each, marked
             from the server’s version. Where one is missing, its screen says so or shows the value as not recorded.
           </p>
         </div>
       </div>
       <div className="table-wrap" style={{ borderTop: '1px solid var(--line)' }}>
-        <table className="tbl" style={{ minWidth: 640 }}>
+        <table className="tbl" style={{ minWidth: 720 }}>
           <thead>
             <tr>
               <th scope="col">Feature</th>
               <th scope="col">Where it shows</th>
+              <th scope="col">Since</th>
               <th scope="col">On this server</th>
             </tr>
           </thead>
@@ -236,6 +237,7 @@ function Supports() {
                 <td className="muted" style={{ whiteSpace: 'normal' }}>
                   {f.where}
                 </td>
+                <td className="mono">{f.since}</td>
                 <td>{support(status, f.since)}</td>
               </tr>
             ))}
