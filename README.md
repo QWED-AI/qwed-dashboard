@@ -4,7 +4,7 @@ An open-source web dashboard for [QWED verification](https://github.com/QWED-AI/
 
 **Status: early, version 0.x.** It covers sign-in, API keys, members, agents, an overview, the decision ledger, a record view with its attestation and audit chain checks, and security events. It needs qwed-verification 9.0.0 or later. [CHANGELOG.md](CHANGELOG.md) lists what each version has.
 
-**Try it:** [demo.qwedai.tech](https://demo.qwedai.tech) runs the dashboard from main. Choose **Explore with sample data**: the sample data stays in your browser, and there is no QWED server behind the demo. More screens are on [qwedai.tech](https://qwedai.tech/platform/dashboard).
+**Try it:** [demo.qwedai.tech](https://demo.qwedai.tech) runs the dashboard from main. It is built to offer **Explore with sample data** only, with no sign-in form: the sample data stays in your browser, and there is no QWED server behind the demo. More screens are on [qwedai.tech](https://qwedai.tech/platform/dashboard).
 
 ![QWED Dashboard with sample data: signing in, the Overview, the decision ledger, and a BLOCKED record with its checks](docs/media/qwed-dashboard-demo.gif)
 
@@ -85,6 +85,8 @@ npm run build
 ```
 
 `dist/` is a static site. Serve it behind the same origin as your QWED server and route `/api` to it, or set `VITE_QWED_API_BASE` at build time to call the server directly (the server's `QWED_CORS_ORIGINS` must then allow the dashboard's origin).
+
+To build a copy with no QWED server behind it, such as a public preview, set `VITE_SAMPLE_ONLY=true`. Its sign-in page then offers the sample data only, and the dashboard never sends a password. The hosted preview is built so, from `netlify.toml`.
 
 Have the web server or proxy that serves it send these headers with every page, so no other site can show the dashboard in a frame. In a frame, a page could lead a signed-in owner into clicks they did not mean, such as revoking an API key.
 

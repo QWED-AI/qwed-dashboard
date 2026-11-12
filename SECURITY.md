@@ -21,7 +21,7 @@ QWED Dashboard is a web app that runs in your browser and talks only to the QWED
 
 A problem in the QWED server, its API or its verification engines belongs to [qwed-verification](https://github.com/QWED-AI/qwed-verification/security/policy). If you are not sure which repository it belongs to, report it here and we will move it.
 
-The hosted preview at https://demo.qwedai.tech runs the dashboard from main, with no QWED server behind it. Its sample data stays in your browser. It is covered by this policy too.
+The hosted preview at https://demo.qwedai.tech runs the dashboard from main, with no QWED server behind it. It is built with `VITE_SAMPLE_ONLY=true`, so it offers the sample data only and has no sign-in form. The sample data stays in your browser. It is covered by this policy too.
 
 ## Reporting a vulnerability
 

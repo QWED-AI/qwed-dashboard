@@ -3,6 +3,7 @@ import { createContext, useCallback, useContext, useMemo, useState, type ReactNo
 import { demoApi } from '../api/demo';
 import { httpApi, type QwedApi } from '../api/http';
 import type { User } from '../api/types';
+import { SAMPLE_ONLY_NOTE, sampleOnly } from '../lib/sampleOnly';
 import { readStorage, writeStorage } from '../lib/storage';
 
 type Mode = 'live' | 'demo';
@@ -70,6 +71,8 @@ export function SessionProvider({ children }: Readonly<{ children: ReactNode }>)
       adminKey,
       setAdminKey,
       async signIn(email, password) {
+        // A sample-only copy sends no credentials anywhere, whatever calls this.
+        if (sampleOnly()) throw new Error(SAMPLE_ONLY_NOTE);
         const res = await httpApi.signIn(email, password);
         save({ mode: 'live', token: res.access_token, user: res.user });
       },
