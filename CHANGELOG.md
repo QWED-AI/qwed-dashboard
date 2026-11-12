@@ -2,6 +2,10 @@
 
 All notable changes to this project are listed here. Versions follow [Semantic Versioning](https://semver.org/). While the version is 0.x, a minor version can change what the dashboard shows or needs from the server.
 
+## [Unreleased]
+
+- **Sample-only builds.** A build with `VITE_SAMPLE_ONLY=true` offers the sample data only. Its sign-in page has no sign-in form and no link to create an owner, and the session refuses a sign-in. The hosted preview at https://demo.qwedai.tech is built so, from a new `netlify.toml`. Local and self-hosted builds are unchanged.
+
 ## [0.2.0]
 
 New screens for members, agents, batch jobs and the server; a Verification Context signature check; the qwed-verification 9.0.0 server features; the qwedai.tech look; and signed releases. The dashboard still only shows what the server stored. It never works out a verdict or an admission itself.

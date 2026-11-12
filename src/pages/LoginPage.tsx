@@ -3,9 +3,11 @@ import { Navigate, useLocation, useNavigate } from 'react-router';
 import { ApiError } from '../api/http';
 import { useSession } from '../auth/session';
 import { LakeFrame } from '../components/LakeFrame';
+import { SAMPLE_ONLY_NOTE, sampleOnly } from '../lib/sampleOnly';
 
 const REPO = 'https://github.com/QWED-AI/qwed-dashboard';
 const FIRST_OWNER = `${REPO}#first-sign-in-on-a-new-server`;
+const RUN_IT = `${REPO}#run-it`;
 
 /** The most of a password bcrypt, the server's password hash, reads (qwed-verification #548). */
 export const MAX_PASSWORD_BYTES = 72;
@@ -100,6 +102,30 @@ export function LoginPage() {
     // Back to the page the visitor asked for, as a sign-in does: a shared
     // link such as /ledger opens its page with the sample data.
     void navigate(from, { replace: true });
+  }
+
+  if (sampleOnly()) {
+    return (
+      <LakeFrame card={<AboutCard />}>
+        <div>
+          <p className="login-kicker">Hosted preview</p>
+          <h1 className="login-title">See what your server decided, and why.</h1>
+        </div>
+        <p className="hint" style={{ margin: 0 }}>
+          {SAMPLE_ONLY_NOTE} To see your own records,{' '}
+          <a href={RUN_IT} target="_blank" rel="noreferrer">
+            run the dashboard next to your QWED server
+          </a>
+          .
+        </p>
+        <button type="button" className="btn btn-primary" onClick={demo}>
+          Explore with sample data
+        </button>
+        <p className="hint" style={{ margin: 0 }}>
+          Sample data runs in your browser only. Nothing is sent to a server.
+        </p>
+      </LakeFrame>
+    );
   }
 
   return (

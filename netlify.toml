@@ -1,0 +1,9 @@
+# Netlify reads this file; it does nothing when the dashboard runs anywhere
+# else. The build command, publish folder and Node version are set in the
+# Netlify project.
+#
+# The hosted preview (https://demo.qwedai.tech) has no QWED server behind it,
+# so it is built to offer the sample data only, with no sign-in form
+# (src/lib/sampleOnly.ts).
+[build.environment]
+  VITE_SAMPLE_ONLY = "true"
