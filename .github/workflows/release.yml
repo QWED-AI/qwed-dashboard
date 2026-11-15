@@ -95,6 +95,8 @@ jobs:
           name="qwed-dashboard-$TAG"
           mkdir -p "release/$name"
           cp -R dist/. "release/$name/"
+          # The licence and the NOTICE attribution travel with the built site.
+          cp LICENSE NOTICE "release/$name/"
           cd release
           zip -r -X -q "$name.zip" "$name"
           rm -r "$name"
